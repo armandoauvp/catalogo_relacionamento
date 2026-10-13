@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowRight, Gift, Plus, ShoppingCart, Table2, Truck, type LucideIcon } from 'lucide-react'
 import type { Route } from 'next'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
@@ -8,7 +9,7 @@ import { saldoDoMes, saldoDoMesDoTime } from '@/lib/saldo'
 import { formatarBRL } from '@/lib/money'
 import { formatarData, intervaloDoMes } from '@/lib/datas'
 import { STATUS_FORA_DO_SALDO } from '@/lib/status'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -22,23 +23,64 @@ import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { cn } from '@/lib/utils'
 
-type Atalho = { href: Route; titulo: string; texto: string; acao: Acao }
+type Atalho = {
+  href: Route
+  titulo: string
+  texto: string
+  acao: Acao
+  icone: LucideIcon
+  /** A ação que o perfil mais faz: cartão cheio, em vez de contorno. */
+  principal?: boolean
+}
 
 /**
- * Os atalhos ficam em linhas de três e de dois numa grade de seis colunas, sem
- * sobrar cartão sozinho: cinco viram 3 + 2, quatro viram 2 + 2. Cada perfil
- * vê uma quantidade diferente, então a largura depende do total.
+ * Um atalho. O ícone é o mesmo da barra de navegação, para o caminho ser
+ * reconhecido nos dois lugares.
  */
-const LARGURA_DO_ATALHO = {
-  2: 'lg:col-span-2',
-  3: 'lg:col-span-3',
-  6: 'lg:col-span-6',
-} as const
-
-function larguraDosAtalhos(total: number): (keyof typeof LARGURA_DO_ATALHO)[] {
-  const linhas = total <= 3 ? [total] : total === 4 ? [2, 2] : [3, total - 3]
-  return linhas.flatMap((porLinha) =>
-    Array.from({ length: porLinha }, () => (6 / porLinha) as keyof typeof LARGURA_DO_ATALHO),
+function CartaoDeAtalho({ atalho }: { atalho: Atalho }) {
+  const { icone: Icone, principal } = atalho
+  return (
+    <Link
+      href={atalho.href}
+      className={cn(
+        'group focus-visible:ring-ring flex flex-col rounded-lg border p-5 outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        'transition-[box-shadow,border-color,background-color] duration-200 hover:shadow-[0_8px_24px_-12px_rgba(11,41,5,0.28)]',
+        principal
+          ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/92'
+          : 'bg-card hover:border-primary/30',
+      )}
+    >
+      <span className="flex items-start justify-between">
+        <span
+          className={cn(
+            'flex size-10 items-center justify-center rounded-lg border transition-colors duration-200',
+            principal
+              ? 'border-primary-foreground/25 bg-primary-foreground/10'
+              : 'bg-muted/60 group-hover:bg-foreground group-hover:text-background group-hover:border-foreground',
+          )}
+        >
+          <Icone className="size-5" aria-hidden="true" />
+        </span>
+        <ArrowRight
+          aria-hidden="true"
+          className={cn(
+            'size-4 -translate-x-1 opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100',
+            principal ? 'text-primary-foreground' : 'text-primary-emphasis',
+          )}
+        />
+      </span>
+      <span className="font-display mt-4 text-base leading-tight font-semibold">
+        {atalho.titulo}
+      </span>
+      <span
+        className={cn(
+          'mt-1 text-sm text-pretty',
+          principal ? 'text-primary-foreground/80' : 'text-muted-foreground',
+        )}
+      >
+        {atalho.texto}
+      </span>
+    </Link>
   )
 }
 
@@ -87,35 +129,40 @@ export default async function Home() {
       titulo: 'Nova solicitação',
       texto: 'Cliente, itens, entrega e a carta que acompanha o envio.',
       acao: 'solicitacao.criar',
+      icone: Plus,
+      principal: true,
     },
     {
       href: '/catalogo',
       titulo: 'Catálogo',
       texto: 'Ver os presentes disponíveis e o que há em estoque.',
       acao: 'catalogo.ver',
+      icone: Gift,
     },
     {
       href: '/financeiro/compras',
       titulo: 'Fila de compras',
       texto: 'Itens enviados para compra, com valor e site.',
       acao: 'compras.verFila',
+      icone: ShoppingCart,
     },
     {
       href: '/expedicao',
       titulo: 'Expedição',
       texto: 'Pedidos prontos para separar, com o endereço de envio.',
       acao: 'expedicao.verFila',
+      icone: Truck,
     },
     {
       href: '/admin/solicitacoes',
       titulo: 'Gestão',
       texto: 'Acompanhar o fluxo, alterar status e exportar.',
       acao: 'solicitacao.verTodas',
+      icone: Table2,
     },
   ]
 
   const atalhos = todos.filter((a) => pode(usuario.perfil, a.acao))
-  const larguras = larguraDosAtalhos(atalhos.length)
 
   return (
     <>
@@ -230,28 +277,11 @@ export default async function Home() {
           <h2 className="font-ui text-muted-foreground mb-3 text-xs font-semibold tracking-[0.14em] uppercase">
             Atalhos
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            {atalhos.map((a, i) => (
-              <Link
-                key={a.href}
-                href={a.href}
-                className={cn('group', LARGURA_DO_ATALHO[larguras[i]!])}
-              >
-                <Card className="hover:border-primary/30 h-full transition-[box-shadow,border-color] duration-200 hover:shadow-[0_8px_24px_-12px_rgba(11,41,5,0.28)]">
-                  <CardHeader className="p-5">
-                    <CardTitle className="group-hover:text-primary-emphasis flex items-center gap-2 text-base transition-colors">
-                      {a.titulo}
-                      <span
-                        aria-hidden="true"
-                        className="transition-transform duration-200 group-hover:translate-x-1"
-                      >
-                        →
-                      </span>
-                    </CardTitle>
-                    <CardDescription className="text-pretty">{a.texto}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+          {/* Grade fluida: cada perfil tem um número diferente de atalhos, e
+              eles dividem a largura que houver, numa linha só no computador. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(13.5rem,1fr))] gap-3">
+            {atalhos.map((a) => (
+              <CartaoDeAtalho key={a.href} atalho={a} />
             ))}
           </div>
         </div>
