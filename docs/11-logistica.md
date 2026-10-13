@@ -121,11 +121,20 @@ suposição, em `PONTE`.
 
 ## Dados de exemplo
 
-`npm run db:seed` cria cerca de 115
-demandas **fictícias** em 14 semanas (`prisma/exemplo-logistica.ts`), com
-datas relativas a hoje, três membros de equipe inventados e um status manual
-no histórico. Departamentos e subsidiárias são ilustrativos. A carga de
-produção (`db:catalogo`) não leva nada disso.
+`npm run db:seed` cria meio ano **fictício** de Logística
+(`prisma/exemplo-logistica.ts`), com datas relativas a hoje:
+
+- cerca de 150 demandas **pontuais** em 26 semanas, em oito departamentos,
+  com prazo, prioridade e atraso sorteados, e algumas arquivadas;
+- cerca de 120 **recorrentes** em sete séries (malote, correspondência,
+  reposição da Escola...), cada ocorrência ligada à anterior como a trilha
+  faz ao concluir;
+- os **presentes aprovados** das solicitações de exemplo
+  (`prisma/exemplo-presentes.ts`), na fase que a ponte daria a eles;
+- quatro membros de equipe inventados e dois status manuais no histórico.
+
+Departamentos, subsidiárias e pessoas são ilustrativos. A carga de produção
+(`db:catalogo`) não leva nada disso.
 
 ## O período
 

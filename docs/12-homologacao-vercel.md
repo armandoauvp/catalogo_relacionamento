@@ -61,6 +61,14 @@ fictícios** sem esperar o client do Keycloak. No **modo demonstração**:
 Tudo funciona como na ferramenta de verdade: aprovar, mudar status, exportar,
 cadastrar. O que alguém muda testando fica gravado até o próximo deploy.
 
+**O que tem lá.** Uns cinco meses de uso inventado: 40 clientes e cerca de 180
+solicitações em todos os status, com histórico, rastreio, presentes na trilha,
+um mês em que cada consultor estourou o limite e a Fernanda perto do teto no
+mês atual; e meio ano da Logística, com as recorrentes encadeadas. As
+solicitações entram uma vez só e guardam as datas da carga; as demandas da
+Logística são refeitas a cada deploy, relativas ao dia. Ver
+`prisma/exemplo-presentes.ts` e `prisma/exemplo-logistica.ts`.
+
 **Para ligar**, em Settings → Environment Variables, ambiente Production:
 
 | Variável            | Valor                                                 |

@@ -7,9 +7,11 @@ import { existsSync, readdirSync } from 'node:fs'
 import { PrismaClient, MotivoEnvio, StatusSolicitacao, TipoValor } from '@prisma/client'
 import { formatarCodigo } from '../src/lib/codigo'
 import { USUARIOS_DA_DEMONSTRACAO } from '../src/lib/demonstracao'
+import { sincronizarDemandaDoPresente } from '../src/lib/logistica/ponte'
 import { totalDosItens } from '../src/lib/money'
 import { CATALOGO_AUVP, CATEGORIAS_AUVP, slugDoProduto } from './catalogo-auvp'
 import { semearLogistica } from './exemplo-logistica'
+import { semearPresentes } from './exemplo-presentes'
 
 /**
  * Carga inicial do banco.
@@ -19,10 +21,11 @@ import { semearLogistica } from './exemplo-logistica'
  * ferramenta estiver no ar, quem manda é o CRUD de catálogo, este arquivo é o
  * ponto de partida.
  *
- * O resto (usuários, clientes, algumas solicitações e as demandas da
- * Logística, em `prisma/exemplo-logistica.ts`) é exemplo mesmo, para
- * que quem clonar o repositório abra as telas com conteúdo plausível:
- * solicitações em status diferentes e uma com presente específico com link.
+ * O resto é exemplo mesmo, para que quem clonar o repositório, e quem abre a
+ * homologação, veja as telas com o volume e a variedade do uso real: usuários,
+ * três solicitações escritas à mão, uns cinco meses de pedidos em
+ * `prisma/exemplo-presentes.ts` e meio ano da Logística em
+ * `prisma/exemplo-logistica.ts`.
  *
  * O seed é idempotente: roda quantas vezes precisar sem duplicar.
  */
@@ -120,7 +123,8 @@ async function main() {
   }
   console.log(`  ${clientes.size} clientes`)
 
-  // Solicitações de exemplo, uma por situação interessante.
+  // Três solicitações escritas à mão, uma por situação interessante. O volume
+  // vem depois, de `semearPresentes`.
   //
   // Os tipos são explícitos porque um array literal heterogêneo faria o
   // TypeScript inferir uma união frouxa, e a narrowing por `'produto' in item`
@@ -252,11 +256,17 @@ async function main() {
     })
 
     await db.$transaction(async (tx) => {
-      await tx.contadorCodigo.upsert({
-        where: { ano: new Date().getFullYear() },
-        create: { ano: new Date().getFullYear(), valor: indice + 1 },
-        update: { valor: indice + 1 },
-      })
+      // O contador só sobe: com solicitações já criadas pela tela, ele está
+      // adiante destas, e voltar atrás repetiria códigos.
+      const ano = new Date().getFullYear()
+      const contador = await tx.contadorCodigo.findUnique({ where: { ano } })
+      if ((contador?.valor ?? 0) < indice + 1) {
+        await tx.contadorCodigo.upsert({
+          where: { ano },
+          create: { ano, valor: indice + 1 },
+          update: { valor: indice + 1 },
+        })
+      }
 
       const solicitacao = await tx.solicitacao.create({
         data: {
@@ -296,11 +306,32 @@ async function main() {
 
     criadas++
   }
-  console.log(`  ${criadas} solicitações`)
+  console.log(`  ${criadas} solicitações escritas à mão`)
+
+  // As três acima foram gravadas direto no status, sem passar pela mudança de
+  // status que abre a demanda na trilha. A ponte é chamada aqui como a tela
+  // chamaria, no instante da aprovação.
+  const semDemanda = await db.solicitacao.findMany({
+    where: {
+      codigo: { in: exemplos.map((_, i) => formatarCodigo(new Date().getFullYear(), i + 1)) },
+      demanda: null,
+    },
+    select: { id: true, status: true, historico: { orderBy: { criadoEm: 'desc' }, take: 1 } },
+  })
+  for (const s of semDemanda) {
+    await db.$transaction((tx) =>
+      sincronizarDemandaDoPresente(tx, s.id, s.status, s.historico[0]?.criadoEm),
+    )
+  }
+
+  const presentes = await semearPresentes(db, { usuarios, produtos })
+  console.log(
+    `  ${presentes.clientes} clientes de exemplo e ${presentes.solicitacoes} solicitações novas`,
+  )
 
   const logistica = await semearLogistica(db)
   console.log(
-    `  ${logistica.demandas} demandas da Logística e ${logistica.membros} membros da equipe`,
+    `  ${logistica.pontuais} demandas pontuais, ${logistica.recorrentes} recorrentes e ${logistica.membros} membros da equipe`,
   )
   console.log('Pronto.')
 }

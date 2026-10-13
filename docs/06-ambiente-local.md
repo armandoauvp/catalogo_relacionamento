@@ -43,7 +43,7 @@ Depois:
 docker compose up -d          # Postgres em localhost:5432 (pule se não usar Docker)
 npm install
 npm run db:migrate            # cria as tabelas
-npm run db:seed               # catálogo real, usuários, clientes e solicitações de exemplo
+npm run db:seed               # catálogo real, usuários e uns cinco meses de uso fictício
 npm run dev
 ```
 
