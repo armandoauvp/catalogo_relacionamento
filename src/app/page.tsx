@@ -20,8 +20,27 @@ import {
 import { StatusBadge } from '@/components/status-badge'
 import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina } from '@/components/pagina'
+import { cn } from '@/lib/utils'
 
 type Atalho = { href: Route; titulo: string; texto: string; acao: Acao }
+
+/**
+ * Os atalhos ficam em linhas de três e de dois numa grade de seis colunas, sem
+ * sobrar cartão sozinho: cinco viram 3 + 2, quatro viram 2 + 2. Cada perfil
+ * vê uma quantidade diferente, então a largura depende do total.
+ */
+const LARGURA_DO_ATALHO = {
+  2: 'lg:col-span-2',
+  3: 'lg:col-span-3',
+  6: 'lg:col-span-6',
+} as const
+
+function larguraDosAtalhos(total: number): (keyof typeof LARGURA_DO_ATALHO)[] {
+  const linhas = total <= 3 ? [total] : total === 4 ? [2, 2] : [3, total - 3]
+  return linhas.flatMap((porLinha) =>
+    Array.from({ length: porLinha }, () => (6 / porLinha) as keyof typeof LARGURA_DO_ATALHO),
+  )
+}
 
 export default async function Home() {
   const usuario = await exigirUsuario()
@@ -96,6 +115,7 @@ export default async function Home() {
   ]
 
   const atalhos = todos.filter((a) => pode(usuario.perfil, a.acao))
+  const larguras = larguraDosAtalhos(atalhos.length)
 
   return (
     <>
@@ -145,8 +165,10 @@ export default async function Home() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      {/* Bloco, e não grade: item de grade cresce até a largura mínima da
+          tabela e abriria rolagem lateral no celular. */}
+      <div className="space-y-10">
+        <div>
           <h2 className="font-ui text-muted-foreground mb-3 text-xs font-semibold tracking-[0.14em] uppercase">
             Últimas solicitações
           </h2>
@@ -208,10 +230,14 @@ export default async function Home() {
           <h2 className="font-ui text-muted-foreground mb-3 text-xs font-semibold tracking-[0.14em] uppercase">
             Atalhos
           </h2>
-          <div className="grid gap-3">
-            {atalhos.map((a) => (
-              <Link key={a.href} href={a.href} className="group">
-                <Card className="hover:border-primary/30 transition-[box-shadow,border-color] duration-200 hover:shadow-[0_8px_24px_-12px_rgba(11,41,5,0.28)]">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            {atalhos.map((a, i) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className={cn('group', LARGURA_DO_ATALHO[larguras[i]!])}
+              >
+                <Card className="hover:border-primary/30 h-full transition-[box-shadow,border-color] duration-200 hover:shadow-[0_8px_24px_-12px_rgba(11,41,5,0.28)]">
                   <CardHeader className="p-5">
                     <CardTitle className="group-hover:text-primary-emphasis flex items-center gap-2 text-base transition-colors">
                       {a.titulo}
