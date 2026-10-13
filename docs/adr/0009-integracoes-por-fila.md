@@ -1,6 +1,12 @@
 # 0009: Integrações externas por fila no banco
 
-**Estado:** decidida. A implementação entra com a ponte para ClickUp e Tiny.
+**Estado:** decidida, revista em 09/10/2026.
+
+**Revisão:** a trilha da Logística passou a ser cadastrada aqui dentro, e não
+no ClickUp. A demanda do presente aprovado deixou de ser integração externa:
+ela nasce na própria transação da mudança de status
+(`src/lib/logistica/ponte.ts`), sem fila. A fila continua valendo para o que é
+de fato externo, o pedido no Tiny. O texto abaixo é o da decisão original.
 
 ## Contexto
 

@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { FaseOperacional, PrioridadeDemanda } from '@prisma/client'
+import { Prisma, type FaseOperacional, type PrioridadeDemanda } from '@prisma/client'
 import { lerPeriodo, fatiasDoPeriodo } from '@/lib/periodo'
 import {
   compararNaTrilha,
+  concluidaEmParaFase,
+  contarRecorrentes,
   estavaAberta,
   estavaAtrasada,
-  formatarDuracao,
-  horasPorProduto,
+  mostraPrevisaoDeInicio,
   oQueEstaSendoEnviado,
+  proximaOcorrencia,
   SEM_DEPARTAMENTO,
   variacao,
   volumePorDepartamento,
@@ -111,12 +113,18 @@ describe('ordem da trilha', () => {
 })
 
 describe('volume por departamento', () => {
+  const d = (departamento: string | null, custo: string | null, subsidiaria = 'Do Not Scare') => ({
+    subsidiaria,
+    departamento,
+    custoEnvio: custo === null ? null : new Prisma.Decimal(custo),
+  })
+
   it('conta, ordena do maior para o menor e soma 100%', () => {
     const linhas = volumePorDepartamento([
-      { subsidiaria: 'Do Not Scare', departamento: 'Produto & CX' },
-      { subsidiaria: 'Do Not Scare', departamento: 'Produto & CX' },
-      { subsidiaria: 'Do Not Scare', departamento: 'Produto & CX' },
-      { subsidiaria: 'AUVP Capital', departamento: 'Consultoria' },
+      d('Produto & CX', '10'),
+      d('Produto & CX', '15.50'),
+      d('Produto & CX', null),
+      d('Consultoria', '30', 'AUVP Consultoria'),
     ])
     expect(linhas.map((l) => [l.departamento, l.quantidade])).toEqual([
       ['Produto & CX', 3],
@@ -125,9 +133,22 @@ describe('volume por departamento', () => {
     expect(linhas.reduce((s, l) => s + l.percentual, 0)).toBeCloseTo(100)
   })
 
+  it('soma o custo informado e conta à parte o que veio sem custo', () => {
+    const [produto] = volumePorDepartamento([
+      d('Produto & CX', '10'),
+      d('Produto & CX', '15.50'),
+      d('Produto & CX', null),
+    ])
+    expect(produto!.custo.toString()).toBe('25.5')
+    expect(produto!.semCusto).toBe(1)
+  })
+
   it('departamento vazio vai para um balde nomeado, não some', () => {
-    const [linha] = volumePorDepartamento([{ subsidiaria: null, departamento: '  ' }])
+    const [linha] = volumePorDepartamento([
+      { subsidiaria: null, departamento: '  ', custoEnvio: null },
+    ])
     expect(linha!.departamento).toBe(SEM_DEPARTAMENTO)
+    expect(linha!.custo.toString()).toBe('0')
   })
 
   it('sem demanda, sem linha', () => {
@@ -135,28 +156,75 @@ describe('volume por departamento', () => {
   })
 })
 
-describe('horas por produto', () => {
-  it('soma minutos, conta envios e tira a média por envio', () => {
-    const [holding, consultoria] = horasPorProduto([
-      { produto: 'Holding', minutosApontados: 600 },
-      { produto: 'Holding', minutosApontados: 480 },
-      { produto: 'Consultoria', minutosApontados: 26 },
-      { produto: 'The Brain', minutosApontados: 0 },
-    ])
-    expect(holding).toEqual({ produto: 'Holding', minutos: 1080, envios: 2, mediaPorEnvio: 540 })
-    expect(consultoria!.produto).toBe('Consultoria')
+describe('data de conclusão acompanha a fase', () => {
+  const ontem = new Date('2026-08-18T15:00:00Z')
+
+  it('entrar em Concluído grava agora; já concluída, mantém a data original', () => {
+    expect(concluidaEmParaFase('concluido', null, AGORA)).toEqual(AGORA)
+    expect(concluidaEmParaFase('concluido', ontem, AGORA)).toEqual(ontem)
   })
 
-  it('produto sem apontamento fica de fora', () => {
-    expect(horasPorProduto([{ produto: 'The Brain', minutosApontados: 0 }])).toEqual([])
+  it('sair de Concluído apaga a data', () => {
+    expect(concluidaEmParaFase('revisao', ontem, AGORA)).toBeNull()
   })
 })
 
-describe('formatarDuracao', () => {
-  it('escreve como a proposta', () => {
-    expect(formatarDuracao(26)).toBe('26 min')
-    expect(formatarDuracao(102)).toBe('1h42')
-    expect(formatarDuracao(1080)).toBe('18h')
+describe('próxima ocorrência de uma recorrente', () => {
+  it('semanal anda sete dias nas duas previsões', () => {
+    const p = proximaOcorrencia(
+      {
+        periodicidade: 'semanal',
+        previsaoInicio: dia('2026-08-18'),
+        previsaoConclusao: dia('2026-08-21'),
+      },
+      AGORA,
+    )
+    expect(p.previsaoInicio).toEqual(dia('2026-08-25'))
+    expect(p.previsaoConclusao).toEqual(dia('2026-08-28'))
+    expect(p.solicitadaEm).toEqual(AGORA)
+  })
+
+  it('concluída muito tarde, pula até a primeira previsão que ainda está por vir', () => {
+    const p = proximaOcorrencia(
+      { periodicidade: 'semanal', previsaoInicio: null, previsaoConclusao: dia('2026-08-01') },
+      AGORA,
+    )
+    expect(p.previsaoConclusao).toEqual(dia('2026-08-22'))
+    expect(p.previsaoInicio).toBeNull()
+  })
+
+  it('mensal anda pelo calendário: 31/01 vai a 28/02', () => {
+    const p = proximaOcorrencia(
+      { periodicidade: 'mensal', previsaoInicio: null, previsaoConclusao: dia('2027-01-31') },
+      dia('2027-01-20'),
+    )
+    expect(p.previsaoConclusao).toEqual(dia('2027-02-28'))
+  })
+
+  it('quinzenal anda catorze dias', () => {
+    const p = proximaOcorrencia(
+      { periodicidade: 'quinzenal', previsaoInicio: null, previsaoConclusao: dia('2026-08-20') },
+      AGORA,
+    )
+    expect(p.previsaoConclusao).toEqual(dia('2026-09-03'))
+  })
+})
+
+describe('recorrentes e previsão de início', () => {
+  it('separa recorrentes de pontuais', () => {
+    expect(
+      contarRecorrentes([{ recorrente: true }, { recorrente: false }, { recorrente: true }]),
+    ).toEqual({
+      recorrentes: 2,
+      pontuais: 1,
+    })
+  })
+
+  it('a previsão de início só aparece antes de a demanda começar', () => {
+    expect(mostraPrevisaoDeInicio('recebido')).toBe(true)
+    expect(mostraPrevisaoDeInicio('em_analise')).toBe(true)
+    expect(mostraPrevisaoDeInicio('em_execucao')).toBe(false)
+    expect(mostraPrevisaoDeInicio('concluido')).toBe(false)
   })
 })
 

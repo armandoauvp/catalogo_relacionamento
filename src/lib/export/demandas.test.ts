@@ -5,6 +5,7 @@ import { gerarCsv } from './csv'
 
 const demanda: DemandaNaTrilha = {
   id: 'd1',
+  origem: 'manual',
   titulo: 'Kit boas-vindas turma 12',
   clickupUrl: 'https://app.clickup.com/t/abc',
   linkFormulario: null,
@@ -22,7 +23,12 @@ const demanda: DemandaNaTrilha = {
   solicitadaEm: new Date('2026-08-17T15:00:00Z'),
   previsaoInicio: null,
   previsaoConclusao: new Date('2026-08-21T15:00:00Z'),
+  mostrarInicio: false,
   concluidaEm: null,
+  custoEnvio: '42.90',
+  recorrente: true,
+  periodicidade: 'semanal',
+  itens: ['Camiseta', 'Caneca'],
 }
 
 describe('exportação da trilha', () => {
@@ -35,6 +41,9 @@ describe('exportação da trilha', () => {
       itens: 'Camiseta, Caneca',
       previsaoConclusao: '2026-08-21',
       previsaoInicio: null,
+      origem: 'Manual',
+      recorrencia: 'Semanal',
+      valorCustoEnvio: 42.9,
     })
   })
 

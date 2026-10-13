@@ -26,6 +26,7 @@ duplique numa tela.
 | Período do Dashboard Logístico  | `src/lib/periodo.ts`                      |
 | Status da semana e limiares     | `src/lib/logistica/status-operacional.ts` |
 | Trilha, "Kit", atraso e somas   | `src/lib/logistica/demandas.ts`           |
+| Presente aprovado → trilha      | `src/lib/logistica/ponte.ts`              |
 | Kit que exige bebida junto      | `src/lib/acompanhamentos.ts`              |
 | Modelos e montagem da carta     | `src/lib/carta.ts`                        |
 | Fornecedor padrão por categoria | `src/lib/fornecedores.ts`                 |
@@ -173,8 +174,11 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
 - **Observação de demanda é filtrada no servidor.** Quem não tem
   `logistica.verObservacoes` não recebe o texto nem no HTML nem na planilha;
   esconder na tela não basta.
-- **Integração externa não trava a aprovação.** ClickUp e Tiny entram por fila
-  no banco, gravada na mesma transação da mudança de status ([ADR 0009](docs/adr/0009-integracoes-por-fila.md)).
+- **A trilha é manual.** A Logística cadastra as demandas aqui; ela não
+  espelha o ClickUp, que é só um link. O presente aprovado entra sozinho, na
+  mesma transação da mudança de status (`src/lib/logistica/ponte.ts`).
+- **Integração externa não trava a aprovação.** O Tiny entra por fila no banco,
+  gravada na mesma transação da mudança de status ([ADR 0009](docs/adr/0009-integracoes-por-fila.md)).
 
 ## Catálogo e fotos
 

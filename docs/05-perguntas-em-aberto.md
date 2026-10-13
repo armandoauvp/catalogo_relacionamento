@@ -195,6 +195,14 @@ tomada em 08/10/2026:
 > Dashboard Logístico existe só como protótipo e é construído aqui. O
 > AUVP-Eventos é referência para a integração com o Tiny, não base de código.
 
+E em 09/10/2026, nos áudios da Logística:
+
+> A trilha é manual, não espelha o ClickUp. Horas saem. Recorrentes são 50 a
+> 60% do trabalho. Equipe e FAQ a própria Logística preenche.
+
+Com isso, a solicitação aprovada passa a entrar **na trilha**, e não no
+ClickUp. Ver [Logística](11-logistica.md#a-ponte-com-os-presentes).
+
 ### Quem vê o Dashboard Logístico?
 
 **Assumido:** todos os perfis, porque a proposta pede leitura "desde operação
@@ -211,13 +219,27 @@ rastreio, que até aqui eram de Admin e Financeiro por falta de quem operasse
 dentro da ferramenta.
 **Onde mudar:** a coluna `logistica` da matriz em `src/lib/permissions.ts`.
 
-### Quando nasce a tarefa no ClickUp, e quando nasce o pedido no Tiny?
+### Quando o presente entra na trilha, e quando nasce o pedido no Tiny? ✅
 
-**Assumido:** a tarefa nasce **na aprovação**, para a Logística enxergar a
-demanda e a previsão desde cedo, na fase "Aguardando suprimentos" se ainda
-houver compra, ou "Recebido" se tudo sai do estoque. O pedido no Tiny nasce em
-**"Organizando envio"**, quando tudo está comprado: antes disso não há o que
-despachar. Ver [ADR 0009](adr/0009-integracoes-por-fila.md).
+**Decidido em 09/10/2026:** o presente entra **na trilha** na aprovação, na
+mesma transação da mudança de status, e cada status seguinte move a fase. Não
+há tarefa no ClickUp nem fila para isso. O pedido no Tiny continua planejado
+para "Organizando envio", por fila ([ADR 0009](adr/0009-integracoes-por-fila.md)).
+
+**Assumido:** o presente aparece como subsidiária "AUVP Consultoria",
+departamento "Relacionamento", com previsão de 7 dias, ou 15 quando ainda há
+compra. **Onde mudar:** `PONTE` em `src/lib/logistica/ponte.ts`.
+
+### Previsão de início é redundante? ✅
+
+**Decidido:** fica, opcional, e só aparece na trilha enquanto a demanda não
+começou. Ver [Logística](11-logistica.md#como-o-painel-conta).
+
+### Tarefas recorrentes ✅
+
+**Decidido em 09/10/2026:** marcação de recorrente com periodicidade, e a
+próxima ocorrência nasce sozinha ao concluir. Os números separam recorrentes
+de pontuais. Nada é criado no ClickUp.
 
 ### Quais números tornam a semana "alto volume" ou "crítica"?
 
@@ -234,15 +256,10 @@ Produto & CX". **Assumido:** os dois vêm de campos do ClickUp, como texto; o
 seed traz uma lista ilustrativa. Falta a lista real, que só importa para
 conferir o mapeamento quando o ClickUp for ligado.
 
-### O que falta saber do ClickUp
+### ClickUp ✅
 
-- qual lista ou espaço é o da Logística;
-- os nomes dos campos personalizados: produto, departamento, subsidiária,
-  prioridade, complexidade, previsão de início e de conclusão, link do
-  formulário, observações;
-- se as horas vêm do controle de tempo do próprio ClickUp;
-- um token de API, de preferência de uma conta de serviço, que vai para o
-  `.env` e nunca para o repositório.
+**Decidido em 09/10/2026:** a trilha não espelha o ClickUp. A tarefa lá,
+quando existe, é um link na demanda. Não é preciso token nem mapear campos.
 
 ### O que falta saber do Tiny
 

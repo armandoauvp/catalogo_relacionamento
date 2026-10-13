@@ -21,6 +21,7 @@ import {
   rastreioSchema,
 } from '@/lib/validators/solicitacao'
 import { clienteSchema } from '@/lib/validators/cliente'
+import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -293,9 +294,9 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
     const checagem = validarMudancaDeStatus(solicitacao.status, statusNovo, motivo)
     if (!checagem.ok) return { ok: false, erro: checagem.erro }
 
-    await db.$transaction([
-      db.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } }),
-      db.solicitacaoHistorico.create({
+    await db.$transaction(async (tx) => {
+      await tx.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } })
+      await tx.solicitacaoHistorico.create({
         data: {
           solicitacaoId: solicitacao.id,
           statusAnterior: solicitacao.status,
@@ -303,14 +304,18 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
           usuarioId: usuario.id,
           motivo,
         },
-      }),
-    ])
+      })
+      // Aprovado, o presente entra na trilha da Logística; os status seguintes
+      // movem a fase. Na mesma transação: ou anda tudo, ou nada.
+      await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
+    })
 
     revalidatePath(`/admin/solicitacoes/${solicitacao.id}`)
     revalidatePath('/admin/solicitacoes')
     revalidatePath('/financeiro/compras')
     revalidatePath('/expedicao')
     revalidatePath('/solicitacoes')
+    revalidatePath('/logistica')
     return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)
@@ -393,6 +398,8 @@ export async function encaminharEmLote(
           })
           anterior = passo
         }
+
+        await sincronizarDemandaDoPresente(tx, solicitacao.id, anterior)
       })
 
       const ultimo = caminho.passos[caminho.passos.length - 1]!
@@ -403,6 +410,7 @@ export async function encaminharEmLote(
     revalidatePath('/financeiro/compras')
     revalidatePath('/expedicao')
     revalidatePath('/solicitacoes')
+    revalidatePath('/logistica')
     return { ok: true, dados: resumo }
   } catch (e) {
     return comoErro(e)

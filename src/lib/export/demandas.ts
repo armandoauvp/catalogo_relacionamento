@@ -1,5 +1,11 @@
 import { formatarISO } from '@/lib/datas'
-import { ROTULO_COMPLEXIDADE, ROTULO_FASE, ROTULO_PRIORIDADE } from '@/lib/logistica/demandas'
+import { paraNumero } from '@/lib/money'
+import {
+  ROTULO_COMPLEXIDADE,
+  ROTULO_FASE,
+  ROTULO_PERIODICIDADE,
+  ROTULO_PRIORIDADE,
+} from '@/lib/logistica/demandas'
 import type { DemandaNaTrilha } from '@/lib/logistica/painel'
 import type { ColunaExport } from './linhas'
 
@@ -22,6 +28,10 @@ const COLUNAS_BASE = [
   { chave: 'departamento', titulo: 'Departamento', largura: 22, tipo: 'texto' },
   { chave: 'produto', titulo: 'Produto', largura: 22, tipo: 'texto' },
   { chave: 'complexidade', titulo: 'Complexidade', largura: 13, tipo: 'texto' },
+  { chave: 'origem', titulo: 'Origem', largura: 12, tipo: 'texto' },
+  { chave: 'recorrencia', titulo: 'Recorrência', largura: 13, tipo: 'texto' },
+  // `valor` no começo da chave é o que faz a planilha formatar em reais.
+  { chave: 'valorCustoEnvio', titulo: 'Custo do envio', largura: 15, tipo: 'numero' },
   { chave: 'responsavel', titulo: 'Responsável', largura: 22, tipo: 'texto' },
   { chave: 'solicitadaEm', titulo: 'Solicitada em', largura: 14, tipo: 'data' },
   { chave: 'previsaoInicio', titulo: 'Previsão de início', largura: 16, tipo: 'data' },
@@ -45,6 +55,8 @@ export function colunasDaTrilha(verObservacoes: boolean): readonly ColunaExport[
 type Chave = (typeof COLUNAS_BASE)[number]['chave'] | typeof COLUNA_OBSERVACOES.chave
 export type LinhaDaTrilha = Record<Chave, string | number | null>
 
+const ROTULO_ORIGEM = { manual: 'Manual', solicitacao: 'Presente', clickup: 'ClickUp' } as const
+
 const data = (d: Date | null) => (d ? formatarISO(d) : null)
 
 export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTrilha[] {
@@ -59,6 +71,10 @@ export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTri
     departamento: d.departamento,
     produto: d.produto,
     complexidade: d.complexidade ? ROTULO_COMPLEXIDADE[d.complexidade] : null,
+    origem: ROTULO_ORIGEM[d.origem],
+    recorrencia:
+      d.recorrente && d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Pontual',
+    valorCustoEnvio: d.custoEnvio === null ? null : paraNumero(d.custoEnvio),
     responsavel: d.responsavel,
     solicitadaEm: data(d.solicitadaEm),
     previsaoInicio: data(d.previsaoInicio),

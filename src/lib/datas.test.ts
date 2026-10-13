@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anoCorrente, formatarISO, intervaloDoMes } from './datas'
+import { anoCorrente, fimDoDiaLocal, formatarISO, intervaloDoMes } from './datas'
 
 describe('intervalo do mês', () => {
   it('cobre o mês inteiro no fuso de São Paulo', () => {
@@ -37,5 +37,22 @@ describe('ano corrente', () => {
 describe('formatação ISO', () => {
   it('usa a data local', () => {
     expect(formatarISO(new Date('2026-04-01T01:00:00Z'))).toBe('2026-03-31')
+  })
+})
+
+describe('fim do dia local', () => {
+  it('é o último milissegundo do dia em São Paulo', () => {
+    // 15/10/2026 23:59:59.999 em São Paulo = 16/10 02:59:59.999 UTC.
+    expect(fimDoDiaLocal('2026-10-15')?.toISOString()).toBe('2026-10-16T02:59:59.999Z')
+  })
+
+  it('volta para o mesmo dia ao formatar, sem escorregar para o seguinte', () => {
+    expect(formatarISO(fimDoDiaLocal('2026-12-31')!)).toBe('2026-12-31')
+  })
+
+  it('recusa data vazia ou impossível', () => {
+    expect(fimDoDiaLocal('')).toBeNull()
+    expect(fimDoDiaLocal('2026-02-30')).toBeNull()
+    expect(fimDoDiaLocal(undefined)).toBeNull()
   })
 })

@@ -67,3 +67,27 @@ export function formatarISO(data: Date): string {
   const { ano, mes, dia } = partesLocais(data)
   return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
 }
+
+/**
+ * O último instante de um dia do calendário de São Paulo, a partir do
+ * `AAAA-MM-DD` de um `<input type="date">`.
+ *
+ * Previsão "15/10" quer dizer "até o fim do dia 15". Gravada como meia-noite,
+ * a demanda passaria a contar como atrasada desde o começo do próprio dia
+ * em que vence. Data impossível ou vazia volta nula.
+ */
+export function fimDoDiaLocal(diaIso: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(diaIso ?? '')
+  if (!m) return null
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const conferido = new Date(Date.UTC(ano, mes - 1, dia))
+  if (conferido.getUTCMonth() !== mes - 1 || conferido.getUTCDate() !== dia) return null
+  const seguinte = new Date(Date.UTC(ano, mes - 1, dia + 1))
+  return new Date(
+    instanteLocal(
+      seguinte.getUTCFullYear(),
+      seguinte.getUTCMonth() + 1,
+      seguinte.getUTCDate(),
+    ).getTime() - 1,
+  )
+}

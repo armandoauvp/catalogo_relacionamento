@@ -1641,7 +1641,8 @@ function telaUsuarios() {
 /**
  * Dashboard Logístico. Espelha `src/app/logistica/page.tsx` com os dados
  * congelados de `LOGISTICA`: status em destaque, números, volume por
- * departamento, evolução, horas e a trilha com a esteira prioritária dentro.
+ * departamento, evolução e a trilha cadastrada pela Logística, com a esteira
+ * prioritária dentro, os recorrentes e os presentes que entram sozinhos.
  * As observações só aparecem para Logística e Admin, como na matriz.
  */
 const SITUACAO = {
@@ -1660,13 +1661,6 @@ const FASE = {
   revisao: ['Revisão', 'bg-info text-info-foreground'],
   finalizacao: ['Finalização', 'bg-info text-info-foreground'],
   concluido: ['Concluído', 'bg-success text-success-foreground'],
-}
-
-function duracao(min) {
-  if (min < 60) return `${min} min`
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
 }
 
 /** Dica no hover e no foco; no celular, fixa no pé da tela. */
@@ -1692,7 +1686,10 @@ function previsaoDaDemanda(d) {
     return `<p class="text-sm font-medium text-error md:text-right">Atrasada desde ${d.atrasada}</p>`
   }
   if (d.previsao) {
-    return `<p class="text-sm md:text-right"><span class="text-muted-foreground">Previsão </span>${d.previsao}</p>`
+    const inicio = d.inicio
+      ? `<span class="block text-xs text-muted-foreground">Começa ${d.inicio}</span>`
+      : ''
+    return `<p class="text-sm md:text-right">${inicio}<span class="text-muted-foreground">Previsão </span>${d.previsao}</p>`
   }
   return '<p class="text-sm font-medium md:text-right"><span class="text-warning">●</span> Sem previsão</p>'
 }
@@ -1703,7 +1700,6 @@ function telaLogistica() {
   const doTime = perfil === 'logistica' || perfil === 'admin'
   const dif = L.volume.total - L.volume.anterior
   const maiorDep = Math.max(...L.porDepartamento.flatMap((g) => g.linhas.map((l) => l[1])))
-  const maiorHora = Math.max(...L.horas.map((h) => h[1]))
   const marcas = [0, 10, 20, 30, 40]
   const teto = 40
   const n = L.evolucao.length
@@ -1748,7 +1744,9 @@ function telaLogistica() {
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             ${prioritaria ? `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${d.prioridade === 'Urgente' ? 'bg-error text-error-foreground' : 'bg-warning text-warning-foreground'}">${d.prioridade}</span>` : ''}
-            <span class="font-medium underline-offset-4 hover:underline">${esc(d.titulo)} <span class="text-xs opacity-60">↗</span></span>
+            ${d.presente ? '<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">🎁 Presente</span>' : ''}
+            ${d.recorrente ? `<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">↻ ${d.recorrente}</span>` : ''}
+            <span class="font-medium">${esc(d.titulo)}</span>
             ${doTime && d.obs ? dica('ⓘ', d.obs) : ''}
           </div>
           <p class="mt-1 text-sm text-muted-foreground"><span class="text-foreground">${enviado}</span> · ${esc(d.contexto)}</p>
@@ -1757,18 +1755,6 @@ function telaLogistica() {
         ${previsaoDaDemanda(d)}
       </li>`
     })
-    .join('')
-
-  const horas = L.horas
-    .map(
-      ([p, m, e]) => `
-      <tr class="border-b last:border-0">
-        <td class="py-2.5 pr-3">${esc(p)}</td>
-        <td class="py-2.5 pr-3"><span class="flex items-center gap-2"><span class="w-14">${duracao(m)}</span><span class="hidden h-2 flex-1 sm:block"><span class="block h-full rounded-r-[4px] bg-serie" style="width:${(m / maiorHora) * 100}%"></span></span></span></td>
-        <td class="py-2.5 text-right">${e}</td>
-        <td class="py-2.5 text-right">${duracao(Math.round(m / e))}</td>
-      </tr>`,
-    )
     .join('')
 
   const grafico = `
@@ -1791,7 +1777,7 @@ function telaLogistica() {
   return `
     ${cabecalho(
       'Dashboard Logístico',
-      'Status da operação, volume de pedidos e a trilha de demandas do período. O detalhe de cada envio está no ClickUp.',
+      'Status da operação, volume e custo dos envios e a trilha de demandas do período.',
       null,
     )}
 
@@ -1822,15 +1808,20 @@ function telaLogistica() {
     </section>
 
     <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      ${cartao('Pedidos no período', String(L.volume.total), `+${dif} (+${Math.round((dif / L.volume.anterior) * 100)}%) em relação à semana anterior.`, true)}
+      ${cartao('Pedidos no período', String(L.volume.total), `+${dif} (+${Math.round((dif / L.volume.anterior) * 100)}%) em relação à semana anterior.<br />${L.recorrentes} recorrentes · ${L.pontuais} pontuais`, true)}
       ${cartao('Em andamento', '5', '1 atrasada · 1 sem previsão')}
-      ${cartao('Horas apontadas', duracao(L.horas.reduce((s, h) => s + h[1], 0)), '1h29 por pedido, em média.')}
+      ${cartao('Custo dos envios', L.custo.total, `${L.custo.semCusto} pedidos sem custo informado.`)}
     </div>
 
     <div class="mb-6 grid gap-6 lg:grid-cols-2">
       <section class="rounded-lg border bg-card p-5">
-        <h2 class="font-display text-lg font-semibold">Volume de Pedidos por Departamento</h2>
-        <p class="mb-4 mt-0.5 text-sm text-muted-foreground">${L.volume.total} pedidos no período, por subsidiária e departamento.</p>
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="font-display text-lg font-semibold">Volume de Pedidos por Departamento</h2>
+            <p class="mt-0.5 text-sm text-muted-foreground">${L.volume.total} pedidos no período, por subsidiária e departamento.</p>
+          </div>
+          <div class="flex rounded-md bg-muted p-0.5">${botaoFalso('Quantidade', true)}${botaoFalso('Custo')}</div>
+        </div>
         <div class="space-y-5">${departamentos}</div>
       </section>
       <section class="rounded-lg border bg-card p-5">
@@ -1840,14 +1831,6 @@ function telaLogistica() {
       </section>
     </div>
 
-    <section class="mb-6 rounded-lg border bg-card p-5">
-      <h2 class="font-display text-lg font-semibold">Horas por produto</h2>
-      <p class="mb-4 mt-0.5 text-sm text-muted-foreground">Tempo apontado nas tarefas do período.</p>
-      <table class="w-full text-left text-sm">
-        <thead><tr class="border-b text-xs text-muted-foreground"><th class="py-2 font-medium">Produto</th><th class="py-2 font-medium">Horas</th><th class="py-2 text-right font-medium">Envios</th><th class="py-2 text-right font-medium">Média por envio</th></tr></thead>
-        <tbody>${horas}</tbody>
-      </table>
-    </section>
 
     <section class="mb-6 rounded-lg border bg-card">
       <div class="flex flex-wrap items-start justify-between gap-3 px-5 pb-4 pt-5">
@@ -1855,12 +1838,13 @@ function telaLogistica() {
           <h2 class="font-display text-lg font-semibold">Trilha de demandas</h2>
           <p class="mt-0.5 text-sm text-muted-foreground">${L.trilha.length} demandas em andamento no período · 2 prioritárias · 1 atrasada</p>
         </div>
-        <div class="flex gap-2">${botaoFalso('Exportar CSV')}${botaoFalso('Exportar planilha')}</div>
+        <div class="flex flex-wrap gap-2">${doTime ? '<span class="rounded-[5px] border border-primary bg-primary px-3 py-2 font-sora text-xs font-semibold uppercase text-primary-foreground">+ Nova demanda</span>' : ''}${botaoFalso('Exportar CSV')}${botaoFalso('Exportar planilha')}</div>
       </div>
       <ul class="border-t">${trilha}</ul>
     </section>
 
-    <div class="grid gap-6 md:grid-cols-2">
+    <div class="grid gap-6 md:grid-cols-3">
+      <div class="rounded-lg border bg-card p-5"><p class="font-display text-lg font-semibold">Produtos em estoque →</p><p class="mt-1 text-sm text-muted-foreground">Os presentes que a AUVP tem fisicamente, no catálogo.</p></div>
       <div class="rounded-lg border bg-card p-5"><p class="font-display text-lg font-semibold">Equipe de Logística →</p><p class="mt-1 text-sm text-muted-foreground">${esc(L.equipe)}</p></div>
       <div class="rounded-lg border bg-card p-5"><p class="font-display text-lg font-semibold">Perguntas frequentes →</p><p class="mt-1 text-sm text-muted-foreground">Em elaboração pela equipe de Logística.</p></div>
     </div>`

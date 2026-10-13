@@ -132,20 +132,24 @@ Quatro tabelas, do módulo de Logística ([ADR 0008](adr/0008-logistica-no-mesmo
 
 | Tabela                      | O que guarda                                                    |
 | --------------------------- | --------------------------------------------------------------- |
-| `demandas_logistica`        | cada envio da Logística, espelho local da tarefa no ClickUp     |
+| `demandas_logistica`        | cada envio da Logística, cadastrado na trilha                   |
 | `status_operacional_semana` | o status da semana definido à mão; sem linha, vale o automático |
 | `membros_equipe`            | a seção "Equipe" do dashboard                                   |
 | `perguntas_frequentes`      | o FAQ                                                           |
 
-A demanda é **espelho**, não consulta ao vivo: filtrar por semana ISO, somar
-por departamento e exportar direto do ClickUp a cada tela esbarraria no
-limite de requisições da API deles. Departamento, subsidiária e produto ficam
-como texto, porque são os rótulos das listas suspensas do ClickUp, e uma
-tabela de cadastro aqui seria um segundo lugar para manter a mesma lista.
+A demanda é cadastrada na própria trilha; a tarefa no ClickUp, quando existe,
+é um link. Departamento, subsidiária e produto ficam como texto, com sugestão
+dos valores já usados, porque a lista ainda está sendo definida pela área.
+
+Custo de envio é `Decimal`, nulo quando não informado. Recorrente tem
+periodicidade, e `ocorrencia_anterior_id` é único: uma ocorrência gera uma
+próxima, nunca duas. O presente aprovado aponta para a solicitação em
+`solicitacao_id`, também único. `ativa = false` é arquivar, nunca apagar.
 
 `fase` usa as oito fases padronizadas da proposta da Logística; `prioridade`,
 as quatro do ClickUp, para casar sem tradução.
 
-Restrições no banco: semana ISO entre 1 e 53, minutos apontados não negativos
-e demanda de origem `clickup` sempre com a tarefa de onde veio. O status
+Restrições no banco: semana ISO entre 1 e 53, custo não negativo, recorrente
+com periodicidade, demanda de presente com a solicitação, ocorrência anterior
+diferente da própria, e demanda de origem `clickup` com a tarefa de onde veio. O status
 manual que volta ao automático anula a situação em vez de apagar a linha.

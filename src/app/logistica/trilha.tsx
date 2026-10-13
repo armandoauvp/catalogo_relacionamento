@@ -1,38 +1,59 @@
-import { AlertTriangle, CalendarX2, ExternalLink, FileText, Flame, Info } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarX2,
+  ExternalLink,
+  FileText,
+  Flame,
+  Gift,
+  Info,
+  Repeat,
+} from 'lucide-react'
 import { formatarData } from '@/lib/datas'
-import { ROTULO_PRIORIDADE } from '@/lib/logistica/demandas'
-import type { DemandaNaTrilha } from '@/lib/logistica/painel'
+import {
+  ROTULO_COMPLEXIDADE,
+  ROTULO_PERIODICIDADE,
+  ROTULO_PRIORIDADE,
+} from '@/lib/logistica/demandas'
+import type { DemandaNaTrilha, sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { EditorDeDemanda } from './editor-de-demanda'
 import { Dica, FaseBadge, TituloDoBloco } from './pecas'
+
+export type Sugestoes = Awaited<ReturnType<typeof sugestoesDoCadastro>>
 
 /**
  * Trilha de demandas (relatório, itens 4 e 5).
+ *
+ * Cadastrada aqui mesmo pela Logística: a trilha não espelha o ClickUp, e a
+ * tarefa lá, quando existe, é o link do título. O presente aprovado entra
+ * sozinho, com o selo "Presente".
  *
  * A "Esteira prioritária" e a trilha viraram um quadro só, como o relatório
  * propôs: o que é urgente ou de alta prioridade sobe para o topo com uma
  * faixa e um selo, junto da previsão de entrega. Cada linha responde, sem
  * clique:
  *
- * - em que fase está;
+ * - em que fase está e quão complexa é;
  * - o que está sendo enviado, "Kit" quando é mais de um item;
- * - quando fica pronta, ou que está atrasada, ou que falta a previsão, que a
- *   área considera obrigatória, e por isso a falta aparece em vez de sumir.
- *
- * O título é o link para a tarefa no ClickUp, onde mora o detalhe.
+ * - quando começa, enquanto não começou, e quando fica pronta, ou que está
+ *   atrasada, ou que falta a previsão.
  */
 export function Trilha({
   demandas,
   total,
   exportar,
   verObservacoes,
+  sugestoes,
 }: {
   demandas: DemandaNaTrilha[]
   total: number
   /** Query do período, para a exportação levar o mesmo recorte da tela. */
   exportar: string
   verObservacoes: boolean
+  /** Presente só para quem pode cadastrar: é o que liga a edição. */
+  sugestoes: Sugestoes | null
 }) {
   const abertas = demandas.filter((d) => d.fase !== 'concluido')
   const prioritarias = abertas.filter((d) => d.prioritaria).length
@@ -46,6 +67,7 @@ export function Trilha({
           apoio={`${total} ${total === 1 ? 'demanda' : 'demandas'} em andamento no período · ${prioritarias} ${prioritarias === 1 ? 'prioritária' : 'prioritárias'} · ${atrasadas} ${atrasadas === 1 ? 'atrasada' : 'atrasadas'}`}
           acoes={
             <>
+              {sugestoes ? <EditorDeDemanda sugestoes={sugestoes} /> : null}
               <Button variant="outline" size="sm" asChild>
                 <a href={`/api/logistica/export?${exportar}&formato=csv`} download>
                   Exportar CSV
@@ -68,7 +90,12 @@ export function Trilha({
       ) : (
         <ul className="border-t">
           {demandas.map((d) => (
-            <LinhaDaTrilha key={d.id} demanda={d} verObservacoes={verObservacoes} />
+            <LinhaDaTrilha
+              key={d.id}
+              demanda={d}
+              verObservacoes={verObservacoes}
+              sugestoes={sugestoes}
+            />
           ))}
         </ul>
       )}
@@ -86,16 +113,23 @@ export function Trilha({
 function LinhaDaTrilha({
   demanda: d,
   verObservacoes,
+  sugestoes,
 }: {
   demanda: DemandaNaTrilha
   verObservacoes: boolean
+  sugestoes: Sugestoes | null
 }) {
   const concluida = d.fase === 'concluido'
+  const contexto = [
+    // Departamento e produto às vezes têm o mesmo nome; uma vez basta.
+    ...new Set([d.departamento, d.produto, d.responsavel]),
+    d.complexidade ? `Complexidade ${ROTULO_COMPLEXIDADE[d.complexidade].toLowerCase()}` : null,
+  ].filter(Boolean)
 
   return (
     <li
       className={cn(
-        'relative grid gap-x-6 gap-y-2 border-b px-5 py-3.5 last:border-0 md:grid-cols-[1fr_auto_13rem] md:items-center',
+        'relative grid gap-x-6 gap-y-2 border-b px-5 py-3.5 last:border-0 md:grid-cols-[1fr_auto_13rem_auto] md:items-center',
         d.prioritaria && !concluida && 'bg-warning/5',
         concluida && 'text-muted-foreground',
       )}
@@ -110,6 +144,18 @@ function LinhaDaTrilha({
             <Badge variant={d.prioridade === 'urgente' ? 'error' : 'warning'} className="gap-1">
               <Flame className="size-3" aria-hidden="true" />
               {ROTULO_PRIORIDADE[d.prioridade]}
+            </Badge>
+          ) : null}
+          {d.origem === 'solicitacao' ? (
+            <Badge variant="outline" className="gap-1">
+              <Gift className="size-3" aria-hidden="true" />
+              Presente
+            </Badge>
+          ) : null}
+          {d.recorrente ? (
+            <Badge variant="outline" className="gap-1">
+              <Repeat className="size-3" aria-hidden="true" />
+              {d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Recorrente'}
             </Badge>
           ) : null}
 
@@ -170,8 +216,7 @@ function LinhaDaTrilha({
               d.enviado.rotulo
             )}
           </span>
-          {/* Departamento e produto às vezes têm o mesmo nome; uma vez basta. */}
-          {[...new Set([d.departamento, d.produto, d.responsavel])].filter(Boolean).map((t) => (
+          {contexto.map((t) => (
             <span key={t}>· {t}</span>
           ))}
         </p>
@@ -182,6 +227,10 @@ function LinhaDaTrilha({
       </div>
 
       <Previsao demanda={d} />
+
+      <div className="md:justify-self-end">
+        {sugestoes ? <EditorDeDemanda demanda={d} sugestoes={sugestoes} /> : null}
+      </div>
     </li>
   )
 }
@@ -195,27 +244,40 @@ function Previsao({ demanda: d }: { demanda: DemandaNaTrilha }) {
     )
   }
 
+  const inicio =
+    d.mostrarInicio && d.previsaoInicio ? (
+      <span className="text-muted-foreground block text-xs">
+        Começa {formatarData(d.previsaoInicio)}
+      </span>
+    ) : null
+
   if (!d.previsaoConclusao) {
     return (
       // Âmbar só no ícone: como texto pequeno, ele não passa no contraste.
-      <p className="flex items-center gap-1.5 text-sm font-medium md:justify-end">
-        <CalendarX2 className="text-warning size-4" aria-hidden="true" />
-        Sem previsão
+      <p className="text-sm font-medium md:text-right">
+        {inicio}
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarX2 className="text-warning size-4" aria-hidden="true" />
+          Sem previsão
+        </span>
       </p>
     )
   }
 
   if (d.atrasada) {
     return (
-      <p className="text-error flex items-center gap-1.5 text-sm font-medium md:justify-end">
-        <AlertTriangle className="size-4" aria-hidden="true" />
-        Atrasada desde {formatarData(d.previsaoConclusao)}
+      <p className="text-error text-sm font-medium md:text-right">
+        <span className="inline-flex items-center gap-1.5">
+          <AlertTriangle className="size-4" aria-hidden="true" />
+          Atrasada desde {formatarData(d.previsaoConclusao)}
+        </span>
       </p>
     )
   }
 
   return (
     <p className="text-sm md:text-right">
+      {inicio}
       <span className="text-muted-foreground">Previsão </span>
       <span className="tabular-nums">{formatarData(d.previsaoConclusao)}</span>
     </p>

@@ -26,18 +26,31 @@ import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 export default async function CatalogoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ busca?: string; categoria?: string }>
+  searchParams: Promise<{ busca?: string; categoria?: string; origem?: string }>
 }) {
   const usuario = await exigirPermissao('catalogo.ver')
-  const { busca, categoria } = await searchParams
+  const { busca, categoria, origem: origemNaUrl } = await searchParams
+  // "Só o que temos em estoque": o atalho do Dashboard Logístico chega aqui.
+  const soEstoque = origemNaUrl === 'estoque_interno'
+  const origem = soEstoque ? ('estoque_interno' as const) : undefined
 
   const [pagina, categorias, contagem] = await Promise.all([
     // O catálogo tem dezenas de itens e cresce devagar: cabe numa página, e
     // uma paginação de duas páginas atrapalha mais do que ajuda a escolher.
     // O provider limita em 100, se um dia passar disso, entra paginação.
-    catalogoProvider.listar({ busca, categoriaId: categoria, apenasAtivos: true, porPagina: 100 }),
+    catalogoProvider.listar({
+      busca,
+      categoriaId: categoria,
+      origem,
+      apenasAtivos: true,
+      porPagina: 100,
+    }),
     db.categoria.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } }),
-    db.produto.groupBy({ by: ['categoriaId'], where: { ativo: true }, _count: { _all: true } }),
+    db.produto.groupBy({
+      by: ['categoriaId'],
+      where: { ativo: true, ...(origem ? { origem } : {}) },
+      _count: { _all: true },
+    }),
   ])
 
   const porCategoria = new Map(contagem.map((c) => [c.categoriaId, c._count._all]))
@@ -48,15 +61,19 @@ export default async function CatalogoPage({
     .filter((c) => c.total > 0)
 
   // Preserva a busca ao trocar de categoria: o filtro é composto, não exclusivo.
-  const hrefDaCategoria = (categoriaId?: string): Route => {
+  const hrefCom = (mudancas: { categoria?: string | null; soEstoque?: boolean }): Route => {
     const params = new URLSearchParams()
     if (busca) params.set('busca', busca)
-    if (categoriaId) params.set('categoria', categoriaId)
+    const cat = mudancas.categoria === undefined ? categoria : mudancas.categoria
+    if (cat) params.set('categoria', cat)
+    if (mudancas.soEstoque ?? soEstoque) params.set('origem', 'estoque_interno')
     const query = params.toString()
     return (query ? `/catalogo?${query}` : '/catalogo') as Route
   }
+  const hrefDaCategoria = (categoriaId?: string): Route =>
+    hrefCom({ categoria: categoriaId ?? null })
 
-  const filtrando = Boolean(busca || categoria)
+  const filtrando = Boolean(busca || categoria || soEstoque)
 
   return (
     <>
@@ -80,6 +97,7 @@ export default async function CatalogoPage({
       >
         {/* A categoria viaja escondida para que buscar não descarte o filtro. */}
         {categoria ? <input type="hidden" name="categoria" value={categoria} /> : null}
+        {soEstoque ? <input type="hidden" name="origem" value="estoque_interno" /> : null}
         <Input
           name="busca"
           defaultValue={busca}
@@ -88,6 +106,15 @@ export default async function CatalogoPage({
           className="w-full max-w-xs flex-1"
         />
         <BotaoDeFiltro>Buscar</BotaoDeFiltro>
+        <Button variant={soEstoque ? 'secondary' : 'outline'} asChild>
+          <LinkDeFiltro
+            href={hrefCom({ soEstoque: !soEstoque })}
+            aria-pressed={soEstoque}
+            title="Os presentes que a AUVP tem fisicamente, sem compra"
+          >
+            Só em estoque
+          </LinkDeFiltro>
+        </Button>
         {filtrando ? (
           <Button variant="ghost" asChild>
             <LinkDeFiltro href="/catalogo">Limpar</LinkDeFiltro>

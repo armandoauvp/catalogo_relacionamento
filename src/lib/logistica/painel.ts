@@ -1,9 +1,12 @@
 import type {
   ComplexidadeDemanda,
   FaseOperacional,
+  OrigemDemanda,
+  Periodicidade,
   PrioridadeDemanda,
   Prisma,
 } from '@prisma/client'
+import { somar, ZERO, type Dinheiro } from '@/lib/money'
 import { db } from '@/lib/db'
 import {
   fatiasDoPeriodo,
@@ -18,12 +21,12 @@ import {
   compararNaTrilha,
   ehPrioritaria,
   estavaAtrasada,
-  horasPorProduto,
+  contarRecorrentes,
+  mostraPrevisaoDeInicio,
   oQueEstaSendoEnviado,
   variacao,
   volumePorDepartamento,
   volumePorFatia,
-  type LinhaDeHoras,
   type LinhaDeVolume,
 } from './demandas'
 import {
@@ -47,8 +50,12 @@ import {
  */
 export const LIMITE_DA_TRILHA_NA_TELA = 200
 
+/** Arquivada some do painel inteiro: números, gráficos, trilha e planilha. */
+const ATIVAS = { ativa: true } satisfies Prisma.DemandaLogisticaWhereInput
+
 export type DemandaNaTrilha = {
   id: string
+  origem: OrigemDemanda
   titulo: string
   clickupUrl: string | null
   linkFormulario: string | null
@@ -67,7 +74,14 @@ export type DemandaNaTrilha = {
   solicitadaEm: Date
   previsaoInicio: Date | null
   previsaoConclusao: Date | null
+  /** Só antes de a demanda começar; depois, a data que vale é a de finalização. */
+  mostrarInicio: boolean
   concluidaEm: Date | null
+  /** Texto decimal ("12.50"): `Decimal` não atravessa para o formulário. */
+  custoEnvio: string | null
+  recorrente: boolean
+  periodicidade: Periodicidade | null
+  itens: string[]
 }
 
 /**
@@ -77,6 +91,7 @@ export type DemandaNaTrilha = {
  */
 export function whereDaTrilha(periodo: Periodo): Prisma.DemandaLogisticaWhereInput {
   return {
+    ...ATIVAS,
     solicitadaEm: { lt: periodo.fim },
     OR: [{ concluidaEm: null }, { concluidaEm: { gte: periodo.inicio } }],
   }
@@ -96,6 +111,7 @@ export async function trilhaDoPeriodo(
     total: linhas.length,
     demandas: visiveis.map((d) => ({
       id: d.id,
+      origem: d.origem,
       titulo: d.titulo,
       clickupUrl: d.clickupUrl,
       linkFormulario: d.linkFormulario,
@@ -114,7 +130,12 @@ export async function trilhaDoPeriodo(
       solicitadaEm: d.solicitadaEm,
       previsaoInicio: d.previsaoInicio,
       previsaoConclusao: d.previsaoConclusao,
+      mostrarInicio: mostraPrevisaoDeInicio(d.fase) && d.previsaoInicio !== null,
       concluidaEm: d.concluidaEm,
+      custoEnvio: d.custoEnvio?.toString() ?? null,
+      recorrente: d.recorrente,
+      periodicidade: d.periodicidade,
+      itens: d.itens,
     })),
   }
 }
@@ -137,13 +158,16 @@ async function statusDe(semana: SemanaIso, agora: Date): Promise<StatusDaSemana>
   ).inicio
 
   const abertasNoInstante: Prisma.DemandaLogisticaWhereInput = {
+    ...ATIVAS,
     solicitadaEm: { lt: instante },
     OR: [{ concluidaEm: null }, { concluidaEm: { gt: instante } }],
   }
 
   const [volume, anteriores, abertas, atrasadas, manual] = await Promise.all([
-    db.demandaLogistica.count({ where: { solicitadaEm: { gte: inicio, lt: fim } } }),
-    db.demandaLogistica.count({ where: { solicitadaEm: { gte: inicioDaMedia, lt: inicio } } }),
+    db.demandaLogistica.count({ where: { ...ATIVAS, solicitadaEm: { gte: inicio, lt: fim } } }),
+    db.demandaLogistica.count({
+      where: { ...ATIVAS, solicitadaEm: { gte: inicioDaMedia, lt: inicio } },
+    }),
     db.demandaLogistica.count({ where: abertasNoInstante }),
     db.demandaLogistica.count({
       where: { AND: [abertasNoInstante, { previsaoConclusao: { lt: instante } }] },
@@ -186,9 +210,13 @@ export type PainelLogistico = {
     anterior: number
     variacao: { diferenca: number; percentual: number | null }
     porDepartamento: LinhaDeVolume[]
+    recorrentes: number
+    pontuais: number
+    custo: Dinheiro
+    /** Demandas do período sem custo informado: o total de custo não as inclui. */
+    semCusto: number
   }
   evolucao: { rotulo: string; rotuloLongo: string; quantidade: number }[]
-  horas: { porProduto: LinhaDeHoras[]; totalMinutos: number }
   trilha: { demandas: DemandaNaTrilha[]; total: number }
 }
 
@@ -203,14 +231,14 @@ export async function painelLogistico(
 
   const [doPeriodo, totalAnterior, daEvolucao, trilha, status] = await Promise.all([
     db.demandaLogistica.findMany({
-      where: { solicitadaEm: { gte: periodo.inicio, lt: periodo.fim } },
-      select: { subsidiaria: true, departamento: true, produto: true, minutosApontados: true },
+      where: { ...ATIVAS, solicitadaEm: { gte: periodo.inicio, lt: periodo.fim } },
+      select: { subsidiaria: true, departamento: true, custoEnvio: true, recorrente: true },
     }),
     db.demandaLogistica.count({
-      where: { solicitadaEm: { gte: anterior.inicio, lt: anterior.fim } },
+      where: { ...ATIVAS, solicitadaEm: { gte: anterior.inicio, lt: anterior.fim } },
     }),
     db.demandaLogistica.findMany({
-      where: { solicitadaEm: { gte: fatias[0]!.inicio, lt: fatias.at(-1)!.fim } },
+      where: { ...ATIVAS, solicitadaEm: { gte: fatias[0]!.inicio, lt: fatias.at(-1)!.fim } },
       select: { solicitadaEm: true },
     }),
     trilhaDoPeriodo(periodo, { ...opcoes, agora, limite: LIMITE_DA_TRILHA_NA_TELA }),
@@ -218,7 +246,7 @@ export async function painelLogistico(
   ])
 
   const contagens = volumePorFatia(daEvolucao, fatias)
-  const porProduto = horasPorProduto(doPeriodo)
+  const custos = doPeriodo.flatMap((d) => (d.custoEnvio === null ? [] : [d.custoEnvio]))
 
   return {
     status: {
@@ -232,13 +260,42 @@ export async function painelLogistico(
       anterior: totalAnterior,
       variacao: variacao(doPeriodo.length, totalAnterior),
       porDepartamento: volumePorDepartamento(doPeriodo),
+      ...contarRecorrentes(doPeriodo),
+      custo: custos.length ? somar(custos) : ZERO,
+      semCusto: doPeriodo.length - custos.length,
     },
     evolucao: fatias.map((f, i) => ({
       rotulo: f.rotulo,
       rotuloLongo: f.rotuloLongo,
       quantidade: contagens[i]!,
     })),
-    horas: { porProduto, totalMinutos: porProduto.reduce((s, l) => s + l.minutos, 0) },
     trilha,
+  }
+}
+
+/**
+ * Os valores já usados em cada campo de texto da demanda, para o cadastro
+ * sugerir e a mesma subsidiária não aparecer com três grafias no gráfico.
+ */
+export async function sugestoesDoCadastro(): Promise<{
+  subsidiarias: string[]
+  departamentos: string[]
+  produtos: string[]
+  responsaveis: string[]
+}> {
+  const linhas = await db.demandaLogistica.findMany({
+    where: ATIVAS,
+    select: { subsidiaria: true, departamento: true, produto: true, responsavel: true },
+    distinct: ['subsidiaria', 'departamento', 'produto', 'responsavel'],
+  })
+  const unicos = (valores: (string | null)[]) =>
+    [...new Set(valores.filter((v): v is string => Boolean(v?.trim())))].sort((a, b) =>
+      a.localeCompare(b, 'pt-BR'),
+    )
+  return {
+    subsidiarias: unicos(linhas.map((l) => l.subsidiaria)),
+    departamentos: unicos(linhas.map((l) => l.departamento)),
+    produtos: unicos(linhas.map((l) => l.produto)),
+    responsaveis: unicos(linhas.map((l) => l.responsavel)),
   }
 }

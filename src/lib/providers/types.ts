@@ -45,6 +45,8 @@ export type FiltroDeCatalogo = {
   /** Busca livre, aplicada a nome e descrição. */
   busca?: string
   categoriaId?: string
+  /** Só o que sai da prateleira, ou só o que é comprado sob demanda. */
+  origem?: OrigemProduto
   /** Padrão true: o consultor nunca enxerga produto desativado. */
   apenasAtivos?: boolean
   pagina?: number

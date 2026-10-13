@@ -251,6 +251,8 @@ model Solicitacao {
   cliente   Cliente                @relation(fields: [clienteId], references: [id], onDelete: Restrict)
   itens     SolicitacaoItem[]
   historico SolicitacaoHistorico[]
+  /// A demanda que a aprovação abriu na trilha da Logística.
+  demanda   DemandaLogistica?
 
   @@index([consultorId, dataSolicitacao])
   @@index([status])
@@ -379,58 +381,83 @@ enum SituacaoOperacional {
   critica
 }
 
-/// De onde a demanda veio. `solicitacao` é a ponte com o catálogo de
-/// presentes (ADR 0009); `clickup`, a tarefa que a Logística abriu lá.
+/// De onde a demanda veio. `manual` é o cadastro da Logística na trilha, o
+/// caso comum; `solicitacao`, o presente aprovado, que entra sozinho. Sobra
+/// `clickup` das demandas anteriores à trilha manual.
 enum OrigemDemanda {
+  manual
   clickup
   solicitacao
 }
 
+/// De quanto em quanto tempo uma demanda recorrente volta.
+enum Periodicidade {
+  semanal
+  quinzenal
+  mensal
+}
+
 /// Uma demanda da Logística: o envio que o dashboard conta e a trilha lista.
 ///
-/// É o espelho local de uma tarefa do ClickUp, onde o detalhe operacional
-/// continua morando. Espelhar, em vez de consultar o ClickUp a cada tela,
-/// é o que permite filtrar por semana ISO, somar por departamento e exportar
-/// sem bater no limite de requisições da API deles.
+/// Cadastrada à mão pela Logística, na própria trilha. A tarefa no ClickUp,
+/// quando existe, é só um link: a trilha não espelha o ClickUp. Ver
+/// docs/11-logistica.md.
 ///
-/// Departamento, subsidiária e produto ficam como texto: são os rótulos das
-/// listas suspensas do ClickUp, e uma tabela de cadastro aqui seria um
-/// segundo lugar para manter a mesma lista.
+/// Departamento, subsidiária e produto ficam como texto, com sugestão dos
+/// valores já usados: uma tabela de cadastro aqui seria um segundo lugar para
+/// manter uma lista que a área ainda está definindo.
 model DemandaLogistica {
-  id                String               @id @default(cuid())
-  origem            OrigemDemanda        @default(clickup)
-  /// ID da tarefa no ClickUp. Único: é a chave da sincronização.
-  clickupId         String?              @unique @map("clickup_id")
-  clickupUrl        String?              @map("clickup_url")
-  titulo            String
-  subsidiaria       String?
-  departamento      String?
-  produto           String?
+  id                   String               @id @default(cuid())
+  origem               OrigemDemanda        @default(manual)
+  /// Sobra das demandas anteriores à trilha manual.
+  clickupId            String?              @unique @map("clickup_id")
+  /// Link para a tarefa no ClickUp, quando ela existe.
+  clickupUrl           String?              @map("clickup_url")
+  titulo               String
+  subsidiaria          String?
+  departamento         String?
+  produto              String?
   /// O que está sendo enviado. Mais de um item vira "Kit" na tela.
-  itens             String[]             @default([])
-  fase              FaseOperacional      @default(recebido)
-  prioridade        PrioridadeDemanda    @default(normal)
-  complexidade      ComplexidadeDemanda?
-  responsavel       String?
-  /// Texto livre do ClickUp, onde aparece nome e endereço de quem recebe.
+  itens                String[]             @default([])
+  fase                 FaseOperacional      @default(recebido)
+  prioridade           PrioridadeDemanda    @default(normal)
+  complexidade         ComplexidadeDemanda?
+  responsavel          String?
+  /// Texto livre, onde costuma aparecer nome e endereço de quem recebe.
   /// Lido só por quem tem `logistica.verObservacoes`.
-  observacoes       String?
-  linkFormulario    String?              @map("link_formulario")
-  solicitadaEm      DateTime             @map("solicitada_em")
-  previsaoInicio    DateTime?            @map("previsao_inicio")
-  /// Obrigatória pela área. Nula só quando a tarefa veio do ClickUp sem ela,
-  /// e a trilha aponta a falta em vez de esconder.
-  previsaoConclusao DateTime?            @map("previsao_conclusao")
-  concluidaEm       DateTime?            @map("concluida_em")
-  /// Tempo apontado na tarefa, em minutos.
-  minutosApontados  Int                  @default(0) @map("minutos_apontados")
-  sincronizadaEm    DateTime?            @map("sincronizada_em")
-  criadoEm          DateTime             @default(now()) @map("criado_em")
-  atualizadoEm      DateTime             @updatedAt @map("atualizado_em")
+  observacoes          String?
+  linkFormulario       String?              @map("link_formulario")
+  /// Quanto custou mandar, em BRL. Nulo é "não informado", não zero.
+  custoEnvio           Decimal?             @map("custo_envio") @db.Decimal(12, 2)
+  /// Volta sozinha: ao concluir, nasce a próxima ocorrência.
+  recorrente           Boolean              @default(false)
+  periodicidade        Periodicidade?
+  /// A ocorrência de onde esta nasceu. Única: uma recorrente concluída gera
+  /// uma próxima, nunca duas, mesmo que a conclusão seja salva de novo.
+  ocorrenciaAnteriorId String?              @unique @map("ocorrencia_anterior_id")
+  /// O presente aprovado que virou esta demanda (ADR 0009).
+  solicitacaoId        String?              @unique @map("solicitacao_id")
+  /// Arquivada some do dashboard sem ser apagada: é o caminho para o que foi
+  /// cadastrado por engano e para o presente cancelado.
+  ativa                Boolean              @default(true)
+  solicitadaEm         DateTime             @map("solicitada_em")
+  previsaoInicio       DateTime?            @map("previsao_inicio")
+  /// Obrigatória no cadastro. Nula só nas demandas antigas, e a trilha aponta
+  /// a falta em vez de esconder.
+  previsaoConclusao    DateTime?            @map("previsao_conclusao")
+  concluidaEm          DateTime?            @map("concluida_em")
+  sincronizadaEm       DateTime?            @map("sincronizada_em")
+  criadoEm             DateTime             @default(now()) @map("criado_em")
+  atualizadoEm         DateTime             @updatedAt @map("atualizado_em")
+
+  ocorrenciaAnterior DemandaLogistica? @relation("Recorrencia", fields: [ocorrenciaAnteriorId], references: [id], onDelete: SetNull)
+  proximaOcorrencia  DemandaLogistica? @relation("Recorrencia")
+  solicitacao        Solicitacao?      @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
 
   @@index([solicitadaEm])
   @@index([concluidaEm])
   @@index([previsaoConclusao])
+  @@index([ativa])
   @@map("demandas_logistica")
 }
 

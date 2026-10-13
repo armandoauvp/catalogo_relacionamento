@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { membroSchema, perguntaSchema, statusDaSemanaSchema } from './logistica'
+import { demandaSchema, membroSchema, perguntaSchema, statusDaSemanaSchema } from './logistica'
 
 describe('status da semana', () => {
   it('aceita a definição manual com observação', () => {
@@ -64,5 +64,60 @@ describe('pergunta frequente', () => {
     expect(
       perguntaSchema.parse({ pergunta: 'Qual o prazo?', resposta: '5 dias úteis.' }).ordem,
     ).toBe(0)
+  })
+})
+
+describe('demanda', () => {
+  const valida = {
+    titulo: 'Camisetas BR para o encontro',
+    itens: 'Camiseta P\nCamiseta M\n\n  ',
+    subsidiaria: 'Do Not Scare Soluções Interativas LTDA',
+    departamento: 'Produto & CX',
+    produto: 'AUVP Escola',
+    fase: 'recebido',
+    prioridade: 'alta',
+    complexidade: 'media',
+    previsaoConclusao: '2026-10-15',
+    custoEnvio: '1.234,50',
+  }
+
+  it('aceita o cadastro completo, com itens por linha e custo em reais', () => {
+    const d = demandaSchema.parse(valida)
+    expect(d.itens).toEqual(['Camiseta P', 'Camiseta M'])
+    expect(d.custoEnvio).toBe(1234.5)
+    expect(d.previsaoConclusao.toISOString()).toBe('2026-10-16T02:59:59.999Z')
+    expect(d.previsaoInicio).toBeNull()
+    expect(d.recorrente).toBe(false)
+  })
+
+  it('previsão de conclusão é obrigatória', () => {
+    const r = demandaSchema.safeParse({ ...valida, previsaoConclusao: '' })
+    expect(r.success).toBe(false)
+    expect(r.error?.issues[0]?.path).toEqual(['previsaoConclusao'])
+  })
+
+  it('subsidiária e departamento são obrigatórios: alimentam o gráfico', () => {
+    expect(demandaSchema.safeParse({ ...valida, subsidiaria: '' }).success).toBe(false)
+    expect(demandaSchema.safeParse({ ...valida, departamento: ' ' }).success).toBe(false)
+  })
+
+  it('recorrente exige periodicidade', () => {
+    const r = demandaSchema.safeParse({ ...valida, recorrente: 'on' })
+    expect(r.error?.issues[0]?.path).toEqual(['periodicidade'])
+    expect(
+      demandaSchema.parse({ ...valida, recorrente: 'on', periodicidade: 'semanal' }).recorrente,
+    ).toBe(true)
+  })
+
+  it('início não pode vir depois da conclusão', () => {
+    const r = demandaSchema.safeParse({ ...valida, previsaoInicio: '2026-10-20' })
+    expect(r.error?.issues[0]?.path).toEqual(['previsaoInicio'])
+  })
+
+  it('link do ClickUp, quando vem, precisa ser link', () => {
+    expect(demandaSchema.safeParse({ ...valida, clickupUrl: 'tarefa 123' }).success).toBe(false)
+    expect(
+      demandaSchema.parse({ ...valida, clickupUrl: 'https://app.clickup.com/t/abc' }).clickupUrl,
+    ).toBe('https://app.clickup.com/t/abc')
   })
 })

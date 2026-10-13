@@ -1,10 +1,17 @@
 import { z } from 'zod'
-import { SituacaoOperacional } from '@prisma/client'
+import {
+  ComplexidadeDemanda,
+  FaseOperacional,
+  Periodicidade,
+  PrioridadeDemanda,
+  SituacaoOperacional,
+} from '@prisma/client'
+import { fimDoDiaLocal } from '@/lib/datas'
 import { semanasNoAno } from '@/lib/periodo'
-import { emailOpcional } from './comuns'
+import { emailOpcional, urlOpcional, valorOpcional } from './comuns'
 
 /**
- * Formulários do módulo de Logística: status da semana, equipe e FAQ.
+ * Formulários do módulo de Logística: demanda, status da semana, equipe e FAQ.
  */
 
 /** Campo ausente ou em branco é nulo, e não string vazia. */
@@ -48,3 +55,67 @@ export const perguntaSchema = z.object({
   resposta: z.string().trim().min(2, 'Escreva a resposta.').max(4000),
   ordem: z.preprocess(inteiro, z.number().int().min(0).max(999).default(0)),
 })
+
+/** Data do `<input type="date">`, guardada como o fim daquele dia em São Paulo. */
+const diaObrigatorio = (mensagem: string) =>
+  z.preprocess(
+    (v) => fimDoDiaLocal(typeof v === 'string' ? v : null),
+    z.date({ message: mensagem }),
+  )
+
+const diaOpcional = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() ? fimDoDiaLocal(v) : null),
+  z.date({ message: 'Data inválida.' }).nullable(),
+)
+
+const textoCurto = (rotulo: string) =>
+  z
+    .string({ message: `Informe ${rotulo}.` })
+    .trim()
+    .min(2, `Informe ${rotulo}.`)
+    .max(80)
+
+/**
+ * Cadastro de demanda na trilha. A Logística cadastra à mão (os áudios de
+ * 09/10/2026): subsidiária e departamento alimentam o gráfico, complexidade
+ * pesa no prazo, e a previsão de conclusão é obrigatória pelo relatório.
+ */
+export const demandaSchema = z
+  .object({
+    titulo: z.string().trim().min(3, 'Escreva o título da demanda.').max(160),
+    /** Um item por linha; mais de um vira "Kit" na trilha. */
+    itens: z.preprocess(
+      (v) =>
+        String(v ?? '')
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean),
+      z.array(z.string().max(120, 'Item com mais de 120 caracteres.')).max(30),
+    ),
+    subsidiaria: textoCurto('a subsidiária'),
+    departamento: textoCurto('o departamento'),
+    produto: z.preprocess(vazioViraNulo, z.string().trim().max(80).nullable()),
+    responsavel: z.preprocess(vazioViraNulo, z.string().trim().max(80).nullable()),
+    fase: z.nativeEnum(FaseOperacional, { message: 'Escolha a fase.' }),
+    prioridade: z.nativeEnum(PrioridadeDemanda, { message: 'Escolha a prioridade.' }),
+    complexidade: z.nativeEnum(ComplexidadeDemanda, { message: 'Escolha a complexidade.' }),
+    previsaoInicio: diaOpcional,
+    previsaoConclusao: diaObrigatorio('Informe a previsão de conclusão.'),
+    clickupUrl: urlOpcional,
+    linkFormulario: urlOpcional,
+    observacoes: z.preprocess(vazioViraNulo, z.string().trim().max(2000).nullable()),
+    custoEnvio: valorOpcional,
+    recorrente: z.preprocess((v) => v === 'on' || v === true || v === 'true', z.boolean()),
+    periodicidade: z.preprocess(
+      vazioViraNulo,
+      z.nativeEnum(Periodicidade, { message: 'Periodicidade inválida.' }).nullable(),
+    ),
+  })
+  .refine((d) => !d.recorrente || d.periodicidade !== null, {
+    message: 'Diga de quanto em quanto tempo a demanda volta.',
+    path: ['periodicidade'],
+  })
+  .refine((d) => !d.previsaoInicio || d.previsaoInicio <= d.previsaoConclusao, {
+    message: 'O início previsto vem depois da conclusão.',
+    path: ['previsaoInicio'],
+  })

@@ -1,8 +1,10 @@
-import type {
-  ComplexidadeDemanda,
-  FaseOperacional,
-  PrioridadeDemanda,
-  PrismaClient,
+import {
+  Prisma,
+  type ComplexidadeDemanda,
+  type FaseOperacional,
+  type Periodicidade,
+  type PrioridadeDemanda,
+  type PrismaClient,
 } from '@prisma/client'
 import { intervaloDaSemana, semanaIso } from '../src/lib/periodo'
 
@@ -16,7 +18,8 @@ import { intervaloDaSemana, semanaIso } from '../src/lib/periodo'
  *
  * As datas são relativas a hoje, então o painel sempre tem a semana atual
  * cheia, e um gerador pseudoaleatório com semente fixa mantém o conjunto
- * igual a cada execução. Idempotente: casa pela tarefa (`clickupId`).
+ * igual a cada execução. Idempotente: casa pela chave do exemplo, guardada em
+ * `clickupId` (`exemplo-001`...), o que também evita duplicar o que já está lá.
  */
 
 const DIA = 86_400_000
@@ -36,51 +39,64 @@ const ESTRUTURA = [
     departamento: 'Produto & CX',
     produto: 'AUVP Escola',
     peso: 5,
-    minutos: [20, 90],
+    custo: [18, 60],
   },
   {
     subsidiaria: 'Do Not Scare Soluções Interativas LTDA',
     departamento: 'Conteúdo',
     produto: 'AUVP Escola',
     peso: 1,
-    minutos: [30, 60],
+    custo: [12, 35],
   },
   {
     subsidiaria: 'AUVP Consultoria',
     departamento: 'Consultoria',
     produto: 'Consultoria',
     peso: 3,
-    minutos: [15, 40],
+    custo: [25, 90],
   },
   {
     subsidiaria: 'AUVP Holding',
     departamento: 'Administrativo',
     produto: 'Holding',
     peso: 2,
-    minutos: [60, 180],
+    custo: [40, 150],
   },
   {
     subsidiaria: 'Do Not Scare Soluções Interativas LTDA',
     departamento: 'Eventos',
     produto: 'The Brain',
     peso: 1,
-    minutos: [40, 120],
+    custo: [30, 110],
   },
 ] as const
 
-const ENVIOS: Record<string, { titulo: string; itens: string[] }[]> = {
+type Envio = { titulo: string; itens: string[]; periodicidade?: Periodicidade }
+
+/**
+ * Os envios de cada produto. Os que têm periodicidade são as tarefas
+ * recorrentes que a Logística diz serem metade do trabalho.
+ */
+const ENVIOS: Record<string, Envio[]> = {
   'AUVP Escola': [
     { titulo: 'Kit boas-vindas da turma', itens: ['Camiseta', 'Caneca', 'Caderno'] },
     { titulo: 'Livros para alunos da Imersão', itens: ['Livro AUVP'] },
     { titulo: 'Camisetas BR para o encontro', itens: ['Camiseta BR'] },
+    {
+      titulo: 'Reposição de material da Escola',
+      itens: ['Apostilas', 'Crachás'],
+      periodicidade: 'quinzenal',
+    },
   ],
   Consultoria: [
     { titulo: 'Material de apoio para consultores', itens: ['Pasta de apresentação'] },
     { titulo: 'Kit de reunião com cliente', itens: ['Caderno', 'Caneta'] },
+    { titulo: 'Malote para os escritórios', itens: ['Malote'], periodicidade: 'semanal' },
   ],
   Holding: [
     { titulo: 'Documentos para cartório', itens: ['Documentos'] },
     { titulo: 'Contratos para assinatura', itens: [] },
+    { titulo: 'Correspondência da Holding', itens: ['Correspondência'], periodicidade: 'semanal' },
   ],
   'The Brain': [{ titulo: 'Brindes do evento The Brain', itens: ['Garrafa', 'Ecobag', 'Caneta'] }],
 }
@@ -201,14 +217,18 @@ export async function semearLogistica(db: PrismaClient, agora = new Date()) {
       const complexidade: ComplexidadeDemanda =
         envio.itens.length > 1 ? 'media' : estrutura.produto === 'Holding' ? 'alta' : 'baixa'
 
-      const [minimo, maximo] = estrutura.minutos
-      const minutosApontados =
-        concluida || fase !== 'recebido' ? Math.round(minimo + aleatorio() * (maximo - minimo)) : 0
-
+      const [minimo, maximo] = estrutura.custo
+      // Um em cada sete chega sem custo informado, como vai acontecer de verdade.
+      const custoEnvio =
+        aleatorio() < 0.15
+          ? null
+          : new Prisma.Decimal((minimo + aleatorio() * (maximo - minimo)).toFixed(2))
       const id = `exemplo-${String(n).padStart(3, '0')}`
       const dados = {
-        origem: 'clickup' as const,
-        clickupUrl: `https://app.clickup.com/t/${id}`,
+        // Cadastrada na trilha; o `clickupId` só serve de chave para o seed não
+        // duplicar, e o link do ClickUp, como na vida real, só às vezes existe.
+        origem: 'manual' as const,
+        clickupUrl: aleatorio() < 0.3 ? `https://app.clickup.com/t/${id}` : null,
         titulo: envio.titulo,
         subsidiaria: estrutura.subsidiaria,
         departamento: estrutura.departamento,
@@ -227,8 +247,10 @@ export async function semearLogistica(db: PrismaClient, agora = new Date()) {
         previsaoInicio: new Date(solicitadaEm.getTime() + DIA),
         previsaoConclusao: previsaoFinal,
         concluidaEm,
-        minutosApontados,
-        sincronizadaEm: agora,
+        custoEnvio,
+        recorrente: Boolean(envio.periodicidade),
+        periodicidade: envio.periodicidade ?? null,
+        ativa: true,
       }
 
       await db.demandaLogistica.upsert({

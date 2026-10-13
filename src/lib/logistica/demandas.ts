@@ -1,4 +1,11 @@
-import type { ComplexidadeDemanda, FaseOperacional, PrioridadeDemanda } from '@prisma/client'
+import type {
+  ComplexidadeDemanda,
+  FaseOperacional,
+  Periodicidade,
+  PrioridadeDemanda,
+  Prisma,
+} from '@prisma/client'
+import { somar, ZERO, type Dinheiro } from '@/lib/money'
 import type { Fatia } from '@/lib/periodo'
 
 /**
@@ -145,84 +152,145 @@ export type LinhaDeVolume = {
   subsidiaria: string
   departamento: string
   quantidade: number
-  /** De 0 a 100. */
+  /** De 0 a 100, sobre a quantidade. */
   percentual: number
+  /** Soma do custo informado. Demanda sem custo não entra, e é contada à parte. */
+  custo: Dinheiro
+  semCusto: number
 }
 
 export const SEM_DEPARTAMENTO = 'Sem departamento'
 export const SEM_SUBSIDIARIA = 'Sem subsidiária'
-export const SEM_PRODUTO = 'Sem produto'
 
 /**
  * "Volume de Pedidos por Departamento" (relatório, item 2), na hierarquia
- * subsidiária e departamento. Ordem decrescente: o maior volume primeiro,
- * empate pelo nome para a ordem não mudar entre recargas.
+ * subsidiária e departamento, em quantidade e em custo: a Logística quer
+ * saber "quanto a gente está gastando de envio por empresa ou departamento".
+ * Ordem decrescente pela quantidade, empate pelo nome para a ordem não mudar
+ * entre recargas.
  */
 export function volumePorDepartamento(
-  demandas: readonly { subsidiaria: string | null; departamento: string | null }[],
+  demandas: readonly {
+    subsidiaria: string | null
+    departamento: string | null
+    custoEnvio: Prisma.Decimal | null
+  }[],
 ): LinhaDeVolume[] {
-  const contagem = new Map<string, LinhaDeVolume>()
+  const grupos = new Map<
+    string,
+    { subsidiaria: string; departamento: string; custos: Prisma.Decimal[]; quantidade: number }
+  >()
   for (const d of demandas) {
     const subsidiaria = d.subsidiaria?.trim() || SEM_SUBSIDIARIA
     const departamento = d.departamento?.trim() || SEM_DEPARTAMENTO
     const chave = `${subsidiaria}\u0000${departamento}`
-    const linha = contagem.get(chave) ?? { subsidiaria, departamento, quantidade: 0, percentual: 0 }
-    linha.quantidade++
-    contagem.set(chave, linha)
+    const grupo = grupos.get(chave) ?? { subsidiaria, departamento, custos: [], quantidade: 0 }
+    grupo.quantidade++
+    if (d.custoEnvio !== null) grupo.custos.push(d.custoEnvio)
+    grupos.set(chave, grupo)
   }
 
   const total = demandas.length
-  return [...contagem.values()]
-    .map((l) => ({ ...l, percentual: total ? (l.quantidade / total) * 100 : 0 }))
+  return [...grupos.values()]
+    .map((g) => ({
+      subsidiaria: g.subsidiaria,
+      departamento: g.departamento,
+      quantidade: g.quantidade,
+      percentual: total ? (g.quantidade / total) * 100 : 0,
+      custo: g.custos.length ? somar(g.custos) : ZERO,
+      semCusto: g.quantidade - g.custos.length,
+    }))
     .sort(
       (a, b) =>
         b.quantidade - a.quantidade || a.departamento.localeCompare(b.departamento, 'pt-BR'),
     )
 }
 
-export type LinhaDeHoras = {
-  produto: string
-  minutos: number
-  envios: number
-  /** Nulo quando não há envio, para a tela não mostrar "0 min" de média. */
-  mediaPorEnvio: number | null
+// ---------------------------------------------------------------------------
+// Fase, conclusão e recorrência
+// ---------------------------------------------------------------------------
+
+export const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = {
+  semanal: 'Semanal',
+  quinzenal: 'Quinzenal',
+  mensal: 'Mensal',
 }
 
 /**
- * Horas por produto e tempo médio por envio (proposta, item 2). Ordena pelo
- * esforço, que é a pergunta: onde o time gasta o tempo. Produto sem nenhum
- * apontamento fica de fora, senão a tabela vira lista de zeros.
+ * A data de conclusão acompanha a fase: entrar em "Concluído" grava o
+ * momento, sair dela apaga. Já concluída e salva de novo, mantém a data
+ * original, senão editar um detalhe mudaria quando a entrega aconteceu.
  */
-export function horasPorProduto(
-  demandas: readonly { produto: string | null; minutosApontados: number }[],
-): LinhaDeHoras[] {
-  const soma = new Map<string, { minutos: number; envios: number }>()
-  for (const d of demandas) {
-    const produto = d.produto?.trim() || SEM_PRODUTO
-    const atual = soma.get(produto) ?? { minutos: 0, envios: 0 }
-    atual.minutos += d.minutosApontados
-    atual.envios++
-    soma.set(produto, atual)
-  }
-
-  return [...soma.entries()]
-    .filter(([, s]) => s.minutos > 0)
-    .map(([produto, s]) => ({
-      produto,
-      minutos: s.minutos,
-      envios: s.envios,
-      mediaPorEnvio: s.envios ? Math.round(s.minutos / s.envios) : null,
-    }))
-    .sort((a, b) => b.minutos - a.minutos || a.produto.localeCompare(b.produto, 'pt-BR'))
+export function concluidaEmParaFase(
+  fase: FaseOperacional,
+  concluidaEmAtual: Date | null,
+  agora: Date,
+): Date | null {
+  if (fase !== 'concluido') return null
+  return concluidaEmAtual ?? agora
 }
 
-/** "18h", "1h42", "26 min", como a proposta escreve. */
-export function formatarDuracao(minutos: number): string {
-  const total = Math.round(minutos)
-  if (total < 60) return `${total} min`
-  const horas = Math.floor(total / 60)
-  const resto = total % 60
-  return resto === 0 ? `${horas}h` : `${horas}h${String(resto).padStart(2, '0')}`
+const DIA_MS = 86_400_000
+
+function somarPeriodo(data: Date, periodicidade: Periodicidade, vezes: number): Date {
+  if (periodicidade === 'semanal') return new Date(data.getTime() + 7 * vezes * DIA_MS)
+  if (periodicidade === 'quinzenal') return new Date(data.getTime() + 14 * vezes * DIA_MS)
+  // Mensal anda pelo calendário: 31/01 vai a 28/02, e não a 03/03.
+  const alvo = new Date(data.getTime())
+  const dia = alvo.getUTCDate()
+  alvo.setUTCDate(1)
+  alvo.setUTCMonth(alvo.getUTCMonth() + vezes)
+  const ultimoDoMes = new Date(
+    Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  alvo.setUTCDate(Math.min(dia, ultimoDoMes))
+  return alvo
+}
+
+/**
+ * As datas da próxima ocorrência de uma demanda recorrente.
+ *
+ * As previsões andam um período. Se a ocorrência foi concluída tão tarde que
+ * a próxima previsão já passou, andam mais de um, até a primeira que ainda
+ * está por vir: nascer atrasada não ajudaria ninguém.
+ */
+export function proximaOcorrencia(
+  anterior: {
+    periodicidade: Periodicidade
+    previsaoInicio: Date | null
+    previsaoConclusao: Date
+  },
+  agora: Date,
+): { solicitadaEm: Date; previsaoInicio: Date | null; previsaoConclusao: Date } {
+  let vezes = 1
+  while (somarPeriodo(anterior.previsaoConclusao, anterior.periodicidade, vezes) <= agora) {
+    vezes++
+  }
+  return {
+    solicitadaEm: agora,
+    previsaoInicio: anterior.previsaoInicio
+      ? somarPeriodo(anterior.previsaoInicio, anterior.periodicidade, vezes)
+      : null,
+    previsaoConclusao: somarPeriodo(anterior.previsaoConclusao, anterior.periodicidade, vezes),
+  }
+}
+
+/** Quantas são recorrentes e quantas pontuais: a Logística diz que metade do trabalho é rotina. */
+export function contarRecorrentes(demandas: readonly { recorrente: boolean }[]): {
+  recorrentes: number
+  pontuais: number
+} {
+  const recorrentes = demandas.filter((d) => d.recorrente).length
+  return { recorrentes, pontuais: demandas.length - recorrentes }
+}
+
+/**
+ * A previsão de início só aparece enquanto a demanda não começou. Depois, a
+ * data que interessa é a de finalização, e mostrar as duas seria o
+ * "redundante" que a Logística temia.
+ */
+export function mostraPrevisaoDeInicio(fase: FaseOperacional): boolean {
+  return fase === 'recebido' || fase === 'em_analise'
 }
 
 /** Quantas demandas foram pedidas em cada fatia do gráfico de evolução. */

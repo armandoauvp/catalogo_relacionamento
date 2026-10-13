@@ -62,6 +62,7 @@ export const catalogoLocal: CatalogoProvider = {
     const where = {
       ...(apenasAtivos ? { ativo: true } : {}),
       ...(filtro.categoriaId ? { categoriaId: filtro.categoriaId } : {}),
+      ...(filtro.origem ? { origem: filtro.origem } : {}),
       // Critério de aceite: a busca encontra por nome e por descrição.
       ...(busca
         ? {
