@@ -36,8 +36,23 @@ const listaDeDominios = z
       .filter(Boolean),
   )
 
-/** Onde a TI publica a produção. Ver docs/10-entrega-ti.md. */
+/** Onde a TI publicaria a produção por Docker. Ver docs/10-entrega-ti.md. */
 const ENDERECO_DA_PRODUCAO = 'catalogo-relacionamento.prod.auvp.net'
+
+/**
+ * Quais logins de verdade estão completos, e quais estão pela metade. Metade
+ * configurada é erro de quem preencheu o painel, e não deve passar calada.
+ */
+function loginsDeVerdade(env: Record<string, unknown>) {
+  const estado = (nomes: string[]) => {
+    const faltam = nomes.filter((n) => !env[n])
+    return { completo: faltam.length === 0, iniciado: faltam.length < nomes.length, faltam }
+  }
+  return {
+    keycloak: estado(['AUTH_OIDC_ISSUER', 'AUTH_OIDC_CLIENT_ID', 'AUTH_OIDC_CLIENT_SECRET']),
+    google: estado(['AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET']),
+  }
+}
 
 /** A fase em que o Next roda o `next build`. */
 const FASE_DE_BUILD = 'phase-production-build'
@@ -60,12 +75,16 @@ const schema = (durandoBuild: boolean) =>
     AUTH_OIDC_CLIENT_SECRET: z.string().default(''),
     AUTH_OIDC_NAME: z.string().default('AUVP SSO'),
     AUTH_OIDC_GROUPS_CLAIM: z.string().default(''),
+    // Login com o Google da AUVP: a porta de entrada enquanto o client do
+    // Keycloak não existe. Os dois podem conviver na mesma tela.
+    AUTH_GOOGLE_ID: z.string().default(''),
+    AUTH_GOOGLE_SECRET: z.string().default(''),
     AUTH_DEV_BYPASS: booleano,
     // Aplicação real com dados fictícios e login por perfil, sem SSO. Ver
     // src/lib/demonstracao.ts e as travas em `carregarEnv`.
     MODO_DEMONSTRACAO: booleano,
     // A própria Vercel define `VERCEL=1` em build e runtime; a imagem Docker da
-    // TI nunca tem. É o que prende o modo demonstração à homologação.
+    // TI nunca tem.
     VERCEL: z.string().optional(),
     AUTH_ALLOWED_EMAIL_DOMAINS: listaDeDominios,
 
@@ -129,18 +148,26 @@ export function carregarEnv(
 
   const env = parsed.data
 
+  const logins = loginsDeVerdade(env)
+
   // O modo demonstração deixa qualquer um com o endereço entrar como Admin de
-  // dados fictícios. Por isso duas travas que não dependem de ninguém lembrar
-  // de desligar: só roda na Vercel, onde fica a homologação, e nunca no
-  // endereço da produção, mesmo que alguém copie as variáveis para lá.
+  // dados fictícios. Por isso travas que não dependem de ninguém lembrar de
+  // desligar: só roda na Vercel, nunca no endereço da produção da TI, e nunca
+  // junto de um login de verdade. A virada para o uso real é configurar o
+  // Google ou o Keycloak; se a demonstração ficar ligada, a aplicação para em
+  // vez de abrir as duas portas.
   if (env.MODO_DEMONSTRACAO) {
     if (env.VERCEL !== '1') {
-      throw new Error(
-        'MODO_DEMONSTRACAO só roda na Vercel, na homologação. Ver docs/12-homologacao-vercel.md.',
-      )
+      throw new Error('MODO_DEMONSTRACAO só roda na Vercel. Ver docs/12-producao-vercel.md.')
     }
     if (env.AUTH_URL?.includes(ENDERECO_DA_PRODUCAO)) {
       throw new Error('MODO_DEMONSTRACAO não pode ser ligado no endereço da produção.')
+    }
+    if (logins.keycloak.iniciado || logins.google.iniciado) {
+      throw new Error(
+        'MODO_DEMONSTRACAO está ligado junto com um login de verdade. Para o uso real, ' +
+          'apague MODO_DEMONSTRACAO. Ver docs/12-producao-vercel.md.',
+      )
     }
   }
 
@@ -149,18 +176,23 @@ export function carregarEnv(
     if (!env.AUTH_SECRET) faltando.push('AUTH_SECRET')
     // Na demonstração não há SSO: o login é por perfil fictício.
     if (!env.MODO_DEMONSTRACAO) {
-      if (!env.AUTH_OIDC_ISSUER) faltando.push('AUTH_OIDC_ISSUER')
-      if (!env.AUTH_OIDC_CLIENT_ID) faltando.push('AUTH_OIDC_CLIENT_ID')
-      if (!env.AUTH_OIDC_CLIENT_SECRET) faltando.push('AUTH_OIDC_CLIENT_SECRET')
-      // Sem a lista, quem entra depende só de o client OIDC estar bem
-      // configurado no provedor. Ver src/lib/acesso-sso.ts.
+      // Basta um login completo, Google ou Keycloak. O que foi começado precisa
+      // ser terminado: client sem secret é botão que não funciona.
+      const { keycloak, google } = logins
+      if (!keycloak.iniciado && !google.iniciado) {
+        faltando.push('AUTH_GOOGLE_ID e AUTH_GOOGLE_SECRET, ou AUTH_OIDC_*')
+      }
+      if (keycloak.iniciado) faltando.push(...keycloak.faltam)
+      if (google.iniciado) faltando.push(...google.faltam)
+      // Sem a lista, quem entra depende só de o client estar bem configurado
+      // no provedor. Ver src/lib/acesso-sso.ts.
       if (env.AUTH_ALLOWED_EMAIL_DOMAINS.length === 0) faltando.push('AUTH_ALLOWED_EMAIL_DOMAINS')
     }
 
     if (faltando.length > 0) {
       throw new Error(
         `Em produção o SSO é obrigatório. Faltam: ${faltando.join(', ')}. ` +
-          'Ver docs/07-deploy.md.',
+          'Ver docs/12-producao-vercel.md.',
       )
     }
 
@@ -187,6 +219,10 @@ export const ssoConfigurado =
   Boolean(env.AUTH_OIDC_ISSUER) &&
   Boolean(env.AUTH_OIDC_CLIENT_ID) &&
   Boolean(env.AUTH_OIDC_CLIENT_SECRET)
+
+/** Login com o Google da AUVP, quando o client OAuth está inteiro. */
+export const googleConfigurado =
+  !env.MODO_DEMONSTRACAO && Boolean(env.AUTH_GOOGLE_ID) && Boolean(env.AUTH_GOOGLE_SECRET)
 
 /** Login sem SSO, apenas em desenvolvimento e apenas se explicitamente ligado. */
 export const devBypassHabilitado = env.AUTH_DEV_BYPASS && env.NODE_ENV === 'development'

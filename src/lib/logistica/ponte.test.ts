@@ -15,12 +15,15 @@ describe('fase da demanda para cada status do presente', () => {
     expect(faseDoPresente('organizando_envio')).toBe('em_execucao')
   })
 
-  it('entregue conclui; problema e devolução voltam para revisão; cancelado é arquivado', () => {
+  it('entregue conclui; problema volta para revisão; cancelado é arquivado', () => {
     expect(faseDoPresente('entregue')).toBe('concluido')
     expect(faseDoPresente('cliente_confirmou')).toBe('concluido')
     expect(faseDoPresente('deu_problema')).toBe('revisao')
-    expect(faseDoPresente('devolvido')).toBe('revisao')
     expect(faseDoPresente('cancelado')).toBe('arquivar')
+  })
+
+  it('devolvido também conclui: é final, e em revisão ficaria atrasado para sempre', () => {
+    expect(faseDoPresente('devolvido')).toBe('concluido')
   })
 
   it('todo status tem destino definido', () => {

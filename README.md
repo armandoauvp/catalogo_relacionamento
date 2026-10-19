@@ -104,15 +104,16 @@ docs/                     documentação de decisões e operação
 - [Identidade visual](docs/08-identidade-visual.md)
 - [Checklist de lançamento](docs/09-checklist-de-lancamento.md)
 - [Entrega para a TI](docs/10-entrega-ti.md)
-- [Homologação na Vercel](docs/12-homologacao-vercel.md)
+- [Produção na Vercel](docs/12-producao-vercel.md)
 - [Logística](docs/11-logistica.md)
 - [Decisões de arquitetura](docs/adr/)
 
 ## Onde isso roda
 
-**Aplicação:** produção na infraestrutura da TI, por Docker
-([entrega para a TI](docs/10-entrega-ti.md)), e homologação na Vercel a cada
-merge no `main` ([homologação na Vercel](docs/12-homologacao-vercel.md)).
+**Aplicação:** produção na Vercel, publicada a cada commit no `main`
+([produção na Vercel](docs/12-producao-vercel.md)). A imagem Docker para a
+infraestrutura da TI continua pronta como alternativa
+([entrega para a TI](docs/10-entrega-ti.md)).
 
 **Vitrine:** GitHub Pages, a partir de `demo/`. É uma demonstração navegável
 com dados fictícios, sem login e sem banco, feita para mostrar as telas a quem

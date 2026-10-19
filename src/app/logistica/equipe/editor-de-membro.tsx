@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { alternarMembro, salvarMembro } from '@/lib/actions/logistica'
+import { prepararFoto } from '@/lib/arquivos-no-navegador'
 
 export type MembroEditavel = {
   id: string
@@ -34,6 +35,7 @@ export function EditorDeMembro({ membro }: { membro?: MembroEditavel }) {
   function enviar(dados: FormData) {
     setErro(null)
     iniciar(async () => {
+      await prepararFoto(dados)
       const r = await salvarMembro(dados)
       if (!r.ok) return setErro(r.erro)
       setAberto(false)
@@ -135,7 +137,8 @@ export function EditorDeMembro({ membro }: { membro?: MembroEditavel }) {
               accept="image/jpeg,image/png,image/webp,image/avif"
             />
             <p className="text-muted-foreground text-xs">
-              {membro?.fotoUrl ? 'Envie outra para trocar a atual. ' : ''}Até 5 MB.
+              {membro?.fotoUrl ? 'Envie outra para trocar a atual. ' : ''}Foto grande é reduzida
+              antes de enviar.
             </p>
           </div>
 

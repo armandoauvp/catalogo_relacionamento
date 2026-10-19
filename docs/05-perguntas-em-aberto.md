@@ -230,6 +230,11 @@ para "Organizando envio", por fila ([ADR 0009](adr/0009-integracoes-por-fila.md)
 departamento "Relacionamento", com previsão de 7 dias, ou 15 quando ainda há
 compra. **Onde mudar:** `PONTE` em `src/lib/logistica/ponte.ts`.
 
+**Assumido em 19/10/2026:** presente devolvido conclui a demanda, em vez de
+voltar para "Revisão". Devolvido é status final, e a demanda ficaria aberta e
+atrasada para sempre; os dados de exemplo mostraram isso pondo a semana em
+"Operação crítica". **Onde mudar:** `faseDoPresente`, no mesmo arquivo.
+
 ### Previsão de início é redundante? ✅
 
 **Decidido:** fica, opcional, e só aparece na trilha enquanto a demanda não

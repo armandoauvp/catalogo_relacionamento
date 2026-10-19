@@ -1,7 +1,13 @@
 import { redirect } from 'next/navigation'
 import { signIn } from '@/lib/auth'
 import { usuarioAtual } from '@/lib/auth-guards'
-import { devBypassHabilitado, env, modoDemonstracao, ssoConfigurado } from '@/lib/env'
+import {
+  devBypassHabilitado,
+  env,
+  googleConfigurado,
+  modoDemonstracao,
+  ssoConfigurado,
+} from '@/lib/env'
 import { USUARIOS_DA_DEMONSTRACAO } from '@/lib/demonstracao'
 import { ROTULO_PERFIL } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
@@ -27,6 +33,33 @@ function mensagemDeErro(codigo: string | undefined): string | null {
     return 'Esta conta não tem acesso à ferramenta. Entre com o seu e-mail AUVP ou fale com o Admin da área.'
   }
   return 'Não foi possível entrar agora. Tente de novo em instantes.'
+}
+
+/**
+ * O "G" do Google nas cores dele. A diretriz de marca do Google pede o logo
+ * original no botão de login; recolorir com os tokens da AUVP a violaria.
+ */
+function LogoDoGoogle() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-5 shrink-0" aria-hidden="true">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  )
 }
 
 export default async function LoginPage({
@@ -96,28 +129,44 @@ export default async function LoginPage({
                 ))}
               </ul>
             </div>
-          ) : ssoConfigurado ? (
-            <form
-              action={async () => {
-                'use server'
-                await signIn('auvp', { redirectTo: '/' })
-              }}
-              className="space-y-3"
-            >
-              <Button type="submit" size="lg" className="w-full">
-                Entrar com {env.AUTH_OIDC_NAME}
-              </Button>
+          ) : ssoConfigurado || googleConfigurado ? (
+            <div className="space-y-3">
+              {ssoConfigurado ? (
+                <form
+                  action={async () => {
+                    'use server'
+                    await signIn('auvp', { redirectTo: '/' })
+                  }}
+                >
+                  <Button type="submit" size="lg" className="w-full">
+                    Entrar com {env.AUTH_OIDC_NAME}
+                  </Button>
+                </form>
+              ) : null}
+              {googleConfigurado ? (
+                <form
+                  action={async () => {
+                    'use server'
+                    await signIn('google', { redirectTo: '/' })
+                  }}
+                >
+                  {/* Fundo claro, como o Google pede para o logo dele. */}
+                  <Button type="submit" size="lg" variant="outline" className="w-full gap-2">
+                    <LogoDoGoogle />
+                    Entrar com o Google da AUVP
+                  </Button>
+                </form>
+              ) : null}
               <p className="text-muted-foreground text-center text-xs">
                 O acesso usa sua conta AUVP. Não há senha própria.
               </p>
-            </form>
+            </div>
           ) : (
             <div className="text-muted-foreground text-sm">
-              <p className="text-foreground font-medium">SSO ainda não configurado.</p>
+              <p className="text-foreground font-medium">Login ainda não configurado.</p>
               <p className="mt-2">
-                Faltam <code>AUTH_OIDC_ISSUER</code>, <code>AUTH_OIDC_CLIENT_ID</code> e{' '}
-                <code>AUTH_OIDC_CLIENT_SECRET</code>. Ver{' '}
-                <code>docs/05-perguntas-em-aberto.md</code>.
+                Faltam <code>AUTH_GOOGLE_ID</code> e <code>AUTH_GOOGLE_SECRET</code>, ou o client do
+                Keycloak. Ver <code>docs/12-producao-vercel.md</code>.
               </p>
             </div>
           )}

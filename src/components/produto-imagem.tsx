@@ -29,7 +29,7 @@ const ALTURA = 1200
  *
  * `/api/arquivos/...` fica atrás da sessão, e o otimizador busca a origem do
  * servidor, sem cookie: a resposta seria 401 e a imagem, um quadro quebrado.
- * O upload já é limitado a 5 MB e a foto de catálogo é pequena, então o custo
+ * O upload já é limitado a 4 MB e a foto de catálogo é pequena, então o custo
  * de servir o original é menor que o de abrir essa rota para fora.
  */
 const semOtimizador = (url: string) => url.startsWith('/api/arquivos/')

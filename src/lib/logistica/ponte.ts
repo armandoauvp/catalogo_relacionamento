@@ -52,8 +52,12 @@ export function faseDoPresente(status: StatusSolicitacao): FaseOperacional | 'ar
     case 'entregue':
     case 'cliente_confirmou':
       return 'concluido'
-    case 'deu_problema':
+    // Devolvido é status final: o pacote voltou e o envio acabou. Em "Revisão"
+    // ele ficaria para sempre na trilha como atrasado, sem nada que o movesse.
+    // O reenvio, quando há, é outra solicitação, e outra demanda.
     case 'devolvido':
+      return 'concluido'
+    case 'deu_problema':
       return 'revisao'
     case 'cancelado':
       return 'arquivar'

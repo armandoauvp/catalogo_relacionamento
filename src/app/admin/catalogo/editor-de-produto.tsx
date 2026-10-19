@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ProdutoImagem } from '@/components/produto-imagem'
 import { salvarProduto, alternarProduto } from '@/lib/actions/catalogo'
+import { prepararFoto } from '@/lib/arquivos-no-navegador'
 
 /**
  * Cadastro e edição de produto.
@@ -85,6 +86,7 @@ export function EditorDeProduto({
     const dados = new FormData(evento.currentTarget)
     setErro(null)
     iniciar(async () => {
+      await prepararFoto(dados)
       const r = await salvarProduto(dados)
       if (!r.ok) return setErro(r.erro)
       setAberto(false)
@@ -365,8 +367,8 @@ export function EditorDeProduto({
                 />
                 <input type="hidden" name="fotoUrl" value={produto?.fotoUrl ?? ''} />
                 <p className="text-muted-foreground text-xs">
-                  JPEG, PNG, WebP ou AVIF, até 5 MB. Sem foto, o catálogo desenha uma ilustração da
-                  categoria: nunca um espaço vazio.
+                  JPEG, PNG, WebP ou AVIF. Foto grande, de celular, é reduzida antes de enviar. Sem
+                  foto, o catálogo desenha uma ilustração da categoria: nunca um espaço vazio.
                 </p>
               </div>
             </div>

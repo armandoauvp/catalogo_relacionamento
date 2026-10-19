@@ -242,8 +242,9 @@ export function Nav({ perfil, nome }: { perfil: Perfil; nome: string }) {
             <Olho className="text-foreground w-8 md:w-10" />
           </Link>
 
-          {/* Celular: o nome da seção atual vira o gatilho do menu. */}
-          <div className="md:hidden">
+          {/* Celular e tablet: o nome da seção atual vira o gatilho do menu. Com
+              os itens do Admin, a barra horizontal só cabe a partir de 1024 px. */}
+          <div className="lg:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger className="hover:bg-muted -mx-2 flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors outline-none">
                 <span className="text-left">
@@ -270,8 +271,8 @@ export function Nav({ perfil, nome }: { perfil: Perfil; nome: string }) {
             </DropdownMenu>
           </div>
 
-          {/* Desktop: navegação horizontal com balão de descrição no hover. */}
-          <nav className="hidden items-center gap-0.5 md:flex">
+          {/* Computador: navegação horizontal com balão de descrição no hover. */}
+          <nav className="hidden items-center gap-0.5 lg:flex">
             {principais.map((item) => {
               const estaAtivo = ativo(item.href)
               const aberto = emHover === item.id
@@ -365,7 +366,7 @@ export function Nav({ perfil, nome }: { perfil: Perfil; nome: string }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
-          <div className="bg-border mx-0.5 hidden h-4 w-px md:block" />
+          <div className="bg-border mx-0.5 hidden h-4 w-px lg:block" />
 
           {/* O form fica fora do menu: o conteúdo do dropdown desmonta ao
               fechar, e o envio não pode depender dele continuar na tela. */}

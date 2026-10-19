@@ -15,8 +15,11 @@ import { db } from './db'
 export const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'] as const
 export type TipoDeImagem = (typeof TIPOS_ACEITOS)[number]
 
-/** 5 MB. O mesmo teto está como CHECK constraint na tabela. */
-export const TAMANHO_MAXIMO = 5 * 1024 * 1024
+/**
+ * 4 MB: o que cabe numa requisição da Vercel, que recusa acima de 4,5 MB. A
+ * tabela aceita até 5 MB (CHECK constraint), então este é o teto que vale.
+ */
+export const TAMANHO_MAXIMO = 4 * 1024 * 1024
 
 export type ResultadoDoUpload = { ok: true; url: string } | { ok: false; erro: string }
 
@@ -32,7 +35,7 @@ export async function salvarFoto(arquivo: File, usuarioId: string): Promise<Resu
     return { ok: false, erro: 'O arquivo chegou vazio. Tente enviar de novo.' }
   }
   if (arquivo.size > TAMANHO_MAXIMO) {
-    return { ok: false, erro: 'A imagem passa de 5 MB. Reduza antes de enviar.' }
+    return { ok: false, erro: 'A imagem passa de 4 MB. Reduza antes de enviar.' }
   }
 
   const dados = Buffer.from(await arquivo.arrayBuffer())

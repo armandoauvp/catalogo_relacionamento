@@ -66,6 +66,39 @@ describe('o banco no build e fora dele', () => {
   })
 })
 
+describe('login com o Google', () => {
+  const {
+    AUTH_OIDC_ISSUER: _i,
+    AUTH_OIDC_CLIENT_ID: _c,
+    AUTH_OIDC_CLIENT_SECRET: _s,
+    ...semKeycloak
+  } = PRODUCAO_COMPLETA
+  const GOOGLE = { AUTH_GOOGLE_ID: 'id.apps.googleusercontent.com', AUTH_GOOGLE_SECRET: 'segredo' }
+
+  it('a produção sobe só com o Google, sem o Keycloak', () => {
+    expect(() => carregarEnv({ ...semKeycloak, ...GOOGLE })).not.toThrow()
+  })
+
+  it('sem nenhum login de verdade, a produção não sobe', () => {
+    expect(() => carregarEnv(semKeycloak)).toThrow(/AUTH_GOOGLE_ID/)
+  })
+
+  it('login pela metade é recusado, mesmo com o outro completo', () => {
+    expect(() =>
+      carregarEnv({ ...PRODUCAO_COMPLETA, AUTH_GOOGLE_ID: GOOGLE.AUTH_GOOGLE_ID }),
+    ).toThrow(/AUTH_GOOGLE_SECRET/)
+    expect(() =>
+      carregarEnv({ ...semKeycloak, ...GOOGLE, AUTH_OIDC_CLIENT_ID: 'catalogo' }),
+    ).toThrow(/AUTH_OIDC_ISSUER/)
+  })
+
+  it('o Google continua exigindo a lista de domínios', () => {
+    expect(() =>
+      carregarEnv({ ...semKeycloak, ...GOOGLE, AUTH_ALLOWED_EMAIL_DOMAINS: '' }),
+    ).toThrow(/AUTH_ALLOWED_EMAIL_DOMAINS/)
+  })
+})
+
 describe('modo demonstração', () => {
   const DEMONSTRACAO = {
     NODE_ENV: 'production',
@@ -99,6 +132,15 @@ describe('modo demonstração', () => {
         AUTH_URL: 'https://catalogo-relacionamento.prod.auvp.net',
       }),
     ).toThrow(/endereço da produção/)
+  })
+
+  it('recusa subir junto de um login de verdade: a virada exige desligar', () => {
+    expect(() =>
+      carregarEnv({ ...DEMONSTRACAO, AUTH_GOOGLE_ID: 'id', AUTH_GOOGLE_SECRET: 'segredo' }),
+    ).toThrow(/apague MODO_DEMONSTRACAO/)
+    expect(() => carregarEnv({ ...DEMONSTRACAO, AUTH_OIDC_CLIENT_ID: 'catalogo' })).toThrow(
+      /apague MODO_DEMONSTRACAO/,
+    )
   })
 
   it('desligado, a produção volta a exigir o SSO', () => {

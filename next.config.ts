@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
   },
   // Rotas tipadas: um href inexistente vira erro de compilação.
   typedRoutes: true,
+  experimental: {
+    // A foto do cadastro chega por server action, cujo teto padrão é 1 MB.
+    // 4 MB fica abaixo dos 4,5 MB que a Vercel aceita por requisição, e a
+    // foto já é reduzida no navegador antes (`arquivos-no-navegador.ts`).
+    serverActions: { bodySizeLimit: '4mb' },
+  },
 }
 
 export default nextConfig

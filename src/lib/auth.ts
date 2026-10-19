@@ -1,11 +1,18 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth'
 import type { Provider } from 'next-auth/providers'
 import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
 import { Perfil } from '@prisma/client'
 import { emailPodeEntrar } from './acesso-sso'
 import { db } from './db'
 import { usuarioDaDemonstracao } from './demonstracao'
-import { devBypassHabilitado, env, modoDemonstracao, ssoConfigurado } from './env'
+import {
+  devBypassHabilitado,
+  env,
+  googleConfigurado,
+  modoDemonstracao,
+  ssoConfigurado,
+} from './env'
 
 /**
  * Autenticação por SSO da AUVP (OIDC). Não existe senha própria.
@@ -21,8 +28,10 @@ import { devBypassHabilitado, env, modoDemonstracao, ssoConfigurado } from './en
  *    login. Assim, promover alguém a Admin passa a valer na próxima navegação,
  *    sem exigir que a pessoa saia e entre de novo.
  *
- * O provedor é o Keycloak da AUVP, realm `master`. Ver
- * docs/05-perguntas-em-aberto.md para o issuer exato e o que conferir.
+ * Dois provedores podem conviver: o Google da AUVP, que destravou a produção
+ * na Vercel, e o Keycloak, realm `master`, quando a TI entregar o client. O
+ * usuário é casado pelo e-mail, então quem entrou por um entra pelo outro com
+ * o mesmo perfil. Ver docs/12-producao-vercel.md.
  */
 
 function montarProviders(): Provider[] {
@@ -39,6 +48,22 @@ function montarProviders(): Provider[] {
       authorization: { params: { scope: 'openid profile email' } },
       checks: ['pkce', 'state'],
     })
+  }
+
+  if (googleConfigurado) {
+    // Com um domínio só, o Google já abre na conta da AUVP e esconde as
+    // pessoais. É conforto, não trava: quem barra conta de fora é o `signIn`.
+    const dominio =
+      env.AUTH_ALLOWED_EMAIL_DOMAINS.length === 1 ? env.AUTH_ALLOWED_EMAIL_DOMAINS[0] : undefined
+    providers.push(
+      Google({
+        clientId: env.AUTH_GOOGLE_ID,
+        clientSecret: env.AUTH_GOOGLE_SECRET,
+        authorization: {
+          params: { prompt: 'select_account', ...(dominio ? { hd: dominio } : {}) },
+        },
+      }),
+    )
   }
 
   // Atalho de desenvolvimento: entrar informando um e-mail, sem SSO.

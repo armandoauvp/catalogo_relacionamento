@@ -111,8 +111,13 @@ status, e cada status seguinte move a fase (`src/lib/logistica/ponte.ts`):
 | Comprado                       | Recebido               |
 | Organizando envio              | Em execução            |
 | Entregue, cliente confirmou    | Concluído              |
-| Deu problema, devolvido        | Revisão                |
+| Devolvido                      | Concluído              |
+| Deu problema                   | Revisão                |
 | Cancelado                      | arquivada              |
+
+Devolvido é final: o pacote voltou e o envio terminou. Em "Revisão" ele
+ficaria aberto e atrasado para sempre, sem status seguinte que o movesse. O
+reenvio, quando a área faz, é outra solicitação e outra demanda.
 
 Ela nasce com o selo "Presente", o código e o cliente no título, os itens e
 uma previsão de 7 dias (15 quando ainda há compra). O endereço não vai para a

@@ -10,7 +10,7 @@ import { Perfil } from '@prisma/client'
  * ninguém consegue usar.
  *
  * O modo demonstração em si é ligado por `MODO_DEMONSTRACAO` e travado em
- * `env.ts`. Ver docs/12-homologacao-vercel.md.
+ * `env.ts`. Ver docs/12-producao-vercel.md.
  */
 
 export type UsuarioDaDemonstracao = {

@@ -1,12 +1,11 @@
 # Deploy
 
-> **Produção é publicada pela TI** em
-> `https://catalogo-relacionamento.prod.auvp.net`. O guia que ela segue, com a
-> configuração do Keycloak, está em [entrega para a TI](10-entrega-ti.md).
+> **A produção roda na Vercel**, a cada commit no `main`:
+> [produção na Vercel](12-producao-vercel.md).
 >
-> **A homologação roda na Vercel**, a cada merge no `main`:
-> [homologação na Vercel](12-homologacao-vercel.md). O caminho pelo Railway
-> abaixo fica como alternativa, se a TI preferir essa plataforma.
+> A imagem Docker para a infraestrutura da TI, em
+> `catalogo-relacionamento.prod.auvp.net`, continua pronta como alternativa:
+> [entrega para a TI](10-entrega-ti.md). O caminho pelo Railway abaixo também.
 
 Dois destinos, com propósitos diferentes.
 

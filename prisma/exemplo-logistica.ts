@@ -324,7 +324,7 @@ function sortearCusto(estrutura: Estrutura, aleatorio: () => number) {
 
 const fimDoDia = (instante: Date) => fimDoDiaLocal(formatarISO(instante))!
 
-/** Em lotes pequenos: rápido no banco remoto da homologação, sem esgotar o pool. */
+/** Em lotes pequenos: rápido no banco remoto da Vercel, sem esgotar o pool. */
 async function emLotes(tarefas: (() => Promise<unknown>)[], tamanho = 8) {
   for (let i = 0; i < tarefas.length; i += tamanho) {
     await Promise.all(tarefas.slice(i, i + tamanho).map((t) => t()))

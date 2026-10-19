@@ -31,6 +31,8 @@ duplique numa tela.
 | Modelos e montagem da carta     | `src/lib/carta.ts`                        |
 | Fornecedor padrão por categoria | `src/lib/fornecedores.ts`                 |
 | Upload e leitura de foto        | `src/lib/arquivos.ts`                     |
+| Redução da foto antes do envio  | `src/lib/arquivos-no-navegador.ts`        |
+| Logins (Google e Keycloak)      | `src/lib/auth.ts` e `src/lib/env.ts`      |
 | Leitura do CSV de clientes      | `src/lib/importacao-clientes.ts`          |
 | Catálogo de presentes da área   | `prisma/catalogo-auvp.ts`                 |
 | Aritmética de dinheiro          | `src/lib/money.ts`                        |
@@ -52,8 +54,9 @@ Coisas que o código já garante e que não devem ser afrouxadas:
 - **Autorização acontece no servidor**, via `auth-guards.ts`. Esconder botão
   não é controle de acesso.
 - **Só entra quem é da AUVP**, pelo domínio do e-mail, conferido antes de o
-  usuário existir no banco. Não confie no client OIDC estar fechado no
-  provedor; produção não sobe sem `AUTH_ALLOWED_EMAIL_DOMAINS`.
+  usuário existir no banco. Vale para os dois logins, Google e Keycloak: não
+  confie no client estar fechado no provedor; produção não sobe sem
+  `AUTH_ALLOWED_EMAIL_DOMAINS` nem com um login configurado pela metade.
 - **Consultor só enxerga as próprias solicitações.** Use
   `filtroDeSolicitacoes`, não um `where` escrito à mão. Nulo quer dizer
   **nenhuma**, e não todas: a Logística tem escopo nulo, e um `?? {}` abriria
@@ -85,9 +88,13 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   se contorna digitando qualquer coisa não é trava. A tela impede e
   `criarSolicitacao` valida de novo.
 
-- **Modo demonstração só na homologação.** `MODO_DEMONSTRACAO` troca o SSO
-  por cartões de perfil fictícios (`src/lib/demonstracao.ts`); `env.ts` recusa
-  subir fora da Vercel ou no endereço da produção. Não afrouxe essas travas.
+- **Modo demonstração nunca junto do uso real.** `MODO_DEMONSTRACAO` troca o
+  login por cartões de perfil fictícios (`src/lib/demonstracao.ts`); `env.ts`
+  recusa subir fora da Vercel, no endereço da TI ou com Google ou Keycloak
+  configurados. Não afrouxe essas travas.
+- **Foto é reduzida no navegador** (`src/lib/arquivos-no-navegador.ts`) antes
+  de subir: a Vercel recusa requisição acima de 4,5 MB, e o teto da aplicação
+  é 4 MB.
 
 - **Rastreio não muda status.** Gravar o código diz que saiu; "entregue" é
   decisão de quem acompanha.
@@ -202,9 +209,10 @@ de HEIC: não é preciso apagar o original ruim.
 
 `demo/` é uma demonstração com dados fictícios publicada no GitHub Pages, para
 mostrar as telas a quem aprova o V1. **A aplicação real não roda no Pages**,
-ela precisa de Postgres, sessão e servidor. A produção é da TI, por Docker
-(`docs/10-entrega-ti.md`); a homologação é a Vercel, a cada merge no `main`
-(`docs/12-homologacao-vercel.md`). Migration nova roda sozinha nas duas: no
-`docker-entrypoint.sh` e no `npm run vercel-build`.
+ela precisa de Postgres, sessão e servidor. A produção é a Vercel, a cada
+commit no `main` (`docs/12-producao-vercel.md`); a imagem Docker para a TI
+(`docs/10-entrega-ti.md`) fica pronta como alternativa. Migration nova roda
+sozinha nas duas: no `npm run vercel-build` e no `docker-entrypoint.sh`. Na
+Vercel, o catálogo real entra sozinho no primeiro deploy, com o banco vazio.
 
 Ao mudar uma tela de forma relevante, vale refletir na vitrine.

@@ -31,6 +31,10 @@ import { CATALOGO_AUVP, CATEGORIAS_AUVP, slugDoProduto } from './catalogo-auvp'
  * ```
  *
  * Rodar de novo é inofensivo: o que já está lá é listado e deixado em paz.
+ *
+ * Com `--so-se-vazio`, que é como o deploy da Vercel chama, só carrega um
+ * banco sem nenhum produto. Rodar a cada deploy recriaria, pelo nome antigo,
+ * um produto que a área renomeou no CRUD.
  */
 
 const db = new PrismaClient()
@@ -40,6 +44,12 @@ async function main() {
     db.produto.count(),
     db.produto.findMany({ select: { nome: true } }),
   ])
+
+  if (process.argv.includes('--so-se-vazio') && total > 0) {
+    console.log(`Catálogo já carregado (${total} produtos): nada a fazer.`)
+    await db.$disconnect()
+    return
+  }
 
   console.log(`Catálogo da área: ${CATALOGO_AUVP.length} presentes em prisma/catalogo-auvp.ts`)
   console.log(`Banco de destino: ${total} ${total === 1 ? 'produto' : 'produtos'} hoje\n`)

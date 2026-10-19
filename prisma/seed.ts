@@ -22,7 +22,7 @@ import { semearPresentes } from './exemplo-presentes'
  * ponto de partida.
  *
  * O resto é exemplo mesmo, para que quem clonar o repositório, e quem abre a
- * homologação, veja as telas com o volume e a variedade do uso real: usuários,
+ * demonstração, veja as telas com o volume e a variedade do uso real: usuários,
  * três solicitações escritas à mão, uns cinco meses de pedidos em
  * `prisma/exemplo-presentes.ts` e meio ano da Logística em
  * `prisma/exemplo-logistica.ts`.

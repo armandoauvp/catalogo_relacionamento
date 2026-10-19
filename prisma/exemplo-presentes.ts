@@ -663,7 +663,7 @@ export async function semearPresentes(
     await db.contadorCodigo.upsert({ where: { ano }, create: { ano, valor }, update: { valor } })
   }
 
-  // Em lotes pequenos: rápido o bastante no banco remoto da homologação, sem
+  // Em lotes pequenos: rápido o bastante no banco remoto da Vercel, sem
   // abrir mais conexões do que o pool tem.
   for (let i = 0; i < gravacoes.length; i += 8) {
     await Promise.all(gravacoes.slice(i, i + 8).map((g) => g()))
