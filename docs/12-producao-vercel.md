@@ -6,15 +6,15 @@ verdade. A [entrega para a TI](10-entrega-ti.md), por Docker, continua no
 repositório como alternativa, caso a produção um dia vá para a
 infraestrutura da AUVP.
 
-|                | Como está                                                              |
-| -------------- | ---------------------------------------------------------------------- |
-| Endereço       | `https://catalogo-relacionamento.vercel.app`                           |
-| Publica quando | a cada commit no `main`                                                |
-| Funções        | São Paulo (`gru1`), perto do banco                                     |
-| Banco          | Neon, São Paulo, conectado ao ambiente Production                      |
-| Login          | Google da AUVP agora; Keycloak quando a TI entregar o client           |
-| Quem entra     | só e-mail `@auvp.com.br`, conferido antes de o usuário existir         |
-| Plano          | Hobby, por decisão da área (ver [Limites do Hobby](#limites-do-hobby)) |
+|                | Como está                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| Endereço       | `https://catalogo-relacionamento.vercel.app`                                                   |
+| Publica quando | a cada commit no `main`                                                                        |
+| Funções        | São Paulo (`gru1`), perto do banco                                                             |
+| Banco          | Neon, São Paulo, conectado ao ambiente Production                                              |
+| Login          | Google da AUVP agora; Keycloak quando a TI entregar o client                                   |
+| Quem entra     | só e-mail `@auvp.com.br` ou `@investidorsardinha.com.br`, conferido antes de o usuário existir |
+| Plano          | Hobby, por decisão da área (ver [Limites do Hobby](#limites-do-hobby))                         |
 
 O repositório já traz o que a Vercel precisa: `vercel.json` (build por
 `npm run vercel-build`, funções em `gru1`) e `scripts/migrar-na-vercel.mjs`,
@@ -38,10 +38,11 @@ Quem faz é alguém com acesso ao Google Cloud da AUVP; não depende da TI do
 Keycloak.
 
 1. Em [console.cloud.google.com](https://console.cloud.google.com), crie ou
-   escolha um projeto da organização AUVP.
+   escolha um projeto da organização **`investidorsardinha.com.br`**, que é a
+   organização do Google Workspace da AUVP.
 2. **APIs e serviços → Tela de permissão OAuth**: tipo de usuário **Interno**.
-   Interno quer dizer que só contas do Google Workspace da AUVP conseguem
-   entrar; a ferramenta confere o domínio de novo, de qualquer forma.
+   Interno quer dizer que só contas desse Workspace conseguem entrar; a
+   ferramenta confere o domínio do e-mail de novo, de qualquer forma.
 3. **APIs e serviços → Credenciais → Criar credenciais → ID do cliente OAuth**:
    - tipo: **Aplicativo da Web**;
    - origens JavaScript autorizadas: `https://catalogo-relacionamento.vercel.app`;
@@ -61,9 +62,15 @@ Em **Settings → Environment Variables**, ambiente **Production**:
 | `AUTH_GOOGLE_ID`             | o ID do cliente do passo 2                         |
 | `AUTH_GOOGLE_SECRET`         | a chave secreta do passo 2                         |
 | `AUTH_URL`                   | `https://catalogo-relacionamento.vercel.app`       |
-| `AUTH_ALLOWED_EMAIL_DOMAINS` | `auvp.com.br`                                      |
+| `AUTH_ALLOWED_EMAIL_DOMAINS` | `auvp.com.br,investidorsardinha.com.br`            |
 | `BOOTSTRAP_ADMIN_EMAILS`     | e-mail de quem administra, separados por vírgula   |
 | `AUTH_SECRET`                | um novo para a produção: `openssl rand -base64 32` |
+
+Os dois domínios porque o Workspace é `investidorsardinha.com.br` e as contas
+são `@auvp.com.br`: o Google devolve o e-mail principal de cada conta, e
+alguém cadastrado com o domínio da organização seria recusado se só o da AUVP
+estivesse na lista. Com mais de um domínio, a tela do Google mostra todas as
+contas do navegador, e quem barra a conta de fora continua sendo a ferramenta.
 
 E **apague `MODO_DEMONSTRACAO`**. A aplicação se recusa a subir com a
 demonstração ligada junto de um login de verdade, para nunca abrir as duas
