@@ -5,11 +5,10 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { catalogoProvider } from '@/lib/providers'
 import { versoDaFoto } from '@/lib/fotos'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ProdutoImagem } from '@/components/produto-imagem'
-import { CategoriaBadge } from '@/components/categoria-badge'
+import { SelosDoProduto } from '@/components/selos-do-produto'
 import { ValorDoProduto } from '@/components/valor-do-produto'
 import { LinkDoProduto } from '@/components/link-do-produto'
 import { FiltroCategorias } from '@/components/filtro-categorias'
@@ -151,8 +150,6 @@ export default async function CatalogoPage({
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {pagina.itens.map((produto, indice) => {
-            const semEstoque = produto.controlaEstoque && !produto.estoque
-
             return (
               <article
                 key={produto.id}
@@ -166,17 +163,11 @@ export default async function CatalogoPage({
                   // A primeira fileira carrega sem lazy: são as fotos que a
                   // pessoa vê antes de rolar.
                   prioridade={indice < 4}
-                />
+                >
+                  <SelosDoProduto produto={produto} />
+                </ProdutoImagem>
 
                 <div className="flex flex-1 flex-col items-start gap-1.5 p-4">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <CategoriaBadge categoria={produto.categoriaNome} />
-                    {/* Kit que embala bebida não sai sozinho, e quem olha o
-                        catálogo precisa saber disso antes de pedir. */}
-                    {produto.exigeAcompanhamento ? (
-                      <Badge variant="outline">vai com {produto.exigeAcompanhamento}</Badge>
-                    ) : null}
-                  </div>
                   <h2 className="font-display leading-snug font-semibold text-balance">
                     {produto.nome}
                   </h2>
@@ -190,30 +181,13 @@ export default async function CatalogoPage({
                       presente; o link mostra medida, sabor e o resto. */}
                   <LinkDoProduto url={produto.urlCompra} />
 
-                  <div className="mt-auto flex w-full items-end justify-between gap-3 pt-3">
+                  <div className="mt-auto w-full pt-3">
                     <ValorDoProduto
                       valor={produto.valor}
                       tipoValor={produto.tipoValor}
                       className="leading-tight"
                       classeDoValor="text-lg font-semibold"
                     />
-
-                    {/*
-                      O que o consultor quer saber aqui é quanto tempo demora,
-                      e não quantas peças existem: "pronta entrega" sai assim
-                      que o Admin aprovar; "sob encomenda" espera a compra.
-                      A contagem, quando a área a mantém, entra junto.
-                    */}
-                    {produto.controlaEstoque && semEstoque ? (
-                      <Badge variant="muted">sem estoque</Badge>
-                    ) : produto.origem === 'estoque_interno' ? (
-                      <Badge variant="outline">
-                        pronta entrega
-                        {produto.controlaEstoque ? ` · ${produto.estoque} un.` : ''}
-                      </Badge>
-                    ) : (
-                      <Badge variant="muted">sob encomenda</Badge>
-                    )}
                   </div>
                 </div>
               </article>

@@ -41,6 +41,7 @@ export function ProdutoImagem({
   categoria,
   prioridade = false,
   className,
+  children,
 }: {
   fotoUrl?: string | null
   /** Quando existe, o card vira a foto: frente em repouso, verso no hover. */
@@ -50,6 +51,8 @@ export function ProdutoImagem({
   /** Primeira dobra: carrega sem lazy, para a foto não pintar depois. */
   prioridade?: boolean
   className?: string
+  /** O que vai por cima da foto, fora do giro do verso: os selos do catálogo. */
+  children?: React.ReactNode
 }) {
   const temVerso = Boolean(fotoUrl && fotoVersoUrl)
   const [virado, setVirado] = useState(false)
@@ -153,6 +156,7 @@ export function ProdutoImagem({
           className="ease-apple h-full w-full object-cover transition-transform duration-500 sm:group-hover:scale-105"
         />
       )}
+      {children}
     </div>
   )
 }

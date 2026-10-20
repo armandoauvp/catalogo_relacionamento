@@ -48,6 +48,11 @@ const ICONES: Record<string, string> = {
   package: 'padrao',
   'rotate-cw': 'girar',
 
+  // Selos do catálogo, os mesmos de `src/components/selos-do-produto.tsx`.
+  'link-2': 'selo:acompanhamento',
+  'package-check': 'selo:pronta',
+  clock: 'selo:encomenda',
+
   // Ícones do menu superior, os mesmos de `src/components/nav.tsx`.
   gift: 'tela:catalogo',
   'square-pen': 'tela:nova',

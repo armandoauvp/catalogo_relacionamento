@@ -183,13 +183,13 @@ function ilustracao(nome, categoria) {
   return ILUSTRACOES[(categoria || '').toLowerCase()] || ILUSTRACOES.padrao
 }
 
-function imagemDoProduto(p) {
+function imagemDoProduto(p, sobreposicao = '') {
   const foto = p.semFoto ? null : `produtos/${p.slug}.webp`
 
   // Moldura com proporção fixa e a imagem com width/height reais: o espaço é
   // reservado antes de a foto chegar, então nada se move ao carregar.
   const quadro = (conteudo) =>
-    `<div class="relative aspect-[3/4] overflow-hidden border-b bg-muted/50 [perspective:1200px]">${conteudo}</div>`
+    `<div class="relative aspect-[3/4] overflow-hidden border-b bg-muted/50 [perspective:1200px]">${conteudo}${sobreposicao}</div>`
 
   if (!foto) {
     return quadro(`
@@ -250,15 +250,45 @@ function categoriaBadge(categoria) {
 }
 
 /**
- * Selo do kit que embala bebida.
+ * Selos do card, sobre a foto: só o ícone, e o nome desliza para fora dele no
+ * hover ou no foco. Espelha `src/components/selos-do-produto.tsx`.
  *
- * Dito no card, e não só no aviso que trava depois: quem olha o catálogo
- * precisa saber antes de escolher. Espelha `CardDeProduto` e a tela de
- * catálogo da aplicação.
+ * O kit que embala bebida é dito aqui, e não só no aviso que trava depois:
+ * quem olha o catálogo precisa saber antes de escolher.
  */
-function seloDeAcompanhamento(p) {
-  if (!p.exigeAcompanhamento) return ''
-  return `<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">vai com ${esc(p.exigeAcompanhamento)}</span>`
+function selosDoProduto(p) {
+  const chave = p.categoria.toLowerCase()
+  const selos = [
+    {
+      rotulo: p.categoria,
+      icone: chave,
+      tom: TOM_DA_CATEGORIA[chave] || 'bg-muted text-muted-foreground',
+    },
+  ]
+  if (p.exigeAcompanhamento) {
+    selos.push({
+      rotulo: `Vai com ${p.exigeAcompanhamento}`,
+      icone: 'selo:acompanhamento',
+      tom: 'bg-[hsl(var(--chart-6)/0.14)] text-[hsl(var(--chart-6))]',
+    })
+  }
+  selos.push(
+    p.origem === 'estoque_interno'
+      ? { rotulo: 'Pronta entrega', icone: 'selo:pronta', tom: 'bg-success/12 text-success' }
+      : { rotulo: 'Sob encomenda', icone: 'selo:encomenda', tom: 'bg-muted text-muted-foreground' },
+  )
+  return `<ul class="absolute right-2.5 top-2.5 z-20 flex flex-col items-end gap-1.5">${selos
+    .map(
+      (
+        s,
+      ) => `<li><span tabindex="0" class="group/selo relative flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <span class="rounded-full bg-background/90 shadow-sm backdrop-blur-sm">
+          <span class="flex size-8 items-center justify-center rounded-full ${s.tom}">${iconeSvg(s.icone, 'size-4')}</span>
+        </span>
+        <span class="pointer-events-none absolute right-full top-1/2 mr-1.5 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-full bg-foreground/90 px-2.5 py-1 font-roboto text-[11px] font-semibold text-background opacity-0 shadow-md transition-[opacity,transform] duration-200 ease-out group-hover/selo:translate-x-0 group-hover/selo:opacity-100 group-focus/selo:translate-x-0 group-focus/selo:opacity-100 motion-reduce:transition-none">${esc(s.rotulo)}</span>
+      </span></li>`,
+    )
+    .join('')}</ul>`
 }
 
 /** Link da loja onde o presente é comprado, como em `LinkDoProduto`. */
@@ -317,20 +347,12 @@ function telaCatalogo() {
     .map(
       (p) => `
       <article class="group flex flex-col overflow-hidden rounded-2xl border bg-card transition-[transform,box-shadow,border-color] duration-300 ease-apple hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl">
-        ${imagemDoProduto(p)}
+        ${imagemDoProduto(p, selosDoProduto(p))}
         <div class="flex flex-1 flex-col items-start gap-1.5 p-4">
-          <div class="flex flex-wrap items-center gap-1.5">
-            ${categoriaBadge(p.categoria)}${seloDeAcompanhamento(p)}
-          </div>
           <h2 class="font-display font-semibold leading-snug">${esc(p.nome)}</h2>
           ${linkDaLoja(p)}
-          <div class="mt-auto flex w-full items-end justify-between gap-3 pt-3">
+          <div class="mt-auto w-full pt-3">
             <p class="flex items-baseline gap-1.5 leading-tight">${preco(p, 'text-lg font-semibold')}</p>
-            ${
-              p.origem === 'estoque_interno'
-                ? '<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">pronta entrega</span>'
-                : '<span class="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">sob encomenda</span>'
-            }
           </div>
         </div>
       </article>`,
