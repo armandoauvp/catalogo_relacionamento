@@ -25,7 +25,6 @@ const demanda: DemandaNaTrilha = {
   previsaoConclusao: new Date('2026-08-21T15:00:00Z'),
   mostrarInicio: false,
   concluidaEm: null,
-  custoEnvio: '42.90',
   recorrente: true,
   periodicidade: 'semanal',
   itens: ['Camiseta', 'Caneca'],
@@ -43,7 +42,6 @@ describe('exportação da trilha', () => {
       previsaoInicio: null,
       origem: 'Manual',
       recorrencia: 'Semanal',
-      valorCustoEnvio: 42.9,
     })
   })
 

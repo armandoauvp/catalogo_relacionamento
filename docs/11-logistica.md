@@ -26,7 +26,7 @@ O protótipo não tinha código. Tudo aqui foi construído do zero.
 | ----------------------------------------------------------------------------- | -------------------------------------------------- | ---------- |
 | Filtro global: semanal, mensal, anual ou datas livres (relatório, item 3)     | `src/lib/periodo.ts`                               | pronto     |
 | Status operacional em destaque: normal, alto volume, risco, crítica (item 1)  | dashboard                                          | pronto     |
-| "Volume de Pedidos por Departamento", com subsidiária e departamento (item 2) | dashboard, em quantidade e em custo                | pronto     |
+| "Volume de Pedidos por Departamento", com subsidiária e departamento (item 2) | dashboard                                          | pronto     |
 | Comparativo com o período anterior e evolução semanal (proposta, item 1)      | dashboard                                          | pronto     |
 | Trilha de demandas com a esteira prioritária dentro dela (item 4)             | dashboard                                          | pronto     |
 | Cadastro manual da trilha, com os campos da proposta (item 4) e dos áudios    | "Nova demanda" e "Editar" na trilha                | pronto     |
@@ -40,6 +40,7 @@ O protótipo não tinha código. Tudo aqui foi construído do zero.
 | FAQ (item 7)                                                                  | `/logistica/faq`                                   | pronto     |
 | Fases operacionais padronizadas (proposta, item 5)                            | enum no schema                                     | pronto     |
 | Horas por produto (proposta, item 2)                                          | -                                                  | abandonado |
+| Custo dos envios, total e por departamento (áudios de 09/10/2026)             | -                                                  | retirado   |
 | Presente aprovado vira pedido no Tiny                                         | fila, [ADR 0009](adr/0009-integracoes-por-fila.md) | depois     |
 
 Equipe e FAQ são preenchidos pela própria Logística, nas telas de cada um.
@@ -52,10 +53,9 @@ parte em `painel.ts`:
 - **Volume** é o que foi _pedido_ no período (`solicitadaEm`), que na trilha
   manual é o dia do cadastro. O comparativo é com o período anterior do mesmo
   tamanho, e os números separam recorrentes de pontuais.
-- **Custo** é a soma do custo de envio informado. Demanda sem custo não entra
-  na soma, e o painel diz quantas faltam, para um departamento com metade dos
-  custos em branco não parecer barato. O gráfico por departamento troca entre
-  quantidade e custo (`?ver=valor`).
+- **Custo** saiu em 22/10/2026, a pedido da área: o card, a troca entre
+  quantidade e custo no gráfico, o campo no cadastro e a coluna na exportação.
+  A coluna `custo_envio` continua no banco, sem uso, com o que foi anotado.
 - **O gráfico de volume é de barras**, e não a rosca do protótipo. Comparar
   fatias de rosca é adivinhação; comprimento de barra se lê. Cada barra traz
   quantidade e percentual, então a tabela que ficava embaixo da rosca deixou

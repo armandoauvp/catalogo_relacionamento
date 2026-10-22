@@ -25,10 +25,6 @@ const CLASSE_DO_SELECT =
 
 const dia = (d: Date | null | undefined) => (d ? formatarISO(new Date(d)) : '')
 
-/** "12.5" vira "12,50": o campo aceita os dois, e a área escreve com vírgula. */
-const reais = (v: string | null | undefined) =>
-  v ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
-
 function Campo({
   rotulo,
   dica,
@@ -232,7 +228,7 @@ export function EditorDeDemanda({
             </Campo>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Campo rotulo="Previsão de início" dica="Opcional. Some da trilha quando começa.">
               <Input
                 type="date"
@@ -246,14 +242,6 @@ export function EditorDeDemanda({
                 name="previsaoConclusao"
                 defaultValue={dia(demanda?.previsaoConclusao)}
                 required
-              />
-            </Campo>
-            <Campo rotulo="Custo do envio (R$)" dica="Opcional. Soma no gráfico de custo.">
-              <Input
-                name="custoEnvio"
-                inputMode="decimal"
-                placeholder="0,00"
-                defaultValue={reais(demanda?.custoEnvio)}
               />
             </Campo>
           </div>

@@ -1799,7 +1799,7 @@ function telaLogistica() {
   return `
     ${cabecalho(
       'Dashboard Logístico',
-      'Status da operação, volume e custo dos envios e a trilha de demandas do período.',
+      'Status da operação, volume dos envios e a trilha de demandas do período.',
       null,
     )}
 
@@ -1829,10 +1829,9 @@ function telaLogistica() {
       </div>
     </section>
 
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="mb-6 grid gap-4 sm:grid-cols-2">
       ${cartao('Pedidos no período', String(L.volume.total), `+${dif} (+${Math.round((dif / L.volume.anterior) * 100)}%) em relação à semana anterior.<br />${L.recorrentes} recorrentes · ${L.pontuais} pontuais`, true)}
       ${cartao('Em andamento', '5', '1 atrasada · 1 sem previsão')}
-      ${cartao('Custo dos envios', L.custo.total, `${L.custo.semCusto} pedidos sem custo informado.`)}
     </div>
 
     <div class="mb-6 grid gap-6 lg:grid-cols-2">
@@ -1842,7 +1841,6 @@ function telaLogistica() {
             <h2 class="font-display text-lg font-semibold">Volume de Pedidos por Departamento</h2>
             <p class="mt-0.5 text-sm text-muted-foreground">${L.volume.total} pedidos no período, por subsidiária e departamento.</p>
           </div>
-          <div class="flex rounded-md bg-muted p-0.5">${botaoFalso('Quantidade', true)}${botaoFalso('Custo')}</div>
         </div>
         <div class="space-y-5">${departamentos}</div>
       </section>

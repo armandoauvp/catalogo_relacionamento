@@ -6,7 +6,6 @@ import type {
   PrioridadeDemanda,
   Prisma,
 } from '@prisma/client'
-import { somar, ZERO, type Dinheiro } from '@/lib/money'
 import { db } from '@/lib/db'
 import {
   fatiasDoPeriodo,
@@ -77,8 +76,6 @@ export type DemandaNaTrilha = {
   /** Só antes de a demanda começar; depois, a data que vale é a de finalização. */
   mostrarInicio: boolean
   concluidaEm: Date | null
-  /** Texto decimal ("12.50"): `Decimal` não atravessa para o formulário. */
-  custoEnvio: string | null
   recorrente: boolean
   periodicidade: Periodicidade | null
   itens: string[]
@@ -132,7 +129,6 @@ export async function trilhaDoPeriodo(
       previsaoConclusao: d.previsaoConclusao,
       mostrarInicio: mostraPrevisaoDeInicio(d.fase) && d.previsaoInicio !== null,
       concluidaEm: d.concluidaEm,
-      custoEnvio: d.custoEnvio?.toString() ?? null,
       recorrente: d.recorrente,
       periodicidade: d.periodicidade,
       itens: d.itens,
@@ -212,9 +208,6 @@ export type PainelLogistico = {
     porDepartamento: LinhaDeVolume[]
     recorrentes: number
     pontuais: number
-    custo: Dinheiro
-    /** Demandas do período sem custo informado: o total de custo não as inclui. */
-    semCusto: number
   }
   evolucao: { rotulo: string; rotuloLongo: string; quantidade: number }[]
   trilha: { demandas: DemandaNaTrilha[]; total: number }
@@ -232,7 +225,7 @@ export async function painelLogistico(
   const [doPeriodo, totalAnterior, daEvolucao, trilha, status] = await Promise.all([
     db.demandaLogistica.findMany({
       where: { ...ATIVAS, solicitadaEm: { gte: periodo.inicio, lt: periodo.fim } },
-      select: { subsidiaria: true, departamento: true, custoEnvio: true, recorrente: true },
+      select: { subsidiaria: true, departamento: true, recorrente: true },
     }),
     db.demandaLogistica.count({
       where: { ...ATIVAS, solicitadaEm: { gte: anterior.inicio, lt: anterior.fim } },
@@ -246,7 +239,6 @@ export async function painelLogistico(
   ])
 
   const contagens = volumePorFatia(daEvolucao, fatias)
-  const custos = doPeriodo.flatMap((d) => (d.custoEnvio === null ? [] : [d.custoEnvio]))
 
   return {
     status: {
@@ -261,8 +253,6 @@ export async function painelLogistico(
       variacao: variacao(doPeriodo.length, totalAnterior),
       porDepartamento: volumePorDepartamento(doPeriodo),
       ...contarRecorrentes(doPeriodo),
-      custo: custos.length ? somar(custos) : ZERO,
-      semCusto: doPeriodo.length - custos.length,
     },
     evolucao: fatias.map((f, i) => ({
       rotulo: f.rotulo,

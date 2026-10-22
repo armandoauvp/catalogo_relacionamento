@@ -3,9 +3,7 @@ import type {
   FaseOperacional,
   Periodicidade,
   PrioridadeDemanda,
-  Prisma,
 } from '@prisma/client'
-import { somar, ZERO, type Dinheiro } from '@/lib/money'
 import type { Fatia } from '@/lib/periodo'
 
 /**
@@ -154,9 +152,6 @@ export type LinhaDeVolume = {
   quantidade: number
   /** De 0 a 100, sobre a quantidade. */
   percentual: number
-  /** Soma do custo informado. Demanda sem custo não entra, e é contada à parte. */
-  custo: Dinheiro
-  semCusto: number
 }
 
 export const SEM_DEPARTAMENTO = 'Sem departamento'
@@ -164,29 +159,22 @@ export const SEM_SUBSIDIARIA = 'Sem subsidiária'
 
 /**
  * "Volume de Pedidos por Departamento" (relatório, item 2), na hierarquia
- * subsidiária e departamento, em quantidade e em custo: a Logística quer
- * saber "quanto a gente está gastando de envio por empresa ou departamento".
- * Ordem decrescente pela quantidade, empate pelo nome para a ordem não mudar
- * entre recargas.
+ * subsidiária e departamento. Ordem decrescente pela quantidade, empate pelo
+ * nome para a ordem não mudar entre recargas.
  */
 export function volumePorDepartamento(
-  demandas: readonly {
-    subsidiaria: string | null
-    departamento: string | null
-    custoEnvio: Prisma.Decimal | null
-  }[],
+  demandas: readonly { subsidiaria: string | null; departamento: string | null }[],
 ): LinhaDeVolume[] {
   const grupos = new Map<
     string,
-    { subsidiaria: string; departamento: string; custos: Prisma.Decimal[]; quantidade: number }
+    { subsidiaria: string; departamento: string; quantidade: number }
   >()
   for (const d of demandas) {
     const subsidiaria = d.subsidiaria?.trim() || SEM_SUBSIDIARIA
     const departamento = d.departamento?.trim() || SEM_DEPARTAMENTO
     const chave = `${subsidiaria}\u0000${departamento}`
-    const grupo = grupos.get(chave) ?? { subsidiaria, departamento, custos: [], quantidade: 0 }
+    const grupo = grupos.get(chave) ?? { subsidiaria, departamento, quantidade: 0 }
     grupo.quantidade++
-    if (d.custoEnvio !== null) grupo.custos.push(d.custoEnvio)
     grupos.set(chave, grupo)
   }
 
@@ -197,8 +185,6 @@ export function volumePorDepartamento(
       departamento: g.departamento,
       quantidade: g.quantidade,
       percentual: total ? (g.quantidade / total) * 100 : 0,
-      custo: g.custos.length ? somar(g.custos) : ZERO,
-      semCusto: g.quantidade - g.custos.length,
     }))
     .sort(
       (a, b) =>

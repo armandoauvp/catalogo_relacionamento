@@ -342,7 +342,6 @@ const LOGISTICA = {
     ['2026-33', 21],
     ['2026-34', 26],
   ],
-  custo: { total: 'R$ 1.214,30', semCusto: 3 },
   recorrentes: 9,
   pontuais: 17,
   trilha: [

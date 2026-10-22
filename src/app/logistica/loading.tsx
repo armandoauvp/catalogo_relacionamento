@@ -12,14 +12,14 @@ export default function Carregando() {
       <EsqueletoDeCabecalho />
       <Skeleton className="mb-6 h-[202px] rounded-lg sm:h-[66px]" />
       <Skeleton className="mb-6 h-[238px] rounded-lg sm:h-[122px]" />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-[138px] rounded-lg sm:h-[162px]" />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-[154px] rounded-lg sm:h-[162px]" />
         ))}
       </div>
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-[630px] rounded-lg lg:h-[370px]" />
-        <Skeleton className="h-[376px] rounded-lg lg:h-[370px]" />
+        <Skeleton className="h-[630px] rounded-lg lg:h-[356px]" />
+        <Skeleton className="h-[376px] rounded-lg lg:h-[356px]" />
       </div>
     </>
   )

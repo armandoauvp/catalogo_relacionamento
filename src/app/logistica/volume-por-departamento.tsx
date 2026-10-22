@@ -1,56 +1,35 @@
-import type { Route } from 'next'
 import type { LinhaDeVolume } from '@/lib/logistica/demandas'
-import { formatarBRL, paraNumero } from '@/lib/money'
-import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
-import { Button } from '@/components/ui/button'
 import { TituloDoBloco } from './pecas'
-
-export type Medida = 'quantidade' | 'valor'
 
 const porcento = (n: number) =>
   `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 
 /**
- * "Volume de Pedidos por Departamento" (relatório, item 2), em quantidade ou
- * em custo: a Logística quer saber "quanto a gente está gastando de envio por
- * empresa ou por departamento".
+ * "Volume de Pedidos por Departamento" (relatório, item 2).
  *
  * Barras horizontais em vez da rosca do protótipo: comparar fatias é
  * adivinhação, comprimento de barra se lê. Cada barra traz o número na ponta,
  * então a tabela separada deixou de ser necessária, e o valor nunca depende
  * de cor nem de hover. Uma cor só, porque o que se compara é tamanho.
- *
- * Em valor, demanda sem custo informado não entra na soma; a ponta da barra
- * diz quantas faltam, para um departamento com metade dos custos em branco
- * não parecer barato.
  */
 export function VolumePorDepartamento({
   linhas,
   total,
-  medida,
-  queryDoPeriodo,
 }: {
   linhas: LinhaDeVolume[]
   total: number
-  medida: Medida
-  /** Para a troca de medida manter o período na URL. */
-  queryDoPeriodo: string
 }) {
-  const valorDe = (l: LinhaDeVolume) => (medida === 'valor' ? paraNumero(l.custo) : l.quantidade)
-  const maior = Math.max(0.01, ...linhas.map(valorDe))
+  const maior = Math.max(1, ...linhas.map((l) => l.quantidade))
 
-  // Grupos na ordem do maior total, e departamentos na ordem da medida.
+  // Grupos na ordem do maior total, e departamentos na ordem da quantidade.
   const grupos = new Map<string, { total: number; linhas: LinhaDeVolume[] }>()
-  for (const l of [...linhas].sort((a, b) => valorDe(b) - valorDe(a))) {
+  for (const l of [...linhas].sort((a, b) => b.quantidade - a.quantidade)) {
     const g = grupos.get(l.subsidiaria) ?? { total: 0, linhas: [] }
-    g.total += valorDe(l)
+    g.total += l.quantidade
     g.linhas.push(l)
     grupos.set(l.subsidiaria, g)
   }
   const ordenados = [...grupos.entries()].sort((a, b) => b[1].total - a[1].total)
-
-  const href = (m: Medida) =>
-    `/logistica?${queryDoPeriodo}${m === 'valor' ? '&ver=valor' : ''}` as Route
 
   return (
     <section aria-labelledby="volume-por-departamento" className="bg-card rounded-lg border p-5">
@@ -58,17 +37,6 @@ export function VolumePorDepartamento({
         <TituloDoBloco
           titulo="Volume de Pedidos por Departamento"
           apoio={`${total} ${total === 1 ? 'pedido' : 'pedidos'} no período, por subsidiária e departamento.`}
-          acoes={
-            <nav aria-label="Medida do gráfico" className="bg-muted flex rounded-md p-0.5">
-              {(['quantidade', 'valor'] as const).map((m) => (
-                <Button key={m} size="sm" variant={medida === m ? 'secondary' : 'ghost'} asChild>
-                  <LinkDeFiltro href={href(m)} aria-current={medida === m ? 'true' : undefined}>
-                    {m === 'quantidade' ? 'Quantidade' : 'Custo'}
-                  </LinkDeFiltro>
-                </Button>
-              ))}
-            </nav>
-          }
         />
       </div>
 
@@ -80,9 +48,7 @@ export function VolumePorDepartamento({
             <div key={subsidiaria}>
               <p className="text-muted-foreground font-ui mb-2 flex justify-between gap-3 text-xs font-semibold tracking-[0.08em] uppercase">
                 <span>{subsidiaria}</span>
-                <span className="tabular-nums">
-                  {medida === 'valor' ? formatarBRL(grupo.total) : grupo.total}
-                </span>
+                <span className="tabular-nums">{grupo.total}</span>
               </p>
               <ul className="space-y-2.5">
                 {grupo.linhas.map((l) => (
@@ -98,27 +64,14 @@ export function VolumePorDepartamento({
                     <span className="relative h-3" aria-hidden="true">
                       <span
                         className="bg-serie absolute inset-y-0 left-0 rounded-r-[4px]"
-                        style={{ width: `${(valorDe(l) / maior) * 100}%` }}
+                        style={{ width: `${(l.quantidade / maior) * 100}%` }}
                       />
                     </span>
                     <span className="text-right tabular-nums">
-                      {medida === 'valor' ? (
-                        <>
-                          <span className="font-semibold">{formatarBRL(l.custo)}</span>
-                          {l.semCusto ? (
-                            <span className="text-muted-foreground ml-2 text-xs">
-                              {l.semCusto} sem custo
-                            </span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-semibold">{l.quantidade}</span>
-                          <span className="text-muted-foreground ml-2 inline-block w-14">
-                            {porcento(l.percentual)}
-                          </span>
-                        </>
-                      )}
+                      <span className="font-semibold">{l.quantidade}</span>
+                      <span className="text-muted-foreground ml-2 inline-block w-14">
+                        {porcento(l.percentual)}
+                      </span>
                     </span>
                   </li>
                 ))}

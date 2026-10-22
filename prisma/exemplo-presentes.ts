@@ -1,9 +1,9 @@
-import {
+import type {
+  FaseOperacional,
+  MotivoEnvio,
   Prisma,
-  type FaseOperacional,
-  type MotivoEnvio,
-  type PrismaClient,
-  type StatusSolicitacao,
+  PrismaClient,
+  StatusSolicitacao,
 } from '@prisma/client'
 import { acompanhamentosFaltando } from '../src/lib/acompanhamentos'
 import { aplicarModelo, MODELOS_DE_CARTA } from '../src/lib/carta'
@@ -723,8 +723,6 @@ function montarSolicitacao(
   const motivoOutro = r.motivo === 'outro' ? escolher(MOTIVOS_OUTRO, aleatorio) : null
   const modelo = escolher(MODELOS_DE_CARTA[r.motivo], aleatorio)
   const observacoes = aleatorio() < 0.12 ? escolher(OBSERVACOES, aleatorio) : null
-  const custo = (22 + aleatorio() * 46).toFixed(2)
-  const informouCusto = aleatorio() < 0.7
 
   return {
     codigo,
@@ -760,7 +758,7 @@ function montarSolicitacao(
         criadoEm: p.em,
       })),
     },
-    demanda: demandaNaTrilha(r, codigo, passos, temRastreio ? custo : null, informouCusto),
+    demanda: demandaNaTrilha(r, codigo, passos),
   }
 }
 
@@ -772,8 +770,6 @@ function demandaNaTrilha(
   r: Rascunho,
   codigo: string,
   passos: readonly Passo[],
-  custo: string | null,
-  informouCusto: boolean,
 ): Prisma.SolicitacaoCreateInput['demanda'] {
   const aprovacao = passos.findIndex(
     (p, k) => k > 0 && passos[k - 1]!.status === 'aguardando_aprovacao',
@@ -805,7 +801,6 @@ function demandaNaTrilha(
       ...base,
       concluidaEm: fase === 'concluido' && entrega ? entrega.em : null,
       responsavel: 'Bruno Lima',
-      custoEnvio: custo && informouCusto ? new Prisma.Decimal(custo) : null,
       ativa,
     },
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Prisma, type FaseOperacional, type PrioridadeDemanda } from '@prisma/client'
+import type { FaseOperacional, PrioridadeDemanda } from '@prisma/client'
 import { lerPeriodo, fatiasDoPeriodo } from '@/lib/periodo'
 import {
   compararNaTrilha,
@@ -113,18 +113,17 @@ describe('ordem da trilha', () => {
 })
 
 describe('volume por departamento', () => {
-  const d = (departamento: string | null, custo: string | null, subsidiaria = 'Do Not Scare') => ({
+  const d = (departamento: string | null, subsidiaria = 'Do Not Scare') => ({
     subsidiaria,
     departamento,
-    custoEnvio: custo === null ? null : new Prisma.Decimal(custo),
   })
 
   it('conta, ordena do maior para o menor e soma 100%', () => {
     const linhas = volumePorDepartamento([
-      d('Produto & CX', '10'),
-      d('Produto & CX', '15.50'),
-      d('Produto & CX', null),
-      d('Consultoria', '30', 'AUVP Consultoria'),
+      d('Produto & CX'),
+      d('Produto & CX'),
+      d('Produto & CX'),
+      d('Consultoria', 'AUVP Consultoria'),
     ])
     expect(linhas.map((l) => [l.departamento, l.quantidade])).toEqual([
       ['Produto & CX', 3],
@@ -133,22 +132,9 @@ describe('volume por departamento', () => {
     expect(linhas.reduce((s, l) => s + l.percentual, 0)).toBeCloseTo(100)
   })
 
-  it('soma o custo informado e conta à parte o que veio sem custo', () => {
-    const [produto] = volumePorDepartamento([
-      d('Produto & CX', '10'),
-      d('Produto & CX', '15.50'),
-      d('Produto & CX', null),
-    ])
-    expect(produto!.custo.toString()).toBe('25.5')
-    expect(produto!.semCusto).toBe(1)
-  })
-
   it('departamento vazio vai para um balde nomeado, não some', () => {
-    const [linha] = volumePorDepartamento([
-      { subsidiaria: null, departamento: '  ', custoEnvio: null },
-    ])
+    const [linha] = volumePorDepartamento([{ subsidiaria: null, departamento: '  ' }])
     expect(linha!.departamento).toBe(SEM_DEPARTAMENTO)
-    expect(linha!.custo.toString()).toBe('0')
   })
 
   it('sem demanda, sem linha', () => {

@@ -141,7 +141,8 @@ A demanda é cadastrada na própria trilha; a tarefa no ClickUp, quando existe,
 é um link. Departamento, subsidiária e produto ficam como texto, com sugestão
 dos valores já usados, porque a lista ainda está sendo definida pela área.
 
-Custo de envio é `Decimal`, nulo quando não informado. Recorrente tem
+`custo_envio` está fora de uso desde 22/10/2026: a área tirou o custo da
+ferramenta, e a coluna ficou só para não perder o que foi anotado. Recorrente tem
 periodicidade, e `ocorrencia_anterior_id` é único: uma ocorrência gera uma
 próxima, nunca duas. O presente aprovado aponta para a solicitação em
 `solicitacao_id`, também único. `ativa = false` é arquivar, nunca apagar.

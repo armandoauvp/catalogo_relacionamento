@@ -1,5 +1,4 @@
 import { formatarISO } from '@/lib/datas'
-import { paraNumero } from '@/lib/money'
 import {
   ROTULO_COMPLEXIDADE,
   ROTULO_FASE,
@@ -30,8 +29,6 @@ const COLUNAS_BASE = [
   { chave: 'complexidade', titulo: 'Complexidade', largura: 13, tipo: 'texto' },
   { chave: 'origem', titulo: 'Origem', largura: 12, tipo: 'texto' },
   { chave: 'recorrencia', titulo: 'Recorrência', largura: 13, tipo: 'texto' },
-  // `valor` no começo da chave é o que faz a planilha formatar em reais.
-  { chave: 'valorCustoEnvio', titulo: 'Custo do envio', largura: 15, tipo: 'numero' },
   { chave: 'responsavel', titulo: 'Responsável', largura: 22, tipo: 'texto' },
   { chave: 'solicitadaEm', titulo: 'Solicitada em', largura: 14, tipo: 'data' },
   { chave: 'previsaoInicio', titulo: 'Previsão de início', largura: 16, tipo: 'data' },
@@ -74,7 +71,6 @@ export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTri
     origem: ROTULO_ORIGEM[d.origem],
     recorrencia:
       d.recorrente && d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Pontual',
-    valorCustoEnvio: d.custoEnvio === null ? null : paraNumero(d.custoEnvio),
     responsavel: d.responsavel,
     solicitadaEm: data(d.solicitadaEm),
     previsaoInicio: data(d.previsaoInicio),

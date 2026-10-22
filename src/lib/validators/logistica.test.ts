@@ -78,13 +78,11 @@ describe('demanda', () => {
     prioridade: 'alta',
     complexidade: 'media',
     previsaoConclusao: '2026-10-15',
-    custoEnvio: '1.234,50',
   }
 
-  it('aceita o cadastro completo, com itens por linha e custo em reais', () => {
+  it('aceita o cadastro completo, com itens por linha', () => {
     const d = demandaSchema.parse(valida)
     expect(d.itens).toEqual(['Camiseta P', 'Camiseta M'])
-    expect(d.custoEnvio).toBe(1234.5)
     expect(d.previsaoConclusao.toISOString()).toBe('2026-10-16T02:59:59.999Z')
     expect(d.previsaoInicio).toBeNull()
     expect(d.recorrente).toBe(false)

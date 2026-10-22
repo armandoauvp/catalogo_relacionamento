@@ -5,7 +5,6 @@ import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fotoDoFormulario } from '@/lib/arquivos'
 import { Prisma } from '@prisma/client'
-import { dinheiro } from '@/lib/money'
 import { concluidaEmParaFase, proximaOcorrencia } from '@/lib/logistica/demandas'
 import {
   demandaSchema,
@@ -194,7 +193,7 @@ export async function salvarDemanda(dados: FormData): Promise<ResultadoDaAction>
 
     const validado = demandaSchema.safeParse(Object.fromEntries(dados.entries()))
     if (!validado.success) return primeiroErro(validado.error)
-    const { custoEnvio, periodicidade, recorrente, ...campos } = validado.data
+    const { periodicidade, recorrente, ...campos } = validado.data
 
     const registro = {
       ...campos,
@@ -202,7 +201,6 @@ export async function salvarDemanda(dados: FormData): Promise<ResultadoDaAction>
       // Desmarcar "recorrente" apaga a periodicidade: a regra do banco exige
       // as duas juntas, e uma periodicidade órfã confundiria a próxima edição.
       periodicidade: recorrente ? periodicidade : null,
-      custoEnvio: custoEnvio === null ? null : dinheiro(custoEnvio),
     }
     const agora = new Date()
     const id = String(dados.get('id') ?? '')

@@ -427,7 +427,8 @@ model DemandaLogistica {
   /// Lido só por quem tem `logistica.verObservacoes`.
   observacoes          String?
   linkFormulario       String?              @map("link_formulario")
-  /// Quanto custou mandar, em BRL. Nulo é "não informado", não zero.
+  /// Quanto custou mandar, em BRL. Fora de uso desde 22/10/2026: a área tirou
+  /// o custo da ferramenta. A coluna fica para não perder o que foi anotado.
   custoEnvio           Decimal?             @map("custo_envio") @db.Decimal(12, 2)
   /// Volta sozinha: ao concluir, nasce a próxima ocorrência.
   recorrente           Boolean              @default(false)

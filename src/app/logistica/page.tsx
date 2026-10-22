@@ -4,14 +4,13 @@ import { ArrowRight } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
-import { formatarBRL } from '@/lib/money'
 import { lerPeriodo, queryDoPeriodo } from '@/lib/periodo'
 import { painelLogistico, sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { Stat } from '@/components/stat'
 import { SeletorDePeriodo } from './seletor-de-periodo'
 import { StatusDaSemana } from './status-da-semana'
-import { VolumePorDepartamento, type Medida } from './volume-por-departamento'
+import { VolumePorDepartamento } from './volume-por-departamento'
 import { Evolucao } from './evolucao'
 import { Trilha } from './trilha'
 
@@ -38,7 +37,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
  * Leitura rápida da operação para a empresa inteira, da operação à diretoria.
  * A trilha é cadastrada aqui mesmo pela Logística; a tarefa no ClickUp, quando
  * existe, é um link. A ordem dos blocos é a da pergunta que cada um responde:
- * está tudo bem? quanto chegou e quanto custou? o que falta entregar? Ver
+ * está tudo bem? quanto chegou e de onde? o que falta entregar? Ver
  * docs/11-logistica.md.
  */
 export default async function LogisticaPage({
@@ -49,13 +48,11 @@ export default async function LogisticaPage({
     ref?: string
     de?: string
     ate?: string
-    ver?: string
   }>
 }) {
   const usuario = await exigirPermissao('logistica.ver')
   const params = await searchParams
   const periodo = lerPeriodo(params)
-  const medida: Medida = params.ver === 'valor' ? 'valor' : 'quantidade'
   const verObservacoes = pode(usuario.perfil, 'logistica.verObservacoes')
   const podeGerenciar = pode(usuario.perfil, 'logistica.gerenciar')
 
@@ -82,7 +79,7 @@ export default async function LogisticaPage({
     <>
       <CabecalhoDaPagina
         titulo="Dashboard Logístico"
-        descricao="Status da operação, volume e custo dos envios e a trilha de demandas do período."
+        descricao="Status da operação, volume dos envios e a trilha de demandas do período."
       />
 
       <SeletorDePeriodo periodo={periodo} />
@@ -95,7 +92,7 @@ export default async function LogisticaPage({
 
       <StatusDaSemana status={painel.status} podeDefinir={podeGerenciar} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Stat
           destaque
           rotulo="Pedidos no período"
@@ -120,26 +117,10 @@ export default async function LogisticaPage({
           valor={abertas.length}
           apoio={`${plural(atrasadas, 'atrasada', 'atrasadas')} · ${semPrevisao} sem previsão`}
         />
-        <Stat
-          rotulo="Custo dos envios"
-          valor={formatarBRL(volume.custo)}
-          apoio={
-            volume.semCusto
-              ? `${plural(volume.semCusto, 'pedido', 'pedidos')} sem custo informado.`
-              : volume.total
-                ? 'Todos os pedidos com custo informado.'
-                : 'Nenhum pedido no período.'
-          }
-        />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <VolumePorDepartamento
-          linhas={volume.porDepartamento}
-          total={volume.total}
-          medida={medida}
-          queryDoPeriodo={queryDoFiltro}
-        />
+        <VolumePorDepartamento linhas={volume.porDepartamento} total={volume.total} />
         <Evolucao pontos={painel.evolucao} apoio={APOIO_DA_EVOLUCAO[periodo.tipo]} />
       </div>
 

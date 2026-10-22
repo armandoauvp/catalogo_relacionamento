@@ -1,10 +1,9 @@
-import {
-  Prisma,
-  type ComplexidadeDemanda,
-  type FaseOperacional,
-  type Periodicidade,
-  type PrioridadeDemanda,
-  type PrismaClient,
+import type {
+  ComplexidadeDemanda,
+  FaseOperacional,
+  Periodicidade,
+  PrioridadeDemanda,
+  PrismaClient,
 } from '@prisma/client'
 import { fimDoDiaLocal, formatarISO, instanteLocal, partesLocais } from '../src/lib/datas'
 import { proximaOcorrencia } from '../src/lib/logistica/demandas'
@@ -56,7 +55,6 @@ type Estrutura = {
   departamento: string
   produto: string
   peso: number
-  custo: readonly [number, number]
 }
 
 const ESTRUTURA = {
@@ -65,56 +63,48 @@ const ESTRUTURA = {
     departamento: 'Produto & CX',
     produto: 'AUVP Escola',
     peso: 5,
-    custo: [18, 60],
   },
   conteudo: {
     subsidiaria: DNS,
     departamento: 'Conteúdo',
     produto: 'AUVP Escola',
     peso: 1,
-    custo: [12, 35],
   },
   marketing: {
     subsidiaria: DNS,
     departamento: 'Marketing',
     produto: 'AUVP Escola',
     peso: 2,
-    custo: [20, 80],
   },
   consultoria: {
     subsidiaria: 'AUVP Consultoria',
     departamento: 'Consultoria',
     produto: 'Consultoria',
     peso: 3,
-    custo: [25, 90],
   },
   comercial: {
     subsidiaria: 'AUVP Consultoria',
     departamento: 'Comercial',
     produto: 'Consultoria',
     peso: 2,
-    custo: [20, 70],
   },
   administrativo: {
     subsidiaria: 'AUVP Holding',
     departamento: 'Administrativo',
     produto: 'Holding',
     peso: 2,
-    custo: [40, 150],
   },
   pessoas: {
     subsidiaria: 'AUVP Holding',
     departamento: 'Pessoas',
     produto: 'Holding',
     peso: 1,
-    custo: [15, 45],
   },
   eventos: {
     subsidiaria: DNS,
     departamento: 'Eventos',
     produto: 'The Brain',
     peso: 1,
-    custo: [30, 110],
   },
 } as const satisfies Record<string, Estrutura>
 
@@ -314,14 +304,6 @@ function escolherPorPeso<T extends { peso: number }>(lista: readonly T[], sortei
   return lista.at(-1)!
 }
 
-function sortearCusto(estrutura: Estrutura, aleatorio: () => number) {
-  const [minimo, maximo] = estrutura.custo
-  // Um em cada sete chega sem custo informado, como vai acontecer de verdade.
-  return aleatorio() < 0.15
-    ? null
-    : new Prisma.Decimal((minimo + aleatorio() * (maximo - minimo)).toFixed(2))
-}
-
 const fimDoDia = (instante: Date) => fimDoDiaLocal(formatarISO(instante))!
 
 /** Em lotes pequenos: rápido no banco remoto da Vercel, sem esgotar o pool. */
@@ -440,7 +422,6 @@ export async function semearLogistica(db: PrismaClient, agora = new Date()) {
         previsaoInicio: new Date(solicitadaEm.getTime() + DIA),
         previsaoConclusao: previsaoFinal,
         concluidaEm,
-        custoEnvio: sortearCusto(estrutura, aleatorio),
         recorrente: false,
         periodicidade: null,
         ocorrenciaAnteriorId: null,
@@ -504,7 +485,6 @@ export async function semearLogistica(db: PrismaClient, agora = new Date()) {
         linkFormulario: null,
         ...previsao,
         concluidaEm: aberta ? null : concluidaEm,
-        custoEnvio: sortearCusto(estrutura, sorteio),
         recorrente: true,
         periodicidade: serie.periodicidade,
         ocorrenciaAnteriorId: anteriorId,

@@ -8,7 +8,7 @@ import {
 } from '@prisma/client'
 import { fimDoDiaLocal } from '@/lib/datas'
 import { semanasNoAno } from '@/lib/periodo'
-import { emailOpcional, urlOpcional, valorOpcional } from './comuns'
+import { emailOpcional, urlOpcional } from './comuns'
 
 /**
  * Formulários do módulo de Logística: demanda, status da semana, equipe e FAQ.
@@ -104,7 +104,6 @@ export const demandaSchema = z
     clickupUrl: urlOpcional,
     linkFormulario: urlOpcional,
     observacoes: z.preprocess(vazioViraNulo, z.string().trim().max(2000).nullable()),
-    custoEnvio: valorOpcional,
     recorrente: z.preprocess((v) => v === 'on' || v === true || v === 'true', z.boolean()),
     periodicidade: z.preprocess(
       vazioViraNulo,
