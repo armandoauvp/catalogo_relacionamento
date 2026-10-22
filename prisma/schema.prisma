@@ -567,6 +567,9 @@ model PedidoTiny {
   tinyNumero         String?          @map("tiny_numero")
   /// Situação do pedido dentro do Tiny, trazida pela sincronização.
   situacao           String?
+  /// Situação que a expedição daqui pediu e a fila ainda vai levar ao Tiny:
+  /// "preparando_envio" ao fechar a expedição, "pronto_envio" ao concluir.
+  situacaoPendente   String?          @map("situacao_pendente")
   rastreio           String?
   urlRastreio        String?          @map("url_rastreio")
   notaFiscalId       String?          @map("nota_fiscal_id")

@@ -167,7 +167,9 @@ export function EditorDeProduto({
                 id="produto-sku"
                 name="skuTiny"
                 defaultValue={produto?.skuTiny ?? ''}
-                placeholder="Opcional, usado na fase 2"
+                placeholder="O código do produto no Tiny"
+                required
+                maxLength={60}
               />
             </div>
 

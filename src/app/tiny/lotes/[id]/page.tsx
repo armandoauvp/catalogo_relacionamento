@@ -6,10 +6,8 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { formatarDataHora } from '@/lib/datas'
 import { formatarBRL } from '@/lib/money'
 import { formatarCpf } from '@/lib/cpf'
-import { ROTULO_ENVIO, rotuloDaSituacao, tomDoPedido } from '@/lib/tiny/rotulos'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { Stat } from '@/components/stat'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -19,12 +17,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { passoPermitido, situacaoVigente } from '@/lib/tiny/ciclo'
 import {
   AtualizarEnquanto,
+  BotaoConcluir,
+  BotaoFecharLote,
   BotaoReenviar,
   BotaoReenviarFalhas,
   BotoesDaFila,
 } from '../../acoes-da-fila'
+import { SeloDoPedido } from '../../selo-do-pedido'
 
 /**
  * Um lote importado, linha a linha: o que já é pedido no Tiny, o que ainda
@@ -75,6 +77,11 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
         acoes={
           <>
             <BotaoReenviarFalhas loteId={lote.id} falhas={falhas} />
+            {pedidos.some(
+              (p) => p.envio !== 'falhou' && passoPermitido(situacaoVigente(p), 'fechar'),
+            ) ? (
+              <BotaoFecharLote loteId={lote.id} />
+            ) : null}
             <BotoesDaFila />
           </>
         }
@@ -123,16 +130,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
                 </TableCell>
                 <TableCell className="text-sm">{p.resumo}</TableCell>
                 <TableCell>
-                  <Badge variant={tomDoPedido(p.envio, p.situacao)}>
-                    {p.envio === 'enviado'
-                      ? (rotuloDaSituacao(p.situacao) ?? ROTULO_ENVIO.enviado)
-                      : ROTULO_ENVIO[p.envio]}
-                  </Badge>
-                  {p.tinyNumero ? (
-                    <span className="text-muted-foreground ml-2 text-xs tabular-nums">
-                      nº {p.tinyNumero}
-                    </span>
-                  ) : null}
+                  <SeloDoPedido pedido={p} />
                   {p.erro ? (
                     <p className="text-destructive mt-1 max-w-80 text-xs">{p.erro}</p>
                   ) : null}
@@ -158,6 +156,8 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
                 <TableCell>
                   {p.envio === 'falhou' || (p.envio === 'pendente' && p.erro) ? (
                     <BotaoReenviar id={p.id} />
+                  ) : passoPermitido(situacaoVigente(p), 'concluir') ? (
+                    <BotaoConcluir pedidoTinyId={p.id} />
                   ) : null}
                 </TableCell>
               </TableRow>

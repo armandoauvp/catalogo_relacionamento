@@ -274,14 +274,24 @@ em lote do AUVP-Eventos passa a morar aqui. Admin e Logística operam. Os
 pedidos saem como no AUVP-Eventos: transportadora, serviço e marcador
 escolhidos, o resto no padrão do Tiny.
 
-**Assumido:** o presente inteiro vai ao Tiny, inclusive o item comprado fora;
-item sem SKU entra pela descrição. Frete por conta do remetente (`R`).
+**Decidido na pauta de 22/10/2026** (reunião de sincronização Tiny × Catálogo):
+
+- SKU obrigatório em todo produto do catálogo (responsável: Murilo). Presente
+  com produto sem SKU não vai ao Tiny: fica em Falhou com o aviso.
+- Ciclo de vida: nasce **Em aberto**; o fechamento da expedição leva a
+  **Preparando envio** (botão "Fechar expedição", na lista); a conclusão leva a
+  **Pronto para envio** (botão "Concluir", por pedido). Ver
+  [o ciclo de vida](13-tiny.md#o-ciclo-de-vida).
+- O pedido sai sempre como **Pedido de Venda**.
+
+**Assumido:** o presente inteiro vai ao Tiny, inclusive o item comprado fora,
+que vai pela descrição por não ter SKU. Frete por conta do remetente (`R`).
 **Onde mudar:** `pedidoDoPresente` em `src/lib/tiny/fila.ts` e `montarPedido`
 em `src/lib/tiny/pedido.ts`.
 
-**Ainda depende da área:** o token, o SKU de cada produto no cadastro e, depois
-do primeiro pedido real, conferir se natureza da operação e forma de envio
-saíram como a AUVP lança à mão.
+**Em aberto, para a reunião:** como as entradas pelo e-commerce aparecem nesse
+fluxo (elas nascem direto no Tiny) e, depois do primeiro pedido real, se
+natureza da operação e forma de envio saíram como a AUVP lança à mão.
 
 ## Técnicas, para começar
 

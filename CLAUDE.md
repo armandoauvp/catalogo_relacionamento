@@ -37,6 +37,7 @@ duplique numa tela.
 | Fila, envio e volta do Tiny      | `src/lib/tiny/fila.ts`                    |
 | Erros do Tiny e novas tentativas | `src/lib/tiny/erros.ts`                   |
 | Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
+| Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
 | Catálogo de presentes da área    | `prisma/catalogo-auvp.ts`                 |
 | Aritmética de dinheiro           | `src/lib/money.ts`                        |
@@ -194,6 +195,11 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   gravada na mesma transação da mudança de status ([ADR 0009](docs/adr/0009-integracoes-por-fila.md)).
   Ninguém chama a API do Tiny fora de `src/lib/tiny/fila.ts` e das buscas da
   importação; o token só existe no servidor, nunca no banco nem no navegador.
+- **Sem SKU não vai ao Tiny.** O SKU é obrigatório no cadastro de produto, e
+  presente com produto sem SKU fica em Falhou com o aviso, em vez de ir pela
+  descrição. Só o presente específico, fora do catálogo, vai sem SKU.
+- **O pedido no Tiny só anda para a frente:** Em aberto → Preparando envio
+  (fechar expedição) → Pronto para envio (concluir), por `passoPermitido`.
 - **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
   (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 

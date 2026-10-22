@@ -10,6 +10,7 @@ import { tinyConfigurado } from '@/lib/env'
 import { listarTransportadoras, pesquisarProdutos, type ProdutoDoTiny } from '@/lib/tiny/api'
 import {
   configuracaoTiny,
+  marcarPassoDaExpedicao,
   processarFila,
   reenviarPedido,
   registrarEvento,
@@ -87,6 +88,14 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
     const validado = loteSchema.safeParse(entrada)
     if (!validado.success) return primeiroErro(validado.error)
     const dados = validado.data
+    // A pauta de 22/10/2026 exige SKU em todo pedido: sem ele o Tiny não liga o
+    // item ao estoque.
+    if (!dados.produto.codigo?.trim()) {
+      return {
+        ok: false,
+        erro: 'O produto escolhido não tem SKU (código) no Tiny. Cadastre o código lá e busque de novo.',
+      }
+    }
 
     const linhas = dados.linhas.map((l) => ({ linha: l.linha, ...validarLinha(l.campos) }))
     const comErro = linhas.find((l) => l.erros.length)
@@ -268,6 +277,71 @@ export async function reenviarFalhasDoLote(
     if (falhas.length) processarDepois()
     revalidarTiny(loteId)
     return { ok: true, dados: { reenviados: falhas.length } }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+type ResultadoDoPasso = ResultadoDaAction<{ marcados: number; ignorados: number }>
+
+/**
+ * "Fechar expedição" na tela da Expedição: os presentes da lista passam a
+ * "Preparando envio" no Tiny, como a pauta de 22/10/2026 definiu.
+ */
+export async function fecharExpedicao(solicitacaoIds: string[]): Promise<ResultadoDoPasso> {
+  try {
+    const usuario = await autorizarAction('tiny.operar')
+    const pedidos = await db.pedidoTiny.findMany({
+      where: { solicitacaoId: { in: solicitacaoIds } },
+      select: { id: true },
+    })
+    const r = await marcarPassoDaExpedicao(
+      pedidos.map((p) => p.id),
+      'fechar',
+      usuario.nome,
+    )
+    if (r.marcados) processarDepois()
+    revalidatePath('/expedicao')
+    revalidarTiny()
+    return { ok: true, dados: { ...r, ignorados: solicitacaoIds.length - r.marcados } }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/** O mesmo fechamento, para todos os pedidos de um lote importado. */
+export async function fecharExpedicaoDoLote(loteId: string): Promise<ResultadoDoPasso> {
+  try {
+    const usuario = await autorizarAction('tiny.operar')
+    const pedidos = await db.pedidoTiny.findMany({ where: { loteId }, select: { id: true } })
+    const r = await marcarPassoDaExpedicao(
+      pedidos.map((p) => p.id),
+      'fechar',
+      usuario.nome,
+    )
+    if (r.marcados) processarDepois()
+    revalidarTiny(loteId)
+    return { ok: true, dados: r }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/** "Concluir": o pacote está pronto, e o pedido vai a "Pronto para envio". */
+export async function concluirExpedicao(pedidoTinyIds: string[]): Promise<ResultadoDoPasso> {
+  try {
+    const usuario = await autorizarAction('tiny.operar')
+    const r = await marcarPassoDaExpedicao(pedidoTinyIds, 'concluir', usuario.nome)
+    if (r.marcados) processarDepois()
+    const lotes = await db.pedidoTiny.findMany({
+      where: { id: { in: pedidoTinyIds }, loteId: { not: null } },
+      select: { loteId: true },
+      distinct: ['loteId'],
+    })
+    revalidatePath('/expedicao')
+    revalidarTiny()
+    for (const l of lotes) revalidatePath(`/tiny/lotes/${l.loteId}`)
+    return { ok: true, dados: r }
   } catch (e) {
     return comoErro(e)
   }

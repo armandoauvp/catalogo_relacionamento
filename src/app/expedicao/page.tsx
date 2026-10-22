@@ -11,6 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/status-badge'
 import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
+import type { EnvioTiny } from '@prisma/client'
+import { db } from '@/lib/db'
+import { passoPermitido, situacaoVigente } from '@/lib/tiny/ciclo'
+import { BotaoConcluir, BotaoFecharExpedicao } from '@/app/tiny/acoes-da-fila'
+import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
 import { Rastreio } from './rastreio'
 
 /**
@@ -24,6 +29,34 @@ import { Rastreio } from './rastreio'
  * O endereço aparece inteiro, e não atrás de um clique: a tela é usada com o
  * pacote na mão, e um dado de envio escondido é um dado redigitado errado.
  */
+type PedidoNoTiny = {
+  id: string
+  envio: EnvioTiny
+  situacao: string | null
+  situacaoPendente: string | null
+  tinyNumero: string | null
+  erro: string | null
+}
+
+/** A situação do presente no Tiny e o "Concluir" da expedição, no topo do cartão. */
+function NoTiny({ tiny, operaTiny }: { tiny: PedidoNoTiny | undefined; operaTiny: boolean }) {
+  if (!tiny) return null
+  const podeConcluir =
+    operaTiny && tiny.envio !== 'falhou' && passoPermitido(situacaoVigente(tiny), 'concluir')
+  return (
+    <>
+      <span className="flex flex-wrap items-center justify-end gap-2 text-xs">
+        <span className="text-muted-foreground">Tiny</span>
+        <SeloDoPedido pedido={tiny} />
+      </span>
+      {tiny.erro ? (
+        <p className="text-destructive max-w-72 text-right text-xs">{tiny.erro}</p>
+      ) : null}
+      {podeConcluir ? <BotaoConcluir pedidoTinyId={tiny.id} /> : null}
+    </>
+  )
+}
+
 export default async function ExpedicaoPage({
   searchParams,
 }: {
@@ -31,6 +64,7 @@ export default async function ExpedicaoPage({
 }) {
   const usuario = await exigirPermissao('expedicao.verFila')
   const podeRegistrarRastreio = pode(usuario.perfil, 'expedicao.registrarRastreio')
+  const operaTiny = pode(usuario.perfil, 'tiny.operar')
   const { enviadas } = await searchParams
   const incluirEnviadas = enviadas === '1'
 
@@ -42,6 +76,31 @@ export default async function ExpedicaoPage({
     0,
   )
 
+  // O pedido de cada presente no Tiny: a situação de lá e os passos da
+  // expedição (pauta de 22/10/2026): fechar a lista e concluir o pacote.
+  const noTiny = new Map(
+    (
+      await db.pedidoTiny.findMany({
+        where: { solicitacaoId: { in: pedidos.map((p) => p.id) } },
+        select: {
+          id: true,
+          solicitacaoId: true,
+          envio: true,
+          situacao: true,
+          situacaoPendente: true,
+          tinyNumero: true,
+          erro: true,
+        },
+      })
+    ).map((t) => [t.solicitacaoId!, t]),
+  )
+  const fechaveis = aSeparar
+    .filter((p) => {
+      const t = noTiny.get(p.id)
+      return t && t.envio !== 'falhou' && passoPermitido(situacaoVigente(t), 'fechar')
+    })
+    .map((p) => p.id)
+
   const query = incluirEnviadas ? '?enviadas=1' : ''
 
   return (
@@ -51,6 +110,7 @@ export default async function ExpedicaoPage({
         descricao="Tudo o que a expedição precisa para embalar e postar, em ordem de chegada. A carta continua sendo escrita fora daqui."
         acoes={
           <>
+            {operaTiny ? <BotaoFecharExpedicao solicitacaoIds={fechaveis} /> : null}
             <Button variant="outline" asChild>
               <a href={`/api/expedicao/export${query ? `${query}&` : '?'}formato=csv`} download>
                 Baixar CSV
@@ -107,7 +167,10 @@ export default async function ExpedicaoPage({
                     {formatarData(pedido.data)} · {pedido.consultor} · {pedido.motivo}
                   </p>
                 </div>
-                <StatusBadge status={pedido.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <StatusBadge status={pedido.status} />
+                  <NoTiny tiny={noTiny.get(pedido.id)} operaTiny={operaTiny} />
+                </div>
               </CardHeader>
 
               <CardContent className="grid gap-6 md:grid-cols-2">

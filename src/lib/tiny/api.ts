@@ -115,6 +115,11 @@ export async function incluirPedido(
   return { id, numero: texto(registro?.numero ?? r.numero) }
 }
 
+/** Muda a situação do pedido no Tiny: o fechamento e a conclusão da expedição. */
+export async function alterarSituacao(id: string, situacao: string): Promise<void> {
+  await chamar('pedido.alterar.situacao', { id, situacao })
+}
+
 export type PedidoNoTiny = {
   situacao: string
   rastreio: string | null

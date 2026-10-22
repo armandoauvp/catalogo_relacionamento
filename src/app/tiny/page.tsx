@@ -7,11 +7,9 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { env, tinyConfigurado } from '@/lib/env'
 import { formatarDataHora } from '@/lib/datas'
 import { configuracaoTiny, enviadosNaSemana } from '@/lib/tiny/fila'
-import { ROTULO_ENVIO, rotuloDaSituacao, tomDoPedido } from '@/lib/tiny/rotulos'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { Stat } from '@/components/stat'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -22,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AtualizarEnquanto, BotaoReenviar, BotoesDaFila } from './acoes-da-fila'
+import { SeloDoPedido } from './selo-do-pedido'
 import { ConfiguracaoDosPresentes } from './configuracao'
 
 /**
@@ -280,16 +279,7 @@ export default async function TinyPage({
                       {p.resumo}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={tomDoPedido(p.envio, p.situacao)}>
-                        {p.envio === 'enviado'
-                          ? (rotuloDaSituacao(p.situacao) ?? ROTULO_ENVIO.enviado)
-                          : ROTULO_ENVIO[p.envio]}
-                      </Badge>
-                      {p.tinyNumero ? (
-                        <span className="text-muted-foreground ml-2 text-xs tabular-nums">
-                          nº {p.tinyNumero}
-                        </span>
-                      ) : null}
+                      <SeloDoPedido pedido={p} />
                       {p.erro ? (
                         <p className="text-destructive mt-1 max-w-72 text-xs">{p.erro}</p>
                       ) : null}

@@ -1,0 +1,71 @@
+/**
+ * O ciclo de vida do pedido no Tiny, como a pauta de 22/10/2026 definiu:
+ *
+ * | Momento                   | Situação no Tiny e aqui |
+ * | ------------------------- | ----------------------- |
+ * | o pedido nasce            | Em aberto               |
+ * | a expedição fecha a lista | Preparando envio        |
+ * | a expedição conclui       | Pronto para envio       |
+ *
+ * O nascimento é a própria criação do pedido (`pedido.incluir`). Os dois
+ * passos seguintes partem daqui, pela fila, com `pedido.alterar.situacao`; e o
+ * que alguém mudar direto no Tiny volta pela sincronização.
+ */
+
+export type PassoDaExpedicao = 'fechar' | 'concluir'
+
+export const SITUACAO_DO_PASSO: Record<PassoDaExpedicao, 'preparando_envio' | 'pronto_envio'> = {
+  fechar: 'preparando_envio',
+  concluir: 'pronto_envio',
+}
+
+export const ROTULO_DO_PASSO: Record<PassoDaExpedicao, string> = {
+  fechar: 'Fechar expedição',
+  concluir: 'Concluir',
+}
+
+/** A ordem em que o pedido anda no Tiny. Cancelado e não entregue saem dela. */
+const ORDEM = [
+  'aberto',
+  'aprovado',
+  'preparando_envio',
+  'faturado',
+  'pronto_envio',
+  'enviado',
+  'entregue',
+]
+
+/**
+ * A situação que vale para a tela: a que a expedição já pediu, mesmo que a
+ * fila ainda não a tenha levado ao Tiny, ou a última lida de lá.
+ */
+export function situacaoVigente(p: {
+  situacao: string | null
+  situacaoPendente: string | null
+}): string | null {
+  return p.situacaoPendente ?? p.situacao
+}
+
+/**
+ * O Tiny já está nesta situação ou além dela? Quando alguém anda o pedido
+ * direto no Tiny, o passo que a expedição pediu aqui perde o sentido, e
+ * mandá-lo faria o pedido voltar.
+ */
+export function jaChegou(situacaoNoTiny: string | null, destino: string): boolean {
+  if (!situacaoNoTiny) return false
+  if (situacaoNoTiny === 'cancelado' || situacaoNoTiny === 'nao_entregue') return true
+  const atual = ORDEM.indexOf(situacaoNoTiny)
+  return atual >= 0 && atual >= ORDEM.indexOf(destino)
+}
+
+/**
+ * O passo só anda para a frente: fechar a expedição de um pedido que já está
+ * "Pronto para envio" no Tiny o faria voltar. Pedido sem situação ainda (na
+ * fila para nascer) pode receber o passo; ele vai ao Tiny depois de criado.
+ */
+export function passoPermitido(situacaoAtual: string | null, passo: PassoDaExpedicao): boolean {
+  if (situacaoAtual === null) return true
+  const atual = ORDEM.indexOf(situacaoAtual)
+  if (atual < 0) return false
+  return ORDEM.indexOf(SITUACAO_DO_PASSO[passo]) > atual
+}

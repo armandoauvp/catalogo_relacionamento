@@ -5,11 +5,15 @@ import { useRouter } from 'next/navigation'
 import { Loader2, RefreshCw, RotateCcw, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
+  concluirExpedicao,
+  fecharExpedicao,
+  fecharExpedicaoDoLote,
   processarAgora,
   reenviar,
   reenviarFalhasDoLote,
   sincronizarAgora,
 } from '@/lib/actions/tiny'
+import type { ResultadoDaAction } from '@/lib/actions/comuns'
 
 /** Mensagem de resultado ao lado do botão, que some sozinha. */
 function useAviso() {
@@ -79,13 +83,16 @@ export function BotoesDaFila() {
             if (!r.ok) setAviso({ texto: r.erro, erro: true })
             else if (r.dados.interrompida) setAviso({ texto: r.dados.interrompida, erro: true })
             else {
-              const { enviados, falhas, adiados } = r.dados
+              const { enviados, falhas, adiados, situacoes } = r.dados
               setAviso({
                 texto:
-                  enviados + falhas + adiados === 0
+                  enviados + falhas + adiados + situacoes === 0
                     ? 'A fila já estava vazia.'
                     : `${plural(enviados, 'enviado', 'enviados')}, ${plural(falhas, 'falha', 'falhas')}` +
                       (adiados ? `, ${plural(adiados, 'adiado', 'adiados')}` : '') +
+                      (situacoes
+                        ? `, ${plural(situacoes, 'situação atualizada', 'situações atualizadas')}`
+                        : '') +
                       '.',
                 erro: falhas > 0,
               })
@@ -169,6 +176,82 @@ export function BotaoReenviarFalhas({ loteId, falhas }: { loteId: string; falhas
         Reenviar {plural(falhas, 'falha', 'falhas')}
       </Button>
     </span>
+  )
+}
+
+type Passo = () => Promise<ResultadoDaAction<{ marcados: number; ignorados: number }>>
+
+/**
+ * Botão de um passo da expedição (pauta de 22/10/2026). O passo vai ao Tiny
+ * pela fila: o aviso diz quantos pedidos pegaram, e a tela mostra "a caminho".
+ */
+function BotaoDePasso({
+  rotulo,
+  executar,
+  variante = 'outline',
+  tamanho,
+}: {
+  rotulo: string
+  executar: Passo
+  variante?: 'outline' | 'default' | 'ghost'
+  tamanho?: 'sm'
+}) {
+  const router = useRouter()
+  const [enviando, iniciar] = useTransition()
+  const [aviso, setAviso] = useAviso()
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Aviso aviso={aviso} />
+      <Button
+        variant={variante}
+        size={tamanho}
+        disabled={enviando}
+        onClick={() =>
+          iniciar(async () => {
+            const r = await executar()
+            if (!r.ok) setAviso({ texto: r.erro, erro: true })
+            else if (r.dados.marcados === 0)
+              setAviso({ texto: 'Nada a mudar: os pedidos já passaram deste ponto.', erro: false })
+            else
+              setAviso({
+                texto: `${plural(r.dados.marcados, 'pedido vai', 'pedidos vão')} ao Tiny.`,
+                erro: false,
+              })
+            router.refresh()
+          })
+        }
+      >
+        {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+        {rotulo}
+      </Button>
+    </span>
+  )
+}
+
+/** "Fechar expedição" na tela da Expedição: a lista toda vai a "Preparando envio". */
+export function BotaoFecharExpedicao({ solicitacaoIds }: { solicitacaoIds: string[] }) {
+  if (!solicitacaoIds.length) return null
+  return (
+    <BotaoDePasso
+      rotulo="Fechar expedição"
+      variante="default"
+      executar={() => fecharExpedicao(solicitacaoIds)}
+    />
+  )
+}
+
+export function BotaoFecharLote({ loteId }: { loteId: string }) {
+  return <BotaoDePasso rotulo="Fechar expedição" executar={() => fecharExpedicaoDoLote(loteId)} />
+}
+
+/** "Concluir" de um pedido: embalado e pronto, vai a "Pronto para envio". */
+export function BotaoConcluir({ pedidoTinyId }: { pedidoTinyId: string }) {
+  return (
+    <BotaoDePasso
+      rotulo="Concluir"
+      tamanho="sm"
+      executar={() => concluirExpedicao([pedidoTinyId])}
+    />
   )
 }
 

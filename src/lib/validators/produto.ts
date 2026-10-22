@@ -32,7 +32,13 @@ export const produtoSchema = z
     /** O que este presente satisfaz quando entra junto de um kit. */
     serveComoAcompanhamento: rotuloOpcional,
     ativo: z.boolean().default(true),
-    skuTiny: textoOpcional,
+    // Obrigatório desde a pauta de 22/10/2026: sem SKU o pedido no Tiny não
+    // liga o item ao estoque, e o presente fica parado na fila.
+    skuTiny: z
+      .string({ message: 'Informe o SKU do produto no Tiny.' })
+      .trim()
+      .min(1, 'Informe o SKU do produto no Tiny.')
+      .max(60, 'SKU com mais de 60 caracteres.'),
   })
   .refine((d) => !d.controlaEstoque || d.estoque !== null, {
     message: 'Produto que controla estoque precisa da quantidade em estoque.',

@@ -1,3 +1,4 @@
+import type { Route } from 'next'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Stat } from '@/components/stat'
+import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { ValorDoProduto } from '@/components/valor-do-produto'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
@@ -22,8 +24,14 @@ import { EditorDeCategorias } from './editor-de-categorias'
  * Requisito de primeira ordem da spec: cadastrar, editar, ativar e desativar
  * produto sem passar pelo time técnico.
  */
-export default async function AdminCatalogoPage() {
+export default async function AdminCatalogoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sku?: string }>
+}) {
   await exigirPermissao('catalogo.gerenciar')
+  // A pauta de 22/10/2026 pede SKU em todo produto; o filtro mostra o que falta.
+  const soSemSku = (await searchParams).sku === 'falta'
 
   const [produtos, categorias] = await Promise.all([
     db.produto.findMany({
@@ -34,6 +42,9 @@ export default async function AdminCatalogoPage() {
   ])
 
   const ativos = produtos.filter((p) => p.ativo).length
+  const temSku = (p: { skuTiny: string | null }) => Boolean(p.skuTiny?.trim())
+  const semSku = produtos.filter((p) => p.ativo && !temSku(p)).length
+  const listados = soSemSku ? produtos.filter((p) => p.ativo && !temSku(p)) : produtos
 
   // Rótulos de acompanhamento que já existem, para o cadastro sugerir em vez
   // de deixar a área digitar "vinhos" e a trava deixar de parear.
@@ -62,12 +73,28 @@ export default async function AdminCatalogoPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat rotulo="Produtos ativos" valor={ativos} apoio="Visíveis para o consultor." />
         <Stat
           rotulo="Desativados"
           valor={produtos.length - ativos}
           apoio="Somem do catálogo, permanecem no histórico."
+        />
+        <Stat
+          rotulo="Sem SKU no Tiny"
+          valor={semSku}
+          apoio={
+            semSku ? (
+              <LinkDeFiltro
+                href={(soSemSku ? '/admin/catalogo' : '/admin/catalogo?sku=falta') as Route}
+                className="text-primary-emphasis underline-offset-4 hover:underline"
+              >
+                {soSemSku ? 'Mostrar todos' : 'Mostrar só estes'}
+              </LinkDeFiltro>
+            ) : (
+              'Todos os ativos têm SKU.'
+            )
+          }
         />
         <Stat rotulo="Categorias" valor={categorias.length} />
       </div>
@@ -93,9 +120,20 @@ export default async function AdminCatalogoPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {produtos.map((p) => (
+              {listados.map((p) => (
                 <TableRow key={p.id} className={p.ativo ? undefined : 'text-muted-foreground'}>
-                  <TableCell className="font-medium">{p.nome}</TableCell>
+                  <TableCell>
+                    <span className="font-medium">{p.nome}</span>
+                    {temSku(p) ? (
+                      <span className="text-muted-foreground block text-xs tabular-nums">
+                        SKU {p.skuTiny}
+                      </span>
+                    ) : (
+                      <Badge variant="warning" className="mt-1">
+                        sem SKU no Tiny
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{p.categoria.nome}</TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     <ValorDoProduto valor={p.valor} tipoValor={p.tipoValor} />

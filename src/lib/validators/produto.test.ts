@@ -11,7 +11,21 @@ const base = {
   nome: 'Kit Queijos com Vinho',
   categoriaId: 'c1',
   valor: '165,00',
+  skuTiny: 'KIT-QUEIJO',
 }
+
+describe('SKU no Tiny', () => {
+  it('é obrigatório: sem ele o presente para na fila do Tiny', () => {
+    const { skuTiny: _sku, ...semSku } = base
+    expect(produtoSchema.safeParse(semSku).success).toBe(false)
+    expect(produtoSchema.safeParse({ ...base, skuTiny: '   ' }).success).toBe(false)
+  })
+
+  it('tira os espaços das pontas', () => {
+    const r = produtoSchema.safeParse({ ...base, skuTiny: ' KIT-QUEIJO ' })
+    expect(r.success && r.data.skuTiny).toBe('KIT-QUEIJO')
+  })
+})
 
 describe('acompanhamento no cadastro de produto', () => {
   it('aceita produto sem acompanhamento nenhum', () => {

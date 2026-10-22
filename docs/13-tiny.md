@@ -28,7 +28,11 @@ Quem opera: **Admin e Logística** (`tiny.operar` em `src/lib/permissions.ts`).
    mesmo lugar do GitHub (o padrão é `https://catalogo-logistica.vercel.app`).
 
 3. **SKUs.** Em Administração → Produtos, preencha **SKU no Tiny** de cada
-   presente. Item sem SKU vai ao Tiny só pela descrição, sem baixar estoque.
+   presente. É obrigatório (pauta de 22/10/2026, responsável: Murilo): o
+   cartão "Sem SKU no Tiny" conta o que falta e "Mostrar só estes" filtra.
+   Presente com produto sem SKU **não vai**: fica em Falhou com o aviso de
+   quais produtos faltam, e o Reenviar o leva depois de preenchido. O presente
+   específico, comprado fora do catálogo, não tem SKU e vai pela descrição.
 4. **Padrão dos presentes.** Na tela `/tiny`, em "Presentes aprovados":
    transportadora, serviço e marcador. Vazios usam o padrão da conta no Tiny.
 5. Publique (Redeploy). A tela `/tiny` deixa de mostrar o aviso amarelo.
@@ -77,6 +81,28 @@ Montado por `montarPedido` (`src/lib/tiny/pedido.ts`), no formato de
 - no presente, o código da solicitação em `numero_pedido_ecommerce`.
 
 Campos acima do tamanho que o Tiny aceita são cortados antes do envio.
+
+## O ciclo de vida
+
+Definido na pauta de 22/10/2026 (regra em `src/lib/tiny/ciclo.ts`):
+
+| Momento                   | Situação no Tiny e aqui | Quem faz                                      |
+| ------------------------- | ----------------------- | --------------------------------------------- |
+| O pedido nasce            | Em aberto               | a fila, em "Organizando envio" ou no lote     |
+| A expedição fecha a lista | Preparando envio        | **Fechar expedição**, na Expedição ou no lote |
+| A expedição conclui       | Pronto para envio       | **Concluir**, em cada pedido                  |
+
+- O pedido sempre sai como **Pedido de Venda**: é o que `pedido.incluir` cria,
+  e a integração não usa outro tipo.
+- Os dois passos vão ao Tiny pela fila (`pedido.alterar.situacao`), sem quem
+  clicou esperar. Enquanto não chegam, o selo mostra a situação nova com "a
+  caminho do Tiny".
+- O passo só anda para a frente. Se alguém já andou o pedido direto no Tiny, a
+  sincronização traz a situação de lá e o passo pedido aqui é descartado,
+  para não fazer o pedido voltar.
+- O que alguém mudar direto no Tiny aparece aqui na próxima sincronização.
+- Entradas pelo e-commerce não passam por esta ferramenta: nascem direto no
+  Tiny e seguem o fluxo de lá. Ficou como pauta da reunião.
 
 ## A volta
 
