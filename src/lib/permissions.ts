@@ -50,6 +50,7 @@ export const ACOES = [
   'logistica.ver',
   'logistica.verObservacoes',
   'logistica.gerenciar',
+  'tiny.operar',
 ] as const
 
 export type Acao = (typeof ACOES)[number]
@@ -102,6 +103,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.ver': true,
     'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
     'logistica.gerenciar': false,
+    'tiny.operar': false,
   },
   [Perfil.admin]: {
     'catalogo.ver': true,
@@ -123,6 +125,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.ver': true,
     'logistica.verObservacoes': true,
     'logistica.gerenciar': true,
+    'tiny.operar': true,
   },
   [Perfil.financeiro]: {
     'catalogo.ver': true,
@@ -145,6 +148,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.ver': true,
     'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
     'logistica.gerenciar': false,
+    'tiny.operar': false,
   },
   [Perfil.logistica]: {
     'catalogo.ver': true,
@@ -168,6 +172,8 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.ver': true,
     'logistica.verObservacoes': true,
     'logistica.gerenciar': true,
+    // Quem expede é quem acompanha os pedidos no Tiny e importa os lotes.
+    'tiny.operar': true,
   },
 }
 

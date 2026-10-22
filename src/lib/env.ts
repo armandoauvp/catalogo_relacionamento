@@ -101,6 +101,9 @@ const schema = (durandoBuild: boolean) =>
 
     TINY_API_TOKEN: z.string().default(''),
     TINY_API_BASE_URL: z.string().default('https://api.tiny.com.br/api2'),
+    // Protege a rota que o agendador chama para esvaziar a fila do Tiny. Sem
+    // ele, a rota responde 503: aberta, qualquer um mandaria pedidos.
+    CRON_SECRET: z.string().default(''),
     SALESFORCE_INSTANCE_URL: z.string().default(''),
     SALESFORCE_CLIENT_ID: z.string().default(''),
     SALESFORCE_CLIENT_SECRET: z.string().default(''),
@@ -223,6 +226,9 @@ export const ssoConfigurado =
 /** Login com o Google da AUVP, quando o client OAuth está inteiro. */
 export const googleConfigurado =
   !env.MODO_DEMONSTRACAO && Boolean(env.AUTH_GOOGLE_ID) && Boolean(env.AUTH_GOOGLE_SECRET)
+
+/** O Tiny só é chamado com o token em mãos; sem ele, nada entra na fila. */
+export const tinyConfigurado = Boolean(env.TINY_API_TOKEN)
 
 /** Login sem SSO, apenas em desenvolvimento e apenas se explicitamente ligado. */
 export const devBypassHabilitado = env.AUTH_DEV_BYPASS && env.NODE_ENV === 'development'

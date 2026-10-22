@@ -99,6 +99,13 @@ describe('logística: dashboard e expedição', () => {
     expect(pode(Perfil.financeiro, 'logistica.gerenciar')).toBe(false)
   })
 
+  it('só Logística e Admin importam lotes e operam o Tiny', () => {
+    expect(pode(Perfil.logistica, 'tiny.operar')).toBe(true)
+    expect(pode(Perfil.admin, 'tiny.operar')).toBe(true)
+    expect(pode(Perfil.consultor, 'tiny.operar')).toBe(false)
+    expect(pode(Perfil.financeiro, 'tiny.operar')).toBe(false)
+  })
+
   it('as observações, onde aparece dado de cliente, ficam com Logística e Admin', () => {
     expect(pode(Perfil.logistica, 'logistica.verObservacoes')).toBe(true)
     expect(pode(Perfil.admin, 'logistica.verObservacoes')).toBe(true)

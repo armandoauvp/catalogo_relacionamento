@@ -1,0 +1,203 @@
+import { cnpjValido, cpfValido } from '@/lib/cpf'
+import type { Destinatario } from './pedido'
+
+/**
+ * Leitura da planilha de envio em lote: uma linha por destinatário.
+ *
+ * As colunas são achadas pelo nome do cabeçalho, com sinônimos, e não pela
+ * posição. A planilha modelo do AUVP-Eventos (Nome, Código/Ref, CPF/CNPJ,
+ * Email, Endereço, Número, Complemento, Bairro, Cidade, UF, CEP, Telefone,
+ * Tipo, Preço, Tag) é lida sem mudança; as colunas que não servem ao pedido
+ * são ignoradas.
+ *
+ * Pura: recebe a tabela já lida, de .xlsx ou .csv, e devolve cada linha com
+ * os erros dela. A tela mostra a prévia com isso, e o servidor valida de novo
+ * com a mesma função antes de gravar.
+ */
+
+export const UFS = [
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
+] as const
+
+export type CampoDoLote = keyof Destinatario | 'quantidade'
+
+const COLUNAS: Record<CampoDoLote, readonly string[]> = {
+  nome: ['nome', 'nome completo', 'destinatario', 'cliente', 'nome do cliente'],
+  cpfCnpj: ['cpf/cnpj', 'cpf', 'cnpj', 'cpf cnpj', 'cpfcnpj', 'documento'],
+  email: ['email', 'e-mail', 'e mail'],
+  telefone: ['telefone', 'fone', 'celular', 'whatsapp'],
+  cep: ['cep'],
+  endereco: ['endereco', 'logradouro', 'rua'],
+  numero: ['numero', 'n', 'no', 'num', 'nº', 'n°'],
+  complemento: ['complemento'],
+  bairro: ['bairro'],
+  cidade: ['cidade', 'municipio'],
+  uf: ['uf', 'estado'],
+  quantidade: ['quantidade', 'qtd', 'qtde'],
+}
+
+const OBRIGATORIAS: readonly CampoDoLote[] = [
+  'nome',
+  'cpfCnpj',
+  'cep',
+  'endereco',
+  'numero',
+  'bairro',
+  'cidade',
+  'uf',
+]
+
+export const ROTULO_DA_COLUNA: Record<CampoDoLote, string> = {
+  nome: 'Nome',
+  cpfCnpj: 'CPF/CNPJ',
+  email: 'Email',
+  telefone: 'Telefone',
+  cep: 'CEP',
+  endereco: 'Endereço',
+  numero: 'Número',
+  complemento: 'Complemento',
+  bairro: 'Bairro',
+  cidade: 'Cidade',
+  uf: 'UF',
+  quantidade: 'Quantidade',
+}
+
+const normalizar = (texto: string) =>
+  texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[.:]/g, '').trim()
+
+const digitos = (texto: string) => texto.replace(/\D/g, '')
+
+export type LinhaDoLote = {
+  /** Número da linha na planilha, contando o cabeçalho, como o Excel mostra. */
+  linha: number
+  destinatario: Destinatario
+  quantidade: number
+  erros: string[]
+}
+
+export type LeituraDoLote = {
+  linhas: LinhaDoLote[]
+  /** Colunas obrigatórias que o cabeçalho não tem. Com alguma faltando, nada é lido. */
+  faltando: string[]
+}
+
+/** Uma linha já mapeada para os campos, com a validação de cada um. */
+export function validarLinha(
+  bruto: Partial<Record<CampoDoLote, string>>,
+): Omit<LinhaDoLote, 'linha'> {
+  const valor = (campo: CampoDoLote) => (bruto[campo] ?? '').replace(/\s+/g, ' ').trim()
+  const erros: string[] = []
+
+  // O Excel guarda CPF e CEP como número e come os zeros da frente.
+  let documento = digitos(valor('cpfCnpj'))
+  if (documento.length === 9 || documento.length === 10) documento = documento.padStart(11, '0')
+  let cep = digitos(valor('cep'))
+  if (cep.length === 7) cep = cep.padStart(8, '0')
+
+  const destinatario: Destinatario = {
+    nome: valor('nome'),
+    cpfCnpj: documento,
+    email: valor('email').toLowerCase() || null,
+    telefone: digitos(valor('telefone')) || null,
+    cep,
+    endereco: valor('endereco'),
+    numero: valor('numero'),
+    complemento: valor('complemento') || null,
+    bairro: valor('bairro'),
+    cidade: valor('cidade'),
+    uf: valor('uf').toUpperCase(),
+  }
+
+  if (destinatario.nome.length < 3) erros.push('Nome vazio ou curto demais.')
+  if (documento.length === 14 ? !cnpjValido(documento) : !cpfValido(documento)) {
+    erros.push(documento ? 'CPF/CNPJ inválido.' : 'CPF/CNPJ em branco.')
+  }
+  if (cep.length !== 8) erros.push('CEP precisa ter 8 dígitos.')
+  if (!destinatario.endereco) erros.push('Endereço em branco.')
+  if (!destinatario.numero) erros.push('Número em branco (use "S/N" se não houver).')
+  if (!destinatario.bairro) erros.push('Bairro em branco.')
+  if (!destinatario.cidade) erros.push('Cidade em branco.')
+  if (!(UFS as readonly string[]).includes(destinatario.uf)) erros.push('UF inválida.')
+  if (destinatario.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario.email)) {
+    erros.push('E-mail inválido.')
+  }
+
+  const textoQtd = valor('quantidade')
+  const quantidade = textoQtd ? Number(textoQtd.replace(',', '.')) : 1
+  if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 99) {
+    erros.push('Quantidade precisa ser um número inteiro de 1 a 99.')
+  }
+
+  return { destinatario, quantidade: Number.isInteger(quantidade) ? quantidade : 1, erros }
+}
+
+export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
+  // O cabeçalho é a primeira linha que tem uma coluna de nome.
+  const inicio = tabela.findIndex((linha) =>
+    linha.some((celula) => COLUNAS.nome.includes(normalizar(celula))),
+  )
+  if (inicio < 0) {
+    return { linhas: [], faltando: OBRIGATORIAS.map((c) => ROTULO_DA_COLUNA[c]) }
+  }
+
+  const titulos = tabela[inicio]!.map(normalizar)
+  const posicao = Object.fromEntries(
+    (Object.keys(COLUNAS) as CampoDoLote[]).map((campo) => [
+      campo,
+      titulos.findIndex((t) => COLUNAS[campo].includes(t)),
+    ]),
+  ) as Record<CampoDoLote, number>
+
+  const faltando = OBRIGATORIAS.filter((c) => posicao[c] < 0).map((c) => ROTULO_DA_COLUNA[c])
+  if (faltando.length) return { linhas: [], faltando }
+
+  const linhas: LinhaDoLote[] = []
+  const vistos = new Map<string, number>()
+
+  tabela.slice(inicio + 1).forEach((celulas, i) => {
+    if (celulas.every((c) => !String(c ?? '').trim())) return
+    const numero = inicio + i + 2
+    const bruto = Object.fromEntries(
+      (Object.keys(COLUNAS) as CampoDoLote[]).map((campo) => [
+        campo,
+        posicao[campo] >= 0 ? String(celulas[posicao[campo]] ?? '') : '',
+      ]),
+    )
+    const lida = validarLinha(bruto)
+    const doc = lida.destinatario.cpfCnpj
+    if (doc && vistos.has(doc)) {
+      lida.erros.push(`CPF/CNPJ repetido: já está na linha ${vistos.get(doc)}.`)
+    } else if (doc) {
+      vistos.set(doc, numero)
+    }
+    linhas.push({ linha: numero, ...lida })
+  })
+
+  return { linhas, faltando: [] }
+}

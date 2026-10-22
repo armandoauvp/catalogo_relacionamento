@@ -15,31 +15,35 @@ resposta que já foi assumida em algum lugar.
 Cada regra de negócio tem **um** lugar. Ao mexer numa delas, mexa lá, nunca
 duplique numa tela.
 
-| Regra                           | Arquivo                                   |
-| ------------------------------- | ----------------------------------------- |
-| Quem pode o quê                 | `src/lib/permissions.ts`                  |
-| Quem pode entrar pelo SSO       | `src/lib/acesso-sso.ts`                   |
-| Transições, motivos e lote      | `src/lib/status.ts`                       |
-| Gasto do mês e limite           | `src/lib/saldo.ts`                        |
-| Fila de compras do Financeiro   | `src/lib/compras.ts`                      |
-| Fila da expedição               | `src/lib/expedicao.ts`                    |
-| Período do Dashboard Logístico  | `src/lib/periodo.ts`                      |
-| Status da semana e limiares     | `src/lib/logistica/status-operacional.ts` |
-| Trilha, "Kit", atraso e somas   | `src/lib/logistica/demandas.ts`           |
-| Presente aprovado → trilha      | `src/lib/logistica/ponte.ts`              |
-| Kit que exige bebida junto      | `src/lib/acompanhamentos.ts`              |
-| Modelos e montagem da carta     | `src/lib/carta.ts`                        |
-| Fornecedor padrão por categoria | `src/lib/fornecedores.ts`                 |
-| Upload e leitura de foto        | `src/lib/arquivos.ts`                     |
-| Redução da foto antes do envio  | `src/lib/arquivos-no-navegador.ts`        |
-| Logins (Google e Keycloak)      | `src/lib/auth.ts` e `src/lib/env.ts`      |
-| Leitura do CSV de clientes      | `src/lib/importacao-clientes.ts`          |
-| Catálogo de presentes da área   | `prisma/catalogo-auvp.ts`                 |
-| Aritmética de dinheiro          | `src/lib/money.ts`                        |
-| Colunas e formato da exportação | `src/lib/export/`                         |
-| Validação de formulário         | `src/lib/validators/`                     |
-| Leitura de catálogo e clientes  | `src/lib/providers/`                      |
-| Cores, tipografia e raio        | `src/styles/auvp-tokens.css`              |
+| Regra                            | Arquivo                                   |
+| -------------------------------- | ----------------------------------------- |
+| Quem pode o quê                  | `src/lib/permissions.ts`                  |
+| Quem pode entrar pelo SSO        | `src/lib/acesso-sso.ts`                   |
+| Transições, motivos e lote       | `src/lib/status.ts`                       |
+| Gasto do mês e limite            | `src/lib/saldo.ts`                        |
+| Fila de compras do Financeiro    | `src/lib/compras.ts`                      |
+| Fila da expedição                | `src/lib/expedicao.ts`                    |
+| Período do Dashboard Logístico   | `src/lib/periodo.ts`                      |
+| Status da semana e limiares      | `src/lib/logistica/status-operacional.ts` |
+| Trilha, "Kit", atraso e somas    | `src/lib/logistica/demandas.ts`           |
+| Presente aprovado → trilha       | `src/lib/logistica/ponte.ts`              |
+| Kit que exige bebida junto       | `src/lib/acompanhamentos.ts`              |
+| Modelos e montagem da carta      | `src/lib/carta.ts`                        |
+| Fornecedor padrão por categoria  | `src/lib/fornecedores.ts`                 |
+| Upload e leitura de foto         | `src/lib/arquivos.ts`                     |
+| Redução da foto antes do envio   | `src/lib/arquivos-no-navegador.ts`        |
+| Logins (Google e Keycloak)       | `src/lib/auth.ts` e `src/lib/env.ts`      |
+| Pedido no formato do Tiny        | `src/lib/tiny/pedido.ts`                  |
+| Fila, envio e volta do Tiny      | `src/lib/tiny/fila.ts`                    |
+| Erros do Tiny e novas tentativas | `src/lib/tiny/erros.ts`                   |
+| Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
+| Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
+| Catálogo de presentes da área    | `prisma/catalogo-auvp.ts`                 |
+| Aritmética de dinheiro           | `src/lib/money.ts`                        |
+| Colunas e formato da exportação  | `src/lib/export/`                         |
+| Validação de formulário          | `src/lib/validators/`                     |
+| Leitura de catálogo e clientes   | `src/lib/providers/`                      |
+| Cores, tipografia e raio         | `src/styles/auvp-tokens.css`              |
 
 ## Invariantes
 
@@ -163,11 +167,13 @@ depois da aprovação.
 O caminho do Admin é por pilha: a gestão encaminha em lote, e a expedição
 devolve o rastreio que o consultor lê na própria solicitação.
 
-O que continua fora do V1, por decisão registrada em
-`docs/05-perguntas-em-aberto.md`: geração da carta em formato de impressão,
-integração com o sistema da expedição (que escreveria rastreio e status sem
-digitação) e as integrações da fase 2 (Tiny e Salesforce, que já têm provider e
-campos reservados).
+O Tiny está integrado ([docs/13-tiny.md](docs/13-tiny.md)): o presente que
+chega a "Organizando envio" vira pedido lá pela fila, a importação em lote do
+AUVP-Eventos mora em `/tiny/importar`, e situação e rastreio voltam sozinhos.
+
+O que continua fora, por decisão registrada em
+`docs/05-perguntas-em-aberto.md`: geração da carta em formato de impressão e o
+Salesforce, que já tem provider e campos reservados.
 
 ## Logística
 
@@ -186,6 +192,10 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   mesma transação da mudança de status (`src/lib/logistica/ponte.ts`).
 - **Integração externa não trava a aprovação.** O Tiny entra por fila no banco,
   gravada na mesma transação da mudança de status ([ADR 0009](docs/adr/0009-integracoes-por-fila.md)).
+  Ninguém chama a API do Tiny fora de `src/lib/tiny/fila.ts` e das buscas da
+  importação; o token só existe no servidor, nunca no banco nem no navegador.
+- **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
+  (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 
 ## Catálogo e fotos
 

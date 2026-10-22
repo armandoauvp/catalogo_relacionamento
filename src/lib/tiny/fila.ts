@@ -1,0 +1,417 @@
+import type { Prisma } from '@prisma/client'
+import { db } from '@/lib/db'
+import { tinyConfigurado } from '@/lib/env'
+import { incluirPedido, obterPedido } from './api'
+import { classificarErro, MAX_TENTATIVAS, proximaTentativa } from './erros'
+import { chaveDoPresente, montarPedido, resumoDosItens, type PedidoParaOTiny } from './pedido'
+
+/**
+ * A fila de pedidos para o Tiny (ADR 0009).
+ *
+ * Quem cria o pedido (a aprovação do presente, a importação do lote) só grava
+ * uma linha em `pedidos_tiny`, na própria transação, e segue. Quem fala com o
+ * Tiny é `processarFila`, chamada logo depois em segundo plano, pelo
+ * agendador a cada poucos minutos e pelo botão da tela do Tiny. Assim a
+ * aprovação nunca espera o Tiny, e nada se perde se ele estiver fora.
+ */
+
+type Banco = Prisma.TransactionClient
+
+/** Entre uma chamada e outra: o Tiny bloqueia por um minuto quem passa do limite. */
+const INTERVALO_ENTRE_CHAMADAS_MS = 2_100
+
+/** Pedido em "processando" há mais que isto teve a função interrompida no meio. */
+const PROCESSANDO_PRESO_MS = 10 * 60_000
+
+/** O Tiny para de mudar a situação depois disto. */
+const SITUACOES_FINAIS = ['entregue', 'cancelado']
+
+/** Sincronizar de novo o mesmo pedido só depois disto, e só até tantos dias. */
+const INTERVALO_DE_SINCRONIZACAO_MS = 30 * 60_000
+const DIAS_DE_ACOMPANHAMENTO = 90
+
+const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
+
+export async function registrarEvento(
+  banco: Banco,
+  pedidoId: string | null,
+  tipo: string,
+  mensagem: string,
+) {
+  await banco.eventoTiny.create({ data: { pedidoId, tipo, mensagem: mensagem.slice(0, 500) } })
+}
+
+/** Pedidos criados no Tiny nos últimos sete dias, para o número da tela. */
+export async function enviadosNaSemana(agora = new Date()) {
+  return db.pedidoTiny.count({
+    where: { envio: 'enviado', enviadoEm: { gte: new Date(agora.getTime() - 7 * 86_400_000) } },
+  })
+}
+
+export async function configuracaoTiny(banco: Banco = db) {
+  return banco.configuracaoTiny.upsert({ where: { id: 'unica' }, create: {}, update: {} })
+}
+
+// ---------------------------------------------------------------------------
+// Presente aprovado
+// ---------------------------------------------------------------------------
+
+async function pedidoDoPresente(banco: Banco, solicitacaoId: string) {
+  const [s, config] = await Promise.all([
+    banco.solicitacao.findUniqueOrThrow({
+      where: { id: solicitacaoId },
+      include: {
+        cliente: true,
+        itens: { include: { produto: { select: { nome: true, skuTiny: true } } } },
+      },
+    }),
+    configuracaoTiny(banco),
+  ])
+
+  const itens = s.itens.map((i) => ({
+    codigo: i.produto?.skuTiny ?? null,
+    descricao: i.produto?.nome ?? i.descricaoLivre ?? 'Presente',
+    quantidade: i.quantidade,
+    valorUnitario: i.valorUnitario.toFixed(2),
+  }))
+
+  const payload = montarPedido({
+    destinatario: {
+      nome: s.cliente.nome,
+      cpfCnpj: s.cliente.cpf,
+      email: s.cliente.email,
+      telefone: s.cliente.telefone,
+      cep: s.entregaCep,
+      endereco: s.entregaLogradouro,
+      numero: s.entregaNumero,
+      complemento: s.entregaComplemento,
+      bairro: s.entregaBairro,
+      cidade: s.entregaCidade,
+      uf: s.entregaUf,
+    },
+    nomeDoDestinatario: s.entregaDestinatario,
+    itens,
+    transportadora: config.transportadora,
+    formaFrete: config.formaFrete,
+    marcador: config.marcadorPresentes,
+    numeroNoSistema: s.codigo,
+    observacao: `Catálogo de Presentes · ${s.codigo}`,
+  })
+
+  return { s, payload, resumo: resumoDosItens(itens) }
+}
+
+/**
+ * Põe o presente na fila do Tiny. Recebe a transação de quem mudou o status:
+ * o pedido entra junto com o histórico, ou nada acontece. Um presente gera um
+ * pedido só; voltar a "Organizando envio" depois de um problema não cria outro
+ * (o reenvio é pela tela do Tiny).
+ */
+export async function enfileirarPresente(tx: Banco, solicitacaoId: string): Promise<boolean> {
+  if (!tinyConfigurado) return false
+  const config = await configuracaoTiny(tx)
+  if (!config.enviarPresentes) return false
+
+  const chave = chaveDoPresente(solicitacaoId)
+  if (await tx.pedidoTiny.findUnique({ where: { chave }, select: { id: true } })) return false
+
+  const { s, payload, resumo } = await pedidoDoPresente(tx, solicitacaoId)
+  const pedido = await tx.pedidoTiny.create({
+    data: {
+      origem: 'solicitacao',
+      chave,
+      solicitacaoId,
+      destinatario: s.cliente.nome,
+      cpfCnpj: s.cliente.cpf,
+      resumo,
+      payload: payload as unknown as Prisma.InputJsonValue,
+    },
+  })
+  await registrarEvento(tx, pedido.id, 'enfileirado', `Presente ${s.codigo} entrou na fila.`)
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Envio
+// ---------------------------------------------------------------------------
+
+export type ResultadoDaRodada = {
+  enviados: number
+  falhas: number
+  adiados: number
+  /** A rodada parou porque o token ou a conta do Tiny estão com problema. */
+  interrompida: string | null
+}
+
+/**
+ * Esvazia a fila até o prazo acabar. Cada pedido é reservado com um
+ * `updateMany` condicionado ao status: duas rodadas ao mesmo tempo (o
+ * agendador e o botão) nunca mandam o mesmo pedido duas vezes.
+ */
+export async function processarFila({
+  prazoMs = 45_000,
+  agora = () => new Date(),
+}: { prazoMs?: number; agora?: () => Date } = {}): Promise<ResultadoDaRodada> {
+  const resultado: ResultadoDaRodada = { enviados: 0, falhas: 0, adiados: 0, interrompida: null }
+  if (!tinyConfigurado) {
+    resultado.interrompida = 'O token do Tiny não está configurado.'
+    return resultado
+  }
+
+  const fim = Date.now() + prazoMs
+  await db.pedidoTiny.updateMany({
+    where: {
+      envio: 'processando',
+      atualizadoEm: { lt: new Date(agora().getTime() - PROCESSANDO_PRESO_MS) },
+    },
+    data: { envio: 'pendente' },
+  })
+
+  let primeira = true
+  while (Date.now() < fim) {
+    const proximo = await db.pedidoTiny.findFirst({
+      where: { envio: 'pendente', proximaTentativaEm: { lte: agora() } },
+      orderBy: { criadoEm: 'asc' },
+      select: { id: true },
+    })
+    if (!proximo) break
+
+    const reservado = await db.pedidoTiny.updateMany({
+      where: { id: proximo.id, envio: 'pendente' },
+      data: { envio: 'processando', tentativas: { increment: 1 } },
+    })
+    if (reservado.count === 0) continue
+
+    if (!primeira) await esperar(INTERVALO_ENTRE_CHAMADAS_MS)
+    primeira = false
+
+    const pedido = await db.pedidoTiny.findUniqueOrThrow({ where: { id: proximo.id } })
+    try {
+      const criado = await incluirPedido(pedido.payload as unknown as PedidoParaOTiny)
+      await db.$transaction(async (tx) => {
+        await tx.pedidoTiny.update({
+          where: { id: pedido.id },
+          data: {
+            envio: 'enviado',
+            enviadoEm: agora(),
+            tinyId: criado.id,
+            tinyNumero: criado.numero || null,
+            situacao: 'aberto',
+            erro: null,
+          },
+        })
+        if (pedido.solicitacaoId) {
+          await tx.solicitacao.update({
+            where: { id: pedido.solicitacaoId },
+            data: { tinyPedidoId: criado.id, tinyStatus: 'aberto' },
+          })
+        }
+        await registrarEvento(
+          tx,
+          pedido.id,
+          'enviado',
+          `Pedido ${criado.numero || criado.id} criado no Tiny para ${pedido.destinatario}.`,
+        )
+      })
+      resultado.enviados++
+    } catch (erro) {
+      const tipo = classificarErro(erro)
+      const mensagem = erro instanceof Error ? erro.message : 'Erro desconhecido.'
+
+      if (tipo === 'duplicidade') {
+        // O Tiny já tem o pedido: provavelmente criado numa tentativa que caiu
+        // antes da resposta. Tentar de novo duplicaria de verdade.
+        await db.pedidoTiny.update({
+          where: { id: pedido.id },
+          data: {
+            envio: 'enviado',
+            enviadoEm: agora(),
+            erro: `O Tiny acusou duplicidade; confira o pedido lá. (${mensagem})`,
+          },
+        })
+        await registrarEvento(db, pedido.id, 'duplicidade', `${pedido.destinatario}: ${mensagem}`)
+        resultado.enviados++
+        continue
+      }
+
+      const desiste = tipo === 'recusado' || pedido.tentativas >= MAX_TENTATIVAS
+      await db.pedidoTiny.update({
+        where: { id: pedido.id },
+        data: {
+          envio: desiste ? 'falhou' : 'pendente',
+          erro: mensagem,
+          proximaTentativaEm: proximaTentativa(pedido.tentativas, agora()),
+        },
+      })
+      await registrarEvento(
+        db,
+        pedido.id,
+        desiste ? 'falhou' : 'adiado',
+        `${pedido.destinatario}: ${mensagem}`,
+      )
+      if (desiste) resultado.falhas++
+      else resultado.adiados++
+
+      // Token errado ou conta bloqueada valem para todos: insistir só gastaria
+      // as tentativas dos outros pedidos.
+      if (tipo === 'configuracao') {
+        resultado.interrompida = mensagem
+        break
+      }
+    }
+  }
+
+  return resultado
+}
+
+// ---------------------------------------------------------------------------
+// Volta: situação e rastreio
+// ---------------------------------------------------------------------------
+
+/**
+ * Traz do Tiny a situação, o rastreio e a nota dos pedidos que ainda andam.
+ *
+ * O rastreio vai para a solicitação do presente, onde o consultor lê. A regra
+ * de sempre continua: rastreio não muda status; "entregue" é decisão de quem
+ * acompanha. O rastreio digitado à mão é preservado quando o Tiny não traz
+ * outro.
+ */
+export async function sincronizarPedidos({
+  prazoMs = 30_000,
+  agora = () => new Date(),
+}: { prazoMs?: number; agora?: () => Date } = {}): Promise<{ atualizados: number }> {
+  if (!tinyConfigurado) return { atualizados: 0 }
+  const fim = Date.now() + prazoMs
+  const limiteDeIdade = new Date(agora().getTime() - DIAS_DE_ACOMPANHAMENTO * 86_400_000)
+
+  const candidatos = await db.pedidoTiny.findMany({
+    where: {
+      envio: 'enviado',
+      tinyId: { not: null },
+      enviadoEm: { gte: limiteDeIdade },
+      OR: [{ situacao: null }, { situacao: { notIn: SITUACOES_FINAIS } }],
+      AND: [
+        {
+          OR: [
+            { sincronizadoEm: null },
+            {
+              sincronizadoEm: { lt: new Date(agora().getTime() - INTERVALO_DE_SINCRONIZACAO_MS) },
+            },
+          ],
+        },
+      ],
+    },
+    orderBy: [{ sincronizadoEm: { sort: 'asc', nulls: 'first' } }],
+    take: 40,
+  })
+
+  let atualizados = 0
+  const lotesTocados = new Set<string>()
+
+  for (const [i, pedido] of candidatos.entries()) {
+    if (Date.now() >= fim) break
+    if (i > 0) await esperar(INTERVALO_ENTRE_CHAMADAS_MS)
+    try {
+      const noTiny = await obterPedido(pedido.tinyId!)
+      await db.$transaction(async (tx) => {
+        await tx.pedidoTiny.update({
+          where: { id: pedido.id },
+          data: {
+            situacao: noTiny.situacao || pedido.situacao,
+            rastreio: noTiny.rastreio ?? pedido.rastreio,
+            urlRastreio: noTiny.urlRastreio ?? pedido.urlRastreio,
+            notaFiscalId: noTiny.notaFiscalId ?? pedido.notaFiscalId,
+            sincronizadoEm: agora(),
+          },
+        })
+
+        if (noTiny.rastreio && noTiny.rastreio !== pedido.rastreio) {
+          await registrarEvento(tx, pedido.id, 'rastreio', `Rastreio ${noTiny.rastreio}.`)
+        }
+
+        if (pedido.solicitacaoId) {
+          const s = await tx.solicitacao.findUniqueOrThrow({
+            where: { id: pedido.solicitacaoId },
+            select: { rastreio: true },
+          })
+          // Só substitui o rastreio que veio do próprio Tiny, ou o vazio.
+          const podeTrocar = !s.rastreio || s.rastreio === pedido.rastreio
+          await tx.solicitacao.update({
+            where: { id: pedido.solicitacaoId },
+            data: {
+              tinyStatus: noTiny.situacao || undefined,
+              ...(noTiny.rastreio && podeTrocar
+                ? { rastreio: noTiny.rastreio, transportadora: noTiny.transportadora }
+                : {}),
+            },
+          })
+        }
+      })
+      if (pedido.loteId) lotesTocados.add(pedido.loteId)
+      atualizados++
+    } catch (erro) {
+      await db.pedidoTiny.update({
+        where: { id: pedido.id },
+        data: { sincronizadoEm: agora() },
+      })
+      if (classificarErro(erro) === 'configuracao') break
+    }
+  }
+
+  for (const loteId of lotesTocados) await concluirLoteSeTerminou(loteId, agora())
+  return { atualizados }
+}
+
+/** A demanda do lote na trilha conclui quando todos os pedidos dele terminaram. */
+async function concluirLoteSeTerminou(loteId: string, agora: Date) {
+  const lote = await db.loteTiny.findUnique({
+    where: { id: loteId },
+    select: { demandaId: true, pedidos: { select: { envio: true, situacao: true } } },
+  })
+  if (!lote?.demandaId) return
+  const terminou = lote.pedidos.every(
+    (p) =>
+      p.envio === 'falhou' ||
+      (p.envio === 'enviado' && SITUACOES_FINAIS.includes(p.situacao ?? '')),
+  )
+  if (!terminou) return
+  await db.demandaLogistica.updateMany({
+    where: { id: lote.demandaId, fase: { not: 'concluido' } },
+    data: { fase: 'concluido', concluidaEm: agora },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Reenvio
+// ---------------------------------------------------------------------------
+
+/**
+ * Volta o pedido para a fila. O presente é remontado com os dados de agora,
+ * para o reenvio levar a correção que motivou o erro (um SKU preenchido, um
+ * endereço acertado); a linha do lote vai igual.
+ */
+export async function reenviarPedido(id: string, agora = new Date()) {
+  await db.$transaction(async (tx) => {
+    const pedido = await tx.pedidoTiny.findUniqueOrThrow({ where: { id } })
+    if (pedido.envio === 'enviado' || pedido.envio === 'processando') return
+
+    const remontado = pedido.solicitacaoId ? await pedidoDoPresente(tx, pedido.solicitacaoId) : null
+
+    await tx.pedidoTiny.update({
+      where: { id },
+      data: {
+        envio: 'pendente',
+        tentativas: 0,
+        proximaTentativaEm: agora,
+        erro: null,
+        ...(remontado
+          ? {
+              payload: remontado.payload as unknown as Prisma.InputJsonValue,
+              resumo: remontado.resumo,
+            }
+          : {}),
+      },
+    })
+    await registrarEvento(tx, id, 'reenviado', 'Pedido voltou para a fila.')
+  })
+}

@@ -266,15 +266,22 @@ conferir o mapeamento quando o ClickUp for ligado.
 **Decidido em 09/10/2026:** a trilha não espelha o ClickUp. A tarefa lá,
 quando existe, é um link na demanda. Não é preciso token nem mapear campos.
 
-### O que falta saber do Tiny
+### Tiny ✅
 
-- o token da conta da AUVP;
-- se os produtos do catálogo têm SKU no Tiny (o campo `sku_tiny` existe e está
-  vazio);
-- se o presente comprado fora, "mediante pedido", entra no pedido do Tiny ou
-  só os itens de estoque;
-- a transportadora e a forma de envio padrão, e se há um marcador para
-  separar os pedidos de presente dos demais.
+**Decidido em 22/10/2026** e construído ([docs/13-tiny.md](13-tiny.md)): o
+presente vira pedido no Tiny em "Organizando envio", sozinho, e a importação
+em lote do AUVP-Eventos passa a morar aqui. Admin e Logística operam. Os
+pedidos saem como no AUVP-Eventos: transportadora, serviço e marcador
+escolhidos, o resto no padrão do Tiny.
+
+**Assumido:** o presente inteiro vai ao Tiny, inclusive o item comprado fora;
+item sem SKU entra pela descrição. Frete por conta do remetente (`R`).
+**Onde mudar:** `pedidoDoPresente` em `src/lib/tiny/fila.ts` e `montarPedido`
+em `src/lib/tiny/pedido.ts`.
+
+**Ainda depende da área:** o token, o SKU de cada produto no cadastro e, depois
+do primeiro pedido real, conferir se natureza da operação e forma de envio
+saíram como a AUVP lança à mão.
 
 ## Técnicas, para começar
 

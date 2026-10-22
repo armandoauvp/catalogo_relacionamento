@@ -1,0 +1,36 @@
+# Agendador da fila do Tiny.
+#
+# O plano Hobby da Vercel só agenda uma vez por dia (vercel.json). Este
+# workflow chama a mesma rota a cada 10 minutos, de graça, para a fila andar
+# e o rastreio voltar sem ninguém apertar botão. A rota confere o CRON_SECRET.
+#
+# Para ligar: em Settings → Secrets and variables → Actions do repositório,
+# crie o secret CRON_SECRET com o mesmo valor da variável na Vercel. Sem ele, o
+# workflow só avisa e termina. Ver docs/13-tiny.md.
+name: Fila do Tiny
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  processar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Esvaziar a fila e trazer o rastreio
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          URL_DA_PRODUCAO: ${{ vars.URL_DA_PRODUCAO || 'https://catalogo-logistica.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::notice::CRON_SECRET não configurado no repositório; nada a fazer."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" \
+            "$URL_DA_PRODUCAO/api/tiny/cron"

@@ -1,12 +1,22 @@
 # 0009: Integrações externas por fila no banco
 
-**Estado:** decidida, revista em 09/10/2026.
+**Estado:** decidida, revista em 09/10/2026, implementada para o Tiny em
+22/10/2026.
 
 **Revisão:** a trilha da Logística passou a ser cadastrada aqui dentro, e não
 no ClickUp. A demanda do presente aprovado deixou de ser integração externa:
 ela nasce na própria transação da mudança de status
 (`src/lib/logistica/ponte.ts`), sem fila. A fila continua valendo para o que é
 de fato externo, o pedido no Tiny. O texto abaixo é o da decisão original.
+
+**Implementação (22/10/2026):** a fila é a tabela `pedidos_tiny`
+(`src/lib/tiny/fila.ts`), com os lotes importados por planilha entrando na
+mesma fila. Como a produção foi para a Vercel no plano Hobby, o agendador é o
+GitHub Actions a cada 10 minutos, mais o cron diário da Vercel e o
+processamento logo depois de cada envio (`after()` do Next). O limite de taxa
+é um intervalo de dois segundos entre chamadas dentro da rodada, e o bloqueio
+do Tiny por excesso de acessos volta para a fila com espera. Ver
+[docs/13-tiny.md](../13-tiny.md).
 
 ## Contexto
 

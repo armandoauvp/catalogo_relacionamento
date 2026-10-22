@@ -11,6 +11,7 @@ import {
   ListChecks,
   LogOut,
   Package,
+  Send,
   Settings2,
   ShoppingCart,
   Truck,
@@ -99,6 +100,14 @@ const PRINCIPAIS: readonly ItemDeMenu[] = [
     descricao: 'Status da operação, volume, demandas e equipe',
     icone: Warehouse,
     acao: 'logistica.ver',
+  },
+  {
+    id: 'tiny',
+    href: '/tiny',
+    rotulo: 'Tiny',
+    descricao: 'Pedidos no Tiny, importação em lote e rastreio',
+    icone: Send,
+    acao: 'tiny.operar',
   },
   {
     id: 'gestao',

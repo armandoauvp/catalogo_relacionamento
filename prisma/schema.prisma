@@ -107,6 +107,7 @@ model Usuario {
   historicos      SolicitacaoHistorico[]
   clientesCriados Cliente[]                 @relation("ClientesCriadosPor")
   statusDefinidos StatusOperacionalSemana[]
+  lotesTiny       LoteTiny[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -247,12 +248,14 @@ model Solicitacao {
   dataSolicitacao DateTime @default(now()) @map("data_solicitacao")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  consultor Usuario                @relation("SolicitacoesDoConsultor", fields: [consultorId], references: [id], onDelete: Restrict)
-  cliente   Cliente                @relation(fields: [clienteId], references: [id], onDelete: Restrict)
-  itens     SolicitacaoItem[]
-  historico SolicitacaoHistorico[]
+  consultor  Usuario                @relation("SolicitacoesDoConsultor", fields: [consultorId], references: [id], onDelete: Restrict)
+  cliente    Cliente                @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  itens      SolicitacaoItem[]
+  historico  SolicitacaoHistorico[]
   /// A demanda que a aprovação abriu na trilha da Logística.
-  demanda   DemandaLogistica?
+  demanda    DemandaLogistica?
+  /// O pedido que a aprovação abriu no Tiny, quando a integração está ligada.
+  pedidoTiny PedidoTiny?
 
   @@index([consultorId, dataSolicitacao])
   @@index([status])
@@ -454,6 +457,8 @@ model DemandaLogistica {
   ocorrenciaAnterior DemandaLogistica? @relation("Recorrencia", fields: [ocorrenciaAnteriorId], references: [id], onDelete: SetNull)
   proximaOcorrencia  DemandaLogistica? @relation("Recorrencia")
   solicitacao        Solicitacao?      @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
+  /// O lote de envio que esta demanda representa na trilha.
+  loteTiny           LoteTiny?
 
   @@index([solicitadaEm])
   @@index([concluidaEm])
@@ -509,4 +514,128 @@ model PerguntaFrequente {
 
   @@index([ativo, ordem])
   @@map("perguntas_frequentes")
+}
+
+// ---------------------------------------------------------------------------
+// Tiny ERP
+// ---------------------------------------------------------------------------
+
+/// De onde veio o pedido que vai ao Tiny.
+enum OrigemPedidoTiny {
+  /// Presente aprovado que chegou a "Organizando envio".
+  solicitacao
+  /// Linha de uma planilha importada em lote.
+  lote
+}
+
+/// Andamento do envio do pedido ao Tiny. A situação dentro do Tiny (aberto,
+/// faturado, entregue...) é outra coisa, e fica em `PedidoTiny.situacao`.
+enum EnvioTiny {
+  pendente
+  processando
+  enviado
+  falhou
+}
+
+/// Um pedido que esta ferramenta manda ao Tiny, e a fila que o leva até lá.
+///
+/// A fila mora no banco e é gravada na mesma transação que a originou
+/// (ADR 0009): a aprovação não espera o Tiny, e nada se perde se ele estiver
+/// fora. O token nunca é guardado aqui, só o pedido.
+model PedidoTiny {
+  id                 String           @id @default(cuid())
+  origem             OrigemPedidoTiny
+  /// Idempotência. Um presente gera um pedido só, e a mesma pessoa não
+  /// recebe duas vezes o mesmo item de um marcador, mesmo que a planilha seja
+  /// importada de novo.
+  chave              String           @unique
+  solicitacaoId      String?          @unique @map("solicitacao_id")
+  loteId             String?          @map("lote_id")
+  /// Linha da planilha, para quem confere o lote achar o erro no arquivo.
+  linha              Int?
+  destinatario       String
+  cpfCnpj            String           @map("cpf_cnpj")
+  /// O que vai, em uma linha: "2× Livro AUVP".
+  resumo             String
+  /// O pedido como é enviado ao Tiny, para reenviar igual.
+  payload            Json
+  envio              EnvioTiny        @default(pendente)
+  tentativas         Int              @default(0)
+  proximaTentativaEm DateTime         @default(now()) @map("proxima_tentativa_em")
+  erro               String?
+  tinyId             String?          @map("tiny_id")
+  tinyNumero         String?          @map("tiny_numero")
+  /// Situação do pedido dentro do Tiny, trazida pela sincronização.
+  situacao           String?
+  rastreio           String?
+  urlRastreio        String?          @map("url_rastreio")
+  notaFiscalId       String?          @map("nota_fiscal_id")
+  enviadoEm          DateTime?        @map("enviado_em")
+  sincronizadoEm     DateTime?        @map("sincronizado_em")
+  criadoEm           DateTime         @default(now()) @map("criado_em")
+  atualizadoEm       DateTime         @updatedAt @map("atualizado_em")
+
+  solicitacao Solicitacao? @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
+  lote        LoteTiny?    @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  eventos     EventoTiny[]
+
+  @@index([envio, proximaTentativaEm])
+  @@index([loteId])
+  @@index([criadoEm])
+  @@map("pedidos_tiny")
+}
+
+/// Uma planilha importada: um produto, uma transportadora e um marcador para
+/// todas as linhas, como no AUVP-Eventos.
+model LoteTiny {
+  id             String   @id @default(cuid())
+  marcador       String
+  arquivo        String?
+  sku            String?
+  produto        String
+  valorUnitario  Decimal  @map("valor_unitario") @db.Decimal(12, 2)
+  transportadora String?
+  formaFrete     String?  @map("forma_frete")
+  subsidiaria    String?
+  departamento   String?
+  criadoPorId    String?  @map("criado_por_id")
+  /// A demanda que o lote abriu na trilha da Logística.
+  demandaId      String?  @unique @map("demanda_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  criadoPor Usuario?          @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
+  demanda   DemandaLogistica? @relation(fields: [demandaId], references: [id], onDelete: SetNull)
+  pedidos   PedidoTiny[]
+
+  @@index([criadoEm])
+  @@map("lotes_tiny")
+}
+
+/// O que aconteceu com cada pedido: enviado, recusado, rastreio novo. É o
+/// histórico que a tela do Tiny mostra, e nunca é editado.
+model EventoTiny {
+  id       String   @id @default(cuid())
+  pedidoId String?  @map("pedido_id")
+  tipo     String
+  mensagem String
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  pedido PedidoTiny? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+
+  @@index([criadoEm])
+  @@map("eventos_tiny")
+}
+
+/// O padrão dos pedidos de presente no Tiny. Uma linha só, editada na tela do
+/// Tiny pela Logística.
+model ConfiguracaoTiny {
+  id                String   @id @default("unica")
+  /// Presente aprovado vira pedido no Tiny sozinho.
+  enviarPresentes   Boolean  @default(true) @map("enviar_presentes")
+  transportadora    String?
+  formaFrete        String?  @map("forma_frete")
+  marcadorPresentes String   @default("Presente Relacionamento") @map("marcador_presentes")
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+
+  @@map("configuracao_tiny")
 }

@@ -57,6 +57,25 @@ export function cpfValido(valor: string): boolean {
 }
 
 /**
+ * CNPJ pelos dois dígitos verificadores. A importação em lote do Tiny aceita
+ * empresa como destinatário, como o AUVP-Eventos aceitava.
+ */
+export function cnpjValido(valor: string): boolean {
+  const d = valor.replace(/\D/g, '')
+  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false
+
+  const digito = (ate: number): number => {
+    const pesos =
+      ate === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    const soma = pesos.reduce((s, peso, i) => s + Number(d[i]) * peso, 0)
+    const resto = soma % 11
+    return resto < 2 ? 0 : 11 - resto
+  }
+
+  return digito(12) === Number(d[12]) && digito(13) === Number(d[13])
+}
+
+/**
  * Telefone brasileiro para exibição.
  *
  * Gravado só com dígitos, como o CPF: a máscara é assunto de tela.

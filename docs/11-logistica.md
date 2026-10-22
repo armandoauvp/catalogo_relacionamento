@@ -22,26 +22,27 @@ O protótipo não tinha código. Tudo aqui foi construído do zero.
 
 ## O que o painel mostra
 
-| Pedido da área                                                                | Onde                                               | Situação   |
-| ----------------------------------------------------------------------------- | -------------------------------------------------- | ---------- |
-| Filtro global: semanal, mensal, anual ou datas livres (relatório, item 3)     | `src/lib/periodo.ts`                               | pronto     |
-| Status operacional em destaque: normal, alto volume, risco, crítica (item 1)  | dashboard                                          | pronto     |
-| "Volume de Pedidos por Departamento", com subsidiária e departamento (item 2) | dashboard                                          | pronto     |
-| Comparativo com o período anterior e evolução semanal (proposta, item 1)      | dashboard                                          | pronto     |
-| Trilha de demandas com a esteira prioritária dentro dela (item 4)             | dashboard                                          | pronto     |
-| Cadastro manual da trilha, com os campos da proposta (item 4) e dos áudios    | "Nova demanda" e "Editar" na trilha                | pronto     |
-| Status, item ou "Kit", observações no hover, previsão obrigatória (item 4)    | trilha                                             | pronto     |
-| Exportar a trilha respeitando o filtro de período (item 4)                    | trilha                                             | pronto     |
-| Link para a tarefa no ClickUp, quando existe (item 5)                         | título da demanda                                  | pronto     |
-| Tarefas recorrentes, com a próxima ocorrência automática                      | trilha e números                                   | pronto     |
-| Presente aprovado entra sozinho na trilha                                     | `src/lib/logistica/ponte.ts`                       | pronto     |
-| Link para os produtos que a AUVP tem fisicamente                              | catálogo, filtro "Só em estoque"                   | pronto     |
-| Apresentação da equipe (item 6)                                               | `/logistica/equipe`                                | pronto     |
-| FAQ (item 7)                                                                  | `/logistica/faq`                                   | pronto     |
-| Fases operacionais padronizadas (proposta, item 5)                            | enum no schema                                     | pronto     |
-| Horas por produto (proposta, item 2)                                          | -                                                  | abandonado |
-| Custo dos envios, total e por departamento (áudios de 09/10/2026)             | -                                                  | retirado   |
-| Presente aprovado vira pedido no Tiny                                         | fila, [ADR 0009](adr/0009-integracoes-por-fila.md) | depois     |
+| Pedido da área                                                                | Onde                                | Situação   |
+| ----------------------------------------------------------------------------- | ----------------------------------- | ---------- |
+| Filtro global: semanal, mensal, anual ou datas livres (relatório, item 3)     | `src/lib/periodo.ts`                | pronto     |
+| Status operacional em destaque: normal, alto volume, risco, crítica (item 1)  | dashboard                           | pronto     |
+| "Volume de Pedidos por Departamento", com subsidiária e departamento (item 2) | dashboard                           | pronto     |
+| Comparativo com o período anterior e evolução semanal (proposta, item 1)      | dashboard                           | pronto     |
+| Trilha de demandas com a esteira prioritária dentro dela (item 4)             | dashboard                           | pronto     |
+| Cadastro manual da trilha, com os campos da proposta (item 4) e dos áudios    | "Nova demanda" e "Editar" na trilha | pronto     |
+| Status, item ou "Kit", observações no hover, previsão obrigatória (item 4)    | trilha                              | pronto     |
+| Exportar a trilha respeitando o filtro de período (item 4)                    | trilha                              | pronto     |
+| Link para a tarefa no ClickUp, quando existe (item 5)                         | título da demanda                   | pronto     |
+| Tarefas recorrentes, com a próxima ocorrência automática                      | trilha e números                    | pronto     |
+| Presente aprovado entra sozinho na trilha                                     | `src/lib/logistica/ponte.ts`        | pronto     |
+| Link para os produtos que a AUVP tem fisicamente                              | catálogo, filtro "Só em estoque"    | pronto     |
+| Apresentação da equipe (item 6)                                               | `/logistica/equipe`                 | pronto     |
+| FAQ (item 7)                                                                  | `/logistica/faq`                    | pronto     |
+| Fases operacionais padronizadas (proposta, item 5)                            | enum no schema                      | pronto     |
+| Horas por produto (proposta, item 2)                                          | -                                   | abandonado |
+| Custo dos envios, total e por departamento (áudios de 09/10/2026)             | -                                   | retirado   |
+| Presente aprovado vira pedido no Tiny, com o rastreio de volta                | fila, [docs/13-tiny.md](13-tiny.md) | pronto     |
+| Envio em lote por planilha, como no AUVP-Eventos, com demanda na trilha       | `/tiny/importar`                    | pronto     |
 
 Equipe e FAQ são preenchidos pela própria Logística, nas telas de cada um.
 

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { Prisma, StatusSolicitacao } from '@prisma/client'
 import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
@@ -22,7 +23,18 @@ import {
 } from '@/lib/validators/solicitacao'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
+import { enfileirarPresente, processarFila } from '@/lib/tiny/fila'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
+
+/**
+ * O presente que chegou a "Organizando envio" entrou na fila do Tiny dentro da
+ * transação; o envio em si roda depois da resposta, sem a tela esperar o Tiny.
+ */
+function processarFilaDepois() {
+  after(async () => {
+    await processarFila({ prazoMs: 40_000 }).catch((e) => console.error('Fila do Tiny:', e))
+  })
+}
 
 /**
  * Escritas de solicitação.
@@ -294,7 +306,7 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
     const checagem = validarMudancaDeStatus(solicitacao.status, statusNovo, motivo)
     if (!checagem.ok) return { ok: false, erro: checagem.erro }
 
-    await db.$transaction(async (tx) => {
+    const foiParaOTiny = await db.$transaction(async (tx) => {
       await tx.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } })
       await tx.solicitacaoHistorico.create({
         data: {
@@ -308,7 +320,11 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
       // Aprovado, o presente entra na trilha da Logística; os status seguintes
       // movem a fase. Na mesma transação: ou anda tudo, ou nada.
       await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
+      return statusNovo === StatusSolicitacao.organizando_envio
+        ? enfileirarPresente(tx, solicitacao.id)
+        : false
     })
+    if (foiParaOTiny) processarFilaDepois()
 
     revalidatePath(`/admin/solicitacoes/${solicitacao.id}`)
     revalidatePath('/admin/solicitacoes')
@@ -372,6 +388,7 @@ export async function encaminharEmLote(
     })
 
     const resumo: ResumoDoLote = { movidas: [], ignoradas: [] }
+    let algumParaOTiny = false
 
     for (const solicitacao of solicitacoes) {
       const caminho = caminhoDeEncaminhamento(solicitacao.status, destino, solicitacao.itens)
@@ -400,11 +417,15 @@ export async function encaminharEmLote(
         }
 
         await sincronizarDemandaDoPresente(tx, solicitacao.id, anterior)
+        if (anterior === StatusSolicitacao.organizando_envio) {
+          algumParaOTiny = (await enfileirarPresente(tx, solicitacao.id)) || algumParaOTiny
+        }
       })
 
       const ultimo = caminho.passos[caminho.passos.length - 1]!
       resumo.movidas.push({ codigo: solicitacao.codigo, para: ROTULO_STATUS[ultimo] })
     }
+    if (algumParaOTiny) processarFilaDepois()
 
     revalidatePath('/admin/solicitacoes')
     revalidatePath('/financeiro/compras')

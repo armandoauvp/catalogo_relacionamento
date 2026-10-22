@@ -90,6 +90,16 @@ function dividir(linha: string, separador: string): string[] {
   return campos.map((campo) => campo.trim())
 }
 
+/**
+ * O CSV como tabela de células, com o mesmo cuidado de aspas e separador.
+ * A importação em lote do Tiny lê a planilha por aqui quando ela vem em .csv.
+ */
+export function tabelaDoCsv(conteudo: string): string[][] {
+  const linhas = conteudo.replace(/^﻿/, '').split(/\r?\n/)
+  const separador = detectarSeparador(linhas.find((l) => l.trim()) ?? '')
+  return linhas.map((linha) => (linha.trim() ? dividir(linha, separador) : []))
+}
+
 export function lerCsvDeClientes(conteudo: string): LeituraDoCsv {
   // O BOM que o Excel escreve gruda no primeiro cabeçalho e o torna
   // irreconhecível.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cpfValido, formatarCpf, mascararCpf, normalizarCpf } from './cpf'
+import { cnpjValido, cpfValido, formatarCpf, mascararCpf, normalizarCpf } from './cpf'
 
 describe('normalização', () => {
   it('remove máscara para que a deduplicação não dependa de formatação', () => {
@@ -37,5 +37,18 @@ describe('exibição', () => {
 
   it('mascara para quem não pode ver o dado completo', () => {
     expect(mascararCpf('52998224725')).toBe('***.982.247-**')
+  })
+})
+
+describe('CNPJ', () => {
+  it('aceita CNPJ válido, com ou sem máscara', () => {
+    expect(cnpjValido('11.222.333/0001-81')).toBe(true)
+    expect(cnpjValido('11222333000181')).toBe(true)
+  })
+
+  it('recusa dígito errado, tamanho errado e sequência repetida', () => {
+    expect(cnpjValido('11.222.333/0001-82')).toBe(false)
+    expect(cnpjValido('1122233300018')).toBe(false)
+    expect(cnpjValido('00000000000000')).toBe(false)
   })
 })

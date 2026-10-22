@@ -141,6 +141,13 @@ aparecem na tela de login, e o usuário é o mesmo nos dois, casado pelo e-mail:
 perfil e histórico não mudam. Para ficar só com o Keycloak, apague as
 variáveis do Google.
 
+## Passo 8: o Tiny
+
+Com `TINY_API_TOKEN` e `CRON_SECRET` em Production, e o mesmo `CRON_SECRET`
+como secret do GitHub Actions, os presentes aprovados e os lotes importados
+viram pedidos no Tiny, e o rastreio volta sozinho. Passo a passo em
+[docs/13-tiny.md](13-tiny.md#ligar).
+
 ## Limites do Hobby
 
 A área escolheu o plano gratuito. O que muda na prática:
@@ -148,9 +155,11 @@ A área escolheu o plano gratuito. O que muda na prática:
 - **Termos de uso.** A Vercel reserva o Hobby para uso não comercial. Uma
   ferramenta interna da empresa fica numa zona cinzenta; se a Vercel
   questionar, a saída é o Pro, sem mudança de código.
-- **Agendamento uma vez por dia.** Só afeta a integração com o Tiny, que ainda
-  não existe ([ADR 0009](adr/0009-integracoes-por-fila.md)). Para operar, ela
-  vai precisar do Pro ou de um agendador de fora.
+- **Agendamento uma vez por dia.** Resolvido para o Tiny com o GitHub Actions
+  a cada 10 minutos, de graça, mais o processamento logo depois de cada envio
+  ([docs/13-tiny.md](13-tiny.md#a-fila)).
+- **Funções de até 60 segundos.** A rodada da fila respeita esse teto e
+  continua na próxima.
 - **Proteção por senha** só nos previews; a produção fica protegida pelo login.
 - **Backup.** O Neon gratuito guarda pouco histórico para restaurar. Vale um
   `pg_dump` periódico da conexão direta, guardado fora da Vercel.

@@ -105,6 +105,7 @@ docs/                     documentação de decisões e operação
 - [Checklist de lançamento](docs/09-checklist-de-lancamento.md)
 - [Entrega para a TI](docs/10-entrega-ti.md)
 - [Produção na Vercel](docs/12-producao-vercel.md)
+- [Integração com o Tiny](docs/13-tiny.md)
 - [Logística](docs/11-logistica.md)
 - [Decisões de arquitetura](docs/adr/)
 
