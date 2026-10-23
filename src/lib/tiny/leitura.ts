@@ -275,3 +275,78 @@ export function dataParaOTiny(iso: string | null | undefined): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '')
   return m ? `${m[3]}/${m[2]}/${m[1]}` : null
 }
+
+// ---------------------------------------------------------------------------
+// Produtos e estoque
+// ---------------------------------------------------------------------------
+
+export type ProdutoNaBusca = {
+  id: string
+  codigo: string
+  nome: string
+  preco: string
+  unidade: string
+}
+
+export type PaginaDeProdutos = { produtos: ProdutoNaBusca[]; pagina: number; paginas: number }
+
+export function lerPaginaDeProdutos(r: Bruto & { vazio?: boolean }): PaginaDeProdutos {
+  if (r.vazio) return { produtos: [], pagina: 1, paginas: 1 }
+  return {
+    produtos: listaDe(r.produtos, 'produto').map((p) => ({
+      id: texto(p.id),
+      codigo: texto(p.codigo),
+      nome: texto(p.nome),
+      preco: decimalDoTiny(p.preco),
+      unidade: texto(p.unidade) || 'UN',
+    })),
+    pagina: Number(r.pagina) || 1,
+    paginas: Number(r.numero_paginas) || 1,
+  }
+}
+
+export type EstoqueDoProduto = {
+  id: string
+  codigo: string
+  nome: string
+  unidade: string
+  saldo: number
+  reservado: number
+  /** Saldo menos o reservado: o que ainda pode sair. */
+  disponivel: number
+  depositos: { nome: string; empresa: string | null; saldo: number; desconsiderado: boolean }[]
+}
+
+export function lerEstoque(p: Bruto): EstoqueDoProduto {
+  const saldo = Number(decimalDoTiny(p.saldo)) || 0
+  const reservado = Number(decimalDoTiny(p.saldoReservado)) || 0
+  return {
+    id: texto(p.id),
+    codigo: texto(p.codigo),
+    nome: texto(p.nome),
+    unidade: texto(p.unidade) || 'UN',
+    saldo,
+    reservado,
+    disponivel: saldo - reservado,
+    depositos: listaDe(p.depositos, 'deposito').map((d) => ({
+      nome: texto(d.nome),
+      empresa: ouNulo(d.empresa),
+      saldo: Number(decimalDoTiny(d.saldo)) || 0,
+      // Depósito marcado para não contar no saldo geral.
+      desconsiderado: texto(d.desconsiderar).toUpperCase() === 'S',
+    })),
+  }
+}
+
+const enderecoWeb = (url: string) => (/^https?:\/\//.test(url) ? url : null)
+
+/** A primeira foto do produto: anexo, ou imagem externa quando não há anexo. */
+export function imagemDoProduto(p: Bruto): string | null {
+  // O anexo vem como texto dentro de `{anexo: "..."}`, e não como objeto.
+  const anexos = Array.isArray(p.anexos) ? p.anexos : []
+  const primeiro = anexos[0] as { anexo?: unknown } | string | undefined
+  const deAnexo = enderecoWeb(texto(typeof primeiro === 'string' ? primeiro : primeiro?.anexo))
+  if (deAnexo) return deAnexo
+  const externa = listaDe(p.imagens_externas, 'imagem_externa')[0]
+  return enderecoWeb(texto(externa?.url))
+}

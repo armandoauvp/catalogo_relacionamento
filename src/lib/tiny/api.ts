@@ -4,13 +4,18 @@ import { coletarErros, ErroDoTiny } from './erros'
 import {
   codigoDaSituacao,
   decimalDoTiny,
+  imagemDoProduto,
   lerDetalheDoPedido,
+  lerEstoque,
   lerPaginaDePedidos,
+  lerPaginaDeProdutos,
   listaDe,
   texto,
   type CriterioDeBusca,
   type DetalheDoPedido,
+  type EstoqueDoProduto,
   type PaginaDePedidos,
+  type PaginaDeProdutos,
 } from './leitura'
 
 export { listaDe }
@@ -168,4 +173,32 @@ export async function detalharPedido(id: string): Promise<DetalheDoPedido> {
   const r = await chamar('pedido.obter.php', { id })
   if (r.vazio || !r.pedido) throw new ErroDoTiny('O Tiny não achou este pedido.', 20)
   return lerDetalheDoPedido(r.pedido as Record<string, unknown>)
+}
+
+// ---------------------------------------------------------------------------
+// Estoque
+// ---------------------------------------------------------------------------
+
+export async function pesquisarProdutosPorPagina(
+  pesquisa: string,
+  pagina = 1,
+): Promise<PaginaDeProdutos> {
+  const r = await chamar('produtos.pesquisa.php', { pesquisa, pagina: String(pagina) })
+  return lerPaginaDeProdutos(r)
+}
+
+export async function obterEstoque(id: string): Promise<EstoqueDoProduto> {
+  const r = await chamar('produto.obter.estoque.php', { id })
+  if (r.vazio || !r.produto) throw new ErroDoTiny('O Tiny não achou este produto.', 20)
+  return lerEstoque(r.produto as Record<string, unknown>)
+}
+
+/** A foto é enfeite: se a chamada falhar, a tela segue sem ela. */
+export async function obterImagemDoProduto(id: string): Promise<string | null> {
+  try {
+    const r = await chamar('produto.obter.php', { id })
+    return r.produto ? imagemDoProduto(r.produto as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
 }

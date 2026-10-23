@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 const ABAS: { href: Route; rotulo: string; tambem?: string[] }[] = [
   { href: '/tiny', rotulo: 'Fila', tambem: ['/tiny/lotes'] },
   { href: '/tiny/pedidos', rotulo: 'Pedidos no Tiny' },
+  { href: '/tiny/estoque', rotulo: 'Estoque' },
   { href: '/tiny/importar', rotulo: 'Importar lote' },
 ]
 

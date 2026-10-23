@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { Route } from 'next'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
@@ -127,9 +128,13 @@ export default async function AdminCatalogoPage({
                     <div className="flex flex-col items-start gap-1.5">
                       <span className="font-medium">{p.nome}</span>
                       {temSku(p) ? (
-                        <span className="text-muted-foreground text-xs tabular-nums">
-                          SKU {p.skuTiny}
-                        </span>
+                        <Link
+                          href={`/tiny/estoque?busca=${encodeURIComponent(p.skuTiny!)}` as Route}
+                          className="text-muted-foreground hover:text-foreground text-xs tabular-nums underline-offset-4 hover:underline"
+                          title="Ver o saldo no Tiny"
+                        >
+                          SKU {p.skuTiny} · saldo no Tiny
+                        </Link>
                       ) : (
                         <Badge variant="warning">sem SKU no Tiny</Badge>
                       )}

@@ -135,6 +135,18 @@ pedido nasceu aqui.
 É só leitura, direto da API a cada abertura: nada é guardado, para a tela
 nunca divergir do Tiny.
 
+## Estoque no Tiny
+
+`/tiny/estoque` busca o produto pelo nome ou pelo SKU (`produtos.pesquisa.php`)
+e abre o saldo de cada um (`produto.obter.estoque.php`): disponível, saldo
+geral, reservado e cada depósito, com os que não contam no geral marcados, e
+a foto do cadastro de lá. O saldo não vem na busca; buscá-lo linha a linha
+estouraria o limite de chamadas. No cadastro de produtos daqui, o SKU leva
+direto ao saldo no Tiny.
+
+O estoque do catálogo daqui continua sendo o que decide a rota
+(`Produto.origem`); o do Tiny é consulta.
+
 ## Importação em lote
 
 `/tiny/importar`: planilha .xlsx ou .csv, uma linha por destinatário.

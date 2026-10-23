@@ -7,7 +7,9 @@ import {
   dataParaOTiny,
   decimalDoTiny,
   enderecoEmUmaLinha,
+  imagemDoProduto,
   lerDetalheDoPedido,
+  lerEstoque,
   lerPaginaDePedidos,
 } from './leitura'
 import { rotuloDaSituacao } from './rotulos'
@@ -142,5 +144,36 @@ describe('datas para o Tiny', () => {
     expect(dataParaOTiny('2026-10-22')).toBe('22/10/2026')
     expect(dataParaOTiny('22/10/2026')).toBeNull()
     expect(dataParaOTiny(undefined)).toBeNull()
+  })
+})
+
+describe('estoque', () => {
+  it('saldo, reservado e depósitos', () => {
+    const e = lerEstoque({
+      id: '11',
+      nome: 'Livro',
+      codigo: 'LIV',
+      saldo: '42,00',
+      saldoReservado: '5',
+      depositos: [
+        { deposito: { nome: 'Geral', desconsiderar: 'N', saldo: '40', empresa: 'AUVP' } },
+        { deposito: { nome: 'Eventos', desconsiderar: 'S', saldo: '2' } },
+      ],
+    })
+    expect(e.saldo).toBe(42)
+    expect(e.disponivel).toBe(37)
+    expect(e.depositos[1]).toEqual({
+      nome: 'Eventos',
+      empresa: null,
+      saldo: 2,
+      desconsiderado: true,
+    })
+  })
+
+  it('foto do anexo ou da imagem externa, só com endereço web', () => {
+    expect(imagemDoProduto({ anexos: [{ anexo: 'https://x/a.jpg' }] })).toBe('https://x/a.jpg')
+    const externa = { imagens_externas: [{ imagem_externa: { url: 'https://x/b.png' } }] }
+    expect(imagemDoProduto({ anexos: [], ...externa })).toBe('https://x/b.png')
+    expect(imagemDoProduto({ anexos: [{ anexo: 'javascript:alert(1)' }] })).toBeNull()
   })
 })
