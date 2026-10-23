@@ -218,6 +218,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
         'lote',
         `${usuario.nome} importou ${novas.length} pedidos (${dados.marcador})` +
           (jaEnviados.length ? `; ${jaEnviados.length} já tinham sido enviados.` : '.'),
+        usuario.id,
       )
       return lote.id
     })
@@ -259,12 +260,12 @@ export async function sincronizarAgora(): Promise<ResultadoDaAction<{ atualizado
 
 export async function reenviar(id: string): Promise<ResultadoDaAction> {
   try {
-    await autorizarAction('tiny.operar')
+    const usuario = await autorizarAction('tiny.operar')
     const pedido = await db.pedidoTiny.findUniqueOrThrow({
       where: { id },
       select: { loteId: true },
     })
-    await reenviarPedido(id)
+    await reenviarPedido(id, usuario.id)
     processarDepois()
     revalidarTiny(pedido.loteId ?? undefined)
     return { ok: true, dados: undefined }
@@ -277,12 +278,12 @@ export async function reenviarFalhasDoLote(
   loteId: string,
 ): Promise<ResultadoDaAction<{ reenviados: number }>> {
   try {
-    await autorizarAction('tiny.operar')
+    const usuario = await autorizarAction('tiny.operar')
     const falhas = await db.pedidoTiny.findMany({
       where: { loteId, envio: 'falhou' },
       select: { id: true },
     })
-    for (const f of falhas) await reenviarPedido(f.id)
+    for (const f of falhas) await reenviarPedido(f.id, usuario.id)
     if (falhas.length) processarDepois()
     revalidarTiny(loteId)
     return { ok: true, dados: { reenviados: falhas.length } }
@@ -307,7 +308,7 @@ export async function fecharExpedicao(solicitacaoIds: string[]): Promise<Resulta
     const r = await marcarPassoDaExpedicao(
       pedidos.map((p) => p.id),
       'fechar',
-      usuario.nome,
+      usuario,
     )
     if (r.marcados) processarDepois()
     revalidatePath('/expedicao')
@@ -326,7 +327,7 @@ export async function fecharExpedicaoDoLote(loteId: string): Promise<ResultadoDo
     const r = await marcarPassoDaExpedicao(
       pedidos.map((p) => p.id),
       'fechar',
-      usuario.nome,
+      usuario,
     )
     if (r.marcados) processarDepois()
     revalidarTiny(loteId)
@@ -340,7 +341,7 @@ export async function fecharExpedicaoDoLote(loteId: string): Promise<ResultadoDo
 export async function concluirExpedicao(pedidoTinyIds: string[]): Promise<ResultadoDoPasso> {
   try {
     const usuario = await autorizarAction('tiny.operar')
-    const r = await marcarPassoDaExpedicao(pedidoTinyIds, 'concluir', usuario.nome)
+    const r = await marcarPassoDaExpedicao(pedidoTinyIds, 'concluir', usuario)
     if (r.marcados) processarDepois()
     const lotes = await db.pedidoTiny.findMany({
       where: { id: { in: pedidoTinyIds }, loteId: { not: null } },
@@ -504,6 +505,7 @@ export async function criarPedidoAvulso(
         criado.id,
         'avulso',
         `${usuario.nome} montou um pedido para ${destinatario.nome} (${resumoDosItens(itens)}).`,
+        usuario.id,
       )
       return criado
     })

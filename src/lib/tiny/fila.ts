@@ -59,8 +59,12 @@ export async function registrarEvento(
   pedidoId: string | null,
   tipo: string,
   mensagem: string,
+  /** Quem fez; sem ele, foi a própria fila. */
+  usuarioId: string | null = null,
 ) {
-  await banco.eventoTiny.create({ data: { pedidoId, tipo, mensagem: mensagem.slice(0, 500) } })
+  await banco.eventoTiny.create({
+    data: { pedidoId, tipo, mensagem: mensagem.slice(0, 500), usuarioId },
+  })
 }
 
 /** Pedidos criados no Tiny nos últimos sete dias, para o número da tela. */
@@ -139,7 +143,11 @@ const avisoDeSemSku = (nomes: string[]) =>
  * pedido só; voltar a "Organizando envio" depois de um problema não cria outro
  * (o reenvio é pela tela do Tiny).
  */
-export async function enfileirarPresente(tx: Banco, solicitacaoId: string): Promise<boolean> {
+export async function enfileirarPresente(
+  tx: Banco,
+  solicitacaoId: string,
+  usuarioId: string | null = null,
+): Promise<boolean> {
   if (!tinyConfigurado) return false
   const config = await configuracaoTiny(tx)
   if (!config.enviarPresentes) return false
@@ -169,6 +177,7 @@ export async function enfileirarPresente(tx: Banco, solicitacaoId: string): Prom
     semSku.length
       ? `Presente ${s.codigo} parado: ${avisoDeSemSku(semSku)}`
       : `Presente ${s.codigo} entrou na fila.`,
+    usuarioId,
   )
   return !semSku.length
 }
@@ -186,7 +195,7 @@ export async function enfileirarPresente(tx: Banco, solicitacaoId: string): Prom
 export async function marcarPassoDaExpedicao(
   ids: string[],
   passo: PassoDaExpedicao,
-  quem: string,
+  quem: { id: string; nome: string },
 ): Promise<{ marcados: number; ignorados: number }> {
   const pedidos = await db.pedidoTiny.findMany({
     where: { id: { in: ids }, envio: { not: 'falhou' } },
@@ -202,7 +211,8 @@ export async function marcarPassoDaExpedicao(
         tx,
         p.id,
         'expedicao',
-        `${ROTULO_DO_PASSO[passo]} (${quem}): vai a "${rotuloDaSituacao(destino)}" no Tiny.`,
+        `${ROTULO_DO_PASSO[passo]} (${quem.nome}): vai a "${rotuloDaSituacao(destino)}" no Tiny.`,
+        quem.id,
       )
     }
   })
@@ -412,6 +422,7 @@ export async function enfileirarContatos(
       null,
       'contatos',
       `${usuario.nome} mandou ${total} ${total === 1 ? 'contato' : 'contatos'} ao Tiny (${origem}).`,
+      usuario.id,
     )
     return { novos: novos.length, atualizados: total - novos.length }
   })
@@ -498,10 +509,24 @@ async function processarContatos(
 }
 
 /** Devolve à fila um contato que falhou, do zero. */
-export async function reenviarContato(id: string) {
-  await db.contatoTiny.updateMany({
-    where: { id, envio: 'falhou' },
-    data: { envio: 'pendente', tentativas: 0, proximaTentativaEm: new Date() },
+export async function reenviarContato(id: string, usuarioId: string | null = null) {
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.contatoTiny.updateMany({
+      where: { id, envio: 'falhou' },
+      data: { envio: 'pendente', tentativas: 0, proximaTentativaEm: new Date() },
+    })
+    if (!count) return
+    const contato = await tx.contatoTiny.findUniqueOrThrow({
+      where: { id },
+      select: { nome: true },
+    })
+    await registrarEvento(
+      tx,
+      null,
+      'reenviado',
+      `Contato ${contato.nome} voltou para a fila.`,
+      usuarioId,
+    )
   })
 }
 
@@ -703,7 +728,11 @@ async function concluirLoteSeTerminou(loteId: string, agora: Date) {
  * para o reenvio levar a correção que motivou o erro (um SKU preenchido, um
  * endereço acertado); a linha do lote vai igual.
  */
-export async function reenviarPedido(id: string, agora = new Date()) {
+export async function reenviarPedido(
+  id: string,
+  usuarioId: string | null = null,
+  agora = new Date(),
+) {
   await db.$transaction(async (tx) => {
     const pedido = await tx.pedidoTiny.findUniqueOrThrow({ where: { id } })
     if (pedido.envio === 'enviado' || pedido.envio === 'processando') return
@@ -720,7 +749,7 @@ export async function reenviarPedido(id: string, agora = new Date()) {
           payload: remontado.payload as unknown as Prisma.InputJsonValue,
         },
       })
-      await registrarEvento(tx, id, 'falhou', `${pedido.destinatario}: ${aviso}`)
+      await registrarEvento(tx, id, 'falhou', `${pedido.destinatario}: ${aviso}`, usuarioId)
       return
     }
 
@@ -739,6 +768,12 @@ export async function reenviarPedido(id: string, agora = new Date()) {
           : {}),
       },
     })
-    await registrarEvento(tx, id, 'reenviado', 'Pedido voltou para a fila.')
+    await registrarEvento(
+      tx,
+      id,
+      'reenviado',
+      `${pedido.destinatario}: voltou para a fila.`,
+      usuarioId,
+    )
   })
 }

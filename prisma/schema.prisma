@@ -112,6 +112,7 @@ model Usuario {
   lotesTiny       LoteTiny[]
   pedidosTiny     PedidoTiny[]
   contatosTiny    ContatoTiny[]
+  eventosTiny     EventoTiny[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -674,15 +675,20 @@ model ContatoTiny {
 /// O que aconteceu com cada pedido: enviado, recusado, rastreio novo. É o
 /// histórico que a tela do Tiny mostra, e nunca é editado.
 model EventoTiny {
-  id       String   @id @default(cuid())
-  pedidoId String?  @map("pedido_id")
-  tipo     String
-  mensagem String
-  criadoEm DateTime @default(now()) @map("criado_em")
+  id        String   @id @default(cuid())
+  pedidoId  String?  @map("pedido_id")
+  tipo      String
+  mensagem  String
+  /// Quem fez, quando foi uma pessoa. Nulo é a própria fila, sozinha.
+  usuarioId String?  @map("usuario_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
 
-  pedido PedidoTiny? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  pedido  PedidoTiny? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  usuario Usuario?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   @@index([criadoEm])
+  @@index([usuarioId])
+  @@index([tipo])
   @@map("eventos_tiny")
 }
 

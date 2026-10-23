@@ -74,7 +74,11 @@ export default async function TinyPage({
           criadoPor: { select: { nome: true } },
         },
       }),
-      db.eventoTiny.findMany({ orderBy: { criadoEm: 'desc' }, take: 12 }),
+      db.eventoTiny.findMany({
+        orderBy: { criadoEm: 'desc' },
+        take: 12,
+        include: { usuario: { select: { nome: true } } },
+      }),
     ])
 
   const contagem = (e: EnvioTiny) => porEnvio.find((p) => p.envio === e)?._count._all ?? 0
@@ -335,9 +339,17 @@ export default async function TinyPage({
         </section>
 
         <section aria-labelledby="eventos" className="bg-card rounded-lg border p-5">
-          <h2 id="eventos" className="font-display mb-4 text-lg font-semibold">
-            Últimos acontecimentos
-          </h2>
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <h2 id="eventos" className="font-display text-lg font-semibold">
+              Últimos acontecimentos
+            </h2>
+            <Link
+              href="/tiny/historico"
+              className="text-primary-emphasis text-sm underline-offset-4 hover:underline"
+            >
+              Histórico completo
+            </Link>
+          </div>
           {eventos.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nada ainda.</p>
           ) : (
@@ -349,6 +361,9 @@ export default async function TinyPage({
                   </span>
                   <span className={e.tipo === 'falhou' ? 'text-destructive' : undefined}>
                     {e.mensagem}
+                    {e.usuario ? (
+                      <span className="text-muted-foreground"> · {e.usuario.nome}</span>
+                    ) : null}
                   </span>
                 </li>
               ))}

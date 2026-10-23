@@ -230,6 +230,29 @@ O estoque do catálogo daqui continua sendo o que decide a rota
 | Permissão de importar existia mas não era conferida | `tiny.operar`, conferida no servidor                  |
 | Status e rastreio nunca voltavam                    | sincronização a cada rodada                           |
 | Colunas lidas pela posição                          | lidas pelo nome, com sinônimos                        |
+| Contato gravado direto, apagando campo vazio        | pela fila, só com o que veio preenchido               |
+| Cadastro público aberto, com consulta por CPF       | com chave, sem consulta (`/api/publico/clientes`)     |
+| Histórico sem filtro, e às vezes sem quem fez       | `/tiny/historico`, por período, tipo, pessoa e texto  |
+
+## Histórico
+
+`/tiny/historico` lista cada acontecimento da integração: pedido que entrou na
+fila, foi criado, adiado, recusado ou reenviado; passo da expedição; situação
+e rastreio que voltaram; lote importado, venda montada e contatos mandados.
+Cada um diz quem fez (`EventoTiny.usuarioId`), ou "automático" quando foi a
+própria fila. Filtra por período, tipo, pessoa e texto, 50 por página, e leva
+à solicitação, ao lote ou ao pedido no Tiny. A tela da fila mostra os 12
+últimos, com o link para o histórico.
+
+## O que não veio do AUVP-Eventos
+
+Por decisão de 23/10/2026, ficaram de fora os módulos que não são de envio:
+compras com nota e parcelas, receitas e despesas, ingressos, vendas internas
+com baixa de estoque, entregas próprias com motoristas, e o que sobrou do
+modelo de restaurante de onde ele nasceu (cardápio, garçom, comandas). Também
+de propósito: token na tela, fila no navegador, cadastro com senha e
+aprovação manual de contas (trocados pelo SSO), e permissões por usuário
+(trocadas pela matriz por perfil).
 
 ## Testar sem o Tiny
 

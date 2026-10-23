@@ -97,8 +97,8 @@ export async function importarContatos(
 
 export async function reenviarContatoNoTiny(id: string): Promise<ResultadoDaAction> {
   try {
-    await autorizarAction('tiny.operar')
-    await reenviarContato(id)
+    const usuario = await autorizarAction('tiny.operar')
+    await reenviarContato(id, usuario.id)
     processarDepois()
     revalidatePath('/tiny/contatos')
     return { ok: true, dados: undefined }

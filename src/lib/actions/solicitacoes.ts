@@ -322,7 +322,7 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
       // movem a fase. Na mesma transação: ou anda tudo, ou nada.
       await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
       return statusNovo === StatusSolicitacao.organizando_envio
-        ? enfileirarPresente(tx, solicitacao.id)
+        ? enfileirarPresente(tx, solicitacao.id, usuario.id)
         : false
     })
     if (foiParaOTiny) processarFilaDepois()
@@ -419,7 +419,8 @@ export async function encaminharEmLote(
 
         await sincronizarDemandaDoPresente(tx, solicitacao.id, anterior)
         if (anterior === StatusSolicitacao.organizando_envio) {
-          algumParaOTiny = (await enfileirarPresente(tx, solicitacao.id)) || algumParaOTiny
+          algumParaOTiny =
+            (await enfileirarPresente(tx, solicitacao.id, usuario.id)) || algumParaOTiny
         }
       })
 
