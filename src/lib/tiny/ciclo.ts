@@ -12,6 +12,8 @@
  * que alguém mudar direto no Tiny volta pela sincronização.
  */
 
+import { codigoDaSituacao } from './leitura'
+
 export type PassoDaExpedicao = 'fechar' | 'concluir'
 
 export const SITUACAO_DO_PASSO: Record<PassoDaExpedicao, 'preparando_envio' | 'pronto_envio'> = {
@@ -53,8 +55,10 @@ export function situacaoVigente(p: {
  */
 export function jaChegou(situacaoNoTiny: string | null, destino: string): boolean {
   if (!situacaoNoTiny) return false
-  if (situacaoNoTiny === 'cancelado' || situacaoNoTiny === 'nao_entregue') return true
-  const atual = ORDEM.indexOf(situacaoNoTiny)
+  // Pedido sincronizado antes da tradução tem a situação em texto ("Em aberto").
+  const codigo = codigoDaSituacao(situacaoNoTiny)
+  if (codigo === 'cancelado' || codigo === 'nao_entregue') return true
+  const atual = ORDEM.indexOf(codigo)
   return atual >= 0 && atual >= ORDEM.indexOf(destino)
 }
 
@@ -65,7 +69,7 @@ export function jaChegou(situacaoNoTiny: string | null, destino: string): boolea
  */
 export function passoPermitido(situacaoAtual: string | null, passo: PassoDaExpedicao): boolean {
   if (situacaoAtual === null) return true
-  const atual = ORDEM.indexOf(situacaoAtual)
+  const atual = ORDEM.indexOf(codigoDaSituacao(situacaoAtual))
   if (atual < 0) return false
   return ORDEM.indexOf(SITUACAO_DO_PASSO[passo]) > atual
 }

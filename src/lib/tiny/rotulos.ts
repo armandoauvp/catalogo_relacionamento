@@ -1,4 +1,5 @@
 import type { EnvioTiny } from '@prisma/client'
+import { codigoDaSituacao } from './leitura'
 
 /** O andamento do envio, como a tela diz. */
 export const ROTULO_ENVIO: Record<EnvioTiny, string> = {
@@ -23,7 +24,7 @@ const ROTULO_SITUACAO: Record<string, string> = {
 
 export function rotuloDaSituacao(situacao: string | null | undefined): string | null {
   if (!situacao) return null
-  return ROTULO_SITUACAO[situacao] ?? situacao
+  return ROTULO_SITUACAO[codigoDaSituacao(situacao)] ?? situacao
 }
 
 /**
@@ -53,7 +54,8 @@ export type TomDoSelo = 'success' | 'warning' | 'error' | 'info' | 'muted'
 export function tomDoPedido(envio: EnvioTiny, situacao: string | null): TomDoSelo {
   if (envio === 'falhou') return 'error'
   if (envio !== 'enviado') return 'warning'
-  if (situacao === 'entregue') return 'success'
-  if (situacao === 'cancelado' || situacao === 'nao_entregue') return 'error'
+  const codigo = codigoDaSituacao(situacao)
+  if (codigo === 'entregue') return 'success'
+  if (codigo === 'cancelado' || codigo === 'nao_entregue') return 'error'
   return 'info'
 }

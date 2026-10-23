@@ -1,6 +1,6 @@
 import type { EnvioTiny } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
-import { seloDoPedido } from '@/lib/tiny/rotulos'
+import { rotuloDaSituacao, seloDoPedido, tomDoPedido } from '@/lib/tiny/rotulos'
 
 /** O selo do pedido no Tiny, igual na tela do Tiny, no lote e na expedição. */
 export function SeloDoPedido({
@@ -24,5 +24,14 @@ export function SeloDoPedido({
         <span className="text-muted-foreground text-xs tabular-nums">nº {pedido.tinyNumero}</span>
       ) : null}
     </span>
+  )
+}
+
+/** Situação de um pedido lido direto do Tiny, que pode não ter nascido aqui. */
+export function SeloDaSituacao({ situacao }: { situacao: string }) {
+  return (
+    <Badge variant={tomDoPedido('enviado', situacao)}>
+      {rotuloDaSituacao(situacao) ?? 'Sem situação'}
+    </Badge>
   )
 }

@@ -1,6 +1,19 @@
 import { env } from '@/lib/env'
 import type { PedidoParaOTiny } from './pedido'
 import { coletarErros, ErroDoTiny } from './erros'
+import {
+  codigoDaSituacao,
+  decimalDoTiny,
+  lerDetalheDoPedido,
+  lerPaginaDePedidos,
+  listaDe,
+  texto,
+  type CriterioDeBusca,
+  type DetalheDoPedido,
+  type PaginaDePedidos,
+} from './leitura'
+
+export { listaDe }
 
 /**
  * Cliente da API v2 do Tiny (Olist ERP). Só roda no servidor: o token sai
@@ -55,20 +68,6 @@ function codigoDoErro(retorno: Retorno): number | null {
   return doRegistro || null
 }
 
-/**
- * O Tiny devolve listas como `[{registro: {...}}]` e, às vezes, como um objeto
- * só. Aqui vira sempre um array dos objetos de dentro.
- */
-export function listaDe(valor: unknown, chave: string): Record<string, unknown>[] {
-  if (!valor) return []
-  const itens = Array.isArray(valor) ? valor : [valor]
-  return itens
-    .map((item) => (item && typeof item === 'object' && chave in item ? item[chave] : item))
-    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-}
-
-const texto = (v: unknown) => (v === undefined || v === null ? '' : String(v))
-
 // ---------------------------------------------------------------------------
 // Produtos e transportadoras, para a importação em lote
 // ---------------------------------------------------------------------------
@@ -88,7 +87,7 @@ export async function pesquisarProdutos(pesquisa: string): Promise<ProdutoDoTiny
     codigo: texto(p.codigo),
     nome: texto(p.nome),
     // O Tiny devolve "35.00" ou "35,00", conforme a conta.
-    preco: texto(p.preco).replace(',', '.') || '0',
+    preco: decimalDoTiny(p.preco),
     unidade: texto(p.unidade) || 'UN',
   }))
 }
@@ -131,12 +130,42 @@ export type PedidoNoTiny = {
 export async function obterPedido(id: string): Promise<PedidoNoTiny> {
   const r = await chamar('pedido.obter.php', { id })
   const p = (r.pedido ?? {}) as Record<string, unknown>
-  const ou = (v: unknown) => texto(v).trim() || null
+  const ou = (v: unknown) => texto(v) || null
   return {
-    situacao: texto(p.situacao).trim().toLowerCase(),
+    situacao: codigoDaSituacao(p.situacao),
     rastreio: ou(p.codigo_rastreamento),
     urlRastreio: ou(p.url_rastreamento),
     notaFiscalId: ou(p.id_nota_fiscal) === '0' ? null : ou(p.id_nota_fiscal),
     transportadora: ou(p.nome_transportador),
   }
+}
+
+// ---------------------------------------------------------------------------
+// Consulta: todos os pedidos do Tiny, inclusive os que não nasceram aqui
+// ---------------------------------------------------------------------------
+
+export type FiltroDePedidos = {
+  pagina?: number
+  busca?: CriterioDeBusca | null
+  situacao?: string | null
+  /** dd/mm/aaaa, como o Tiny pede. */
+  dataInicial?: string | null
+  dataFinal?: string | null
+}
+
+export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaDePedidos> {
+  const parametros: Record<string, string> = { pagina: String(filtro.pagina ?? 1) }
+  if (filtro.busca?.tipo === 'numero') parametros.numero = filtro.busca.valor
+  if (filtro.busca?.tipo === 'cpfCnpj') parametros.cpf_cnpj = filtro.busca.valor
+  if (filtro.busca?.tipo === 'cliente') parametros.cliente = filtro.busca.valor
+  if (filtro.situacao) parametros.situacao = filtro.situacao
+  if (filtro.dataInicial) parametros.dataInicial = filtro.dataInicial
+  if (filtro.dataFinal) parametros.dataFinal = filtro.dataFinal
+  return lerPaginaDePedidos(await chamar('pedidos.pesquisa.php', parametros))
+}
+
+export async function detalharPedido(id: string): Promise<DetalheDoPedido> {
+  const r = await chamar('pedido.obter.php', { id })
+  if (r.vazio || !r.pedido) throw new ErroDoTiny('O Tiny não achou este pedido.', 20)
+  return lerDetalheDoPedido(r.pedido as Record<string, unknown>)
 }

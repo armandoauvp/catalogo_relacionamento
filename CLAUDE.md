@@ -197,8 +197,10 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   mesma transação da mudança de status (`src/lib/logistica/ponte.ts`).
 - **Integração externa não trava a aprovação.** O Tiny entra por fila no banco,
   gravada na mesma transação da mudança de status ([ADR 0009](docs/adr/0009-integracoes-por-fila.md)).
-  Ninguém chama a API do Tiny fora de `src/lib/tiny/fila.ts` e das buscas da
-  importação; o token só existe no servidor, nunca no banco nem no navegador.
+  Escrita no Tiny só pela fila (`src/lib/tiny/fila.ts`); fora dela, apenas
+  consultas de leitura (`src/lib/tiny/api.ts`), feitas no servidor. O token só
+  existe no servidor, nunca no banco nem no navegador. Resposta do Tiny é lida
+  em `src/lib/tiny/leitura.ts`, que traduz a situação em texto para o código.
 - **Sem SKU não vai ao Tiny.** O SKU é obrigatório no cadastro de produto, e
   presente com produto sem SKU fica em Falhou com o aviso, em vez de ir pela
   descrição. Só o presente específico, fora do catálogo, vai sem SKU.

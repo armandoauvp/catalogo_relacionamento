@@ -116,6 +116,25 @@ acompanha.
 O lote abre uma demanda na trilha do Dashboard Logístico e conclui sozinho
 quando todos os pedidos dele chegam a "Entregue" ou "Cancelado" no Tiny.
 
+A situação chega do Tiny como a tela de lá escreve ("Em aberto", "Preparando
+envio", "Atendido") e é traduzida para o código (`preparando_envio`) por
+`codigoDaSituacao`, em `src/lib/tiny/leitura.ts`, antes de qualquer
+comparação. Sem isso, o passo "Concluir" sumia depois da primeira
+sincronização.
+
+## Pedidos no Tiny
+
+`/tiny/pedidos` consulta **todos** os pedidos da conta, inclusive os do
+e-commerce e os criados direto no Tiny (`pedidos.pesquisa.php`). Uma caixa só
+de busca: só dígitos e curto é número do pedido, 11 ou 14 dígitos é CPF/CNPJ,
+o resto é nome do cliente. Filtros por situação e período, paginação do
+próprio Tiny. O detalhe (`pedido.obter.php`) mostra itens, cliente, entrega,
+transporte, rastreio e marcadores, e leva à solicitação ou ao lote quando o
+pedido nasceu aqui.
+
+É só leitura, direto da API a cada abertura: nada é guardado, para a tela
+nunca divergir do Tiny.
+
 ## Importação em lote
 
 `/tiny/importar`: planilha .xlsx ou .csv, uma linha por destinatário.
