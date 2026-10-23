@@ -108,6 +108,7 @@ model Usuario {
   clientesCriados Cliente[]                 @relation("ClientesCriadosPor")
   statusDefinidos StatusOperacionalSemana[]
   lotesTiny       LoteTiny[]
+  pedidosTiny     PedidoTiny[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -526,6 +527,8 @@ enum OrigemPedidoTiny {
   solicitacao
   /// Linha de uma planilha importada em lote.
   lote
+  /// Pedido montado à mão em "Nova venda", sem solicitação nem planilha.
+  avulso
 }
 
 /// Andamento do envio do pedido ao Tiny. A situação dentro do Tiny (aberto,
@@ -575,11 +578,14 @@ model PedidoTiny {
   notaFiscalId       String?          @map("nota_fiscal_id")
   enviadoEm          DateTime?        @map("enviado_em")
   sincronizadoEm     DateTime?        @map("sincronizado_em")
+  /// Quem montou o pedido avulso. Presente e lote guardam isso na origem.
+  criadoPorId        String?          @map("criado_por_id")
   criadoEm           DateTime         @default(now()) @map("criado_em")
   atualizadoEm       DateTime         @updatedAt @map("atualizado_em")
 
   solicitacao Solicitacao? @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
   lote        LoteTiny?    @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  criadoPor   Usuario?     @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
   eventos     EventoTiny[]
 
   @@index([envio, proximaTentativaEm])

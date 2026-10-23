@@ -8,6 +8,7 @@ do AUVP-Eventos, com as correções listadas no fim.
 | -------------------- | ----------------------------------------------- | ------------------------ |
 | Presente aprovado    | a solicitação chega a "Organizando envio"       | `/tiny`, e a solicitação |
 | Envio em lote        | alguém importa uma planilha em `/tiny/importar` | `/tiny/lotes/<lote>`     |
+| Nova venda (avulso)  | alguém monta o pedido em `/tiny/nova-venda`     | `/tiny`                  |
 
 Quem opera: **Admin e Logística** (`tiny.operar` em `src/lib/permissions.ts`).
 
@@ -121,6 +122,20 @@ envio", "Atendido") e é traduzida para o código (`preparando_envio`) por
 `codigoDaSituacao`, em `src/lib/tiny/leitura.ts`, antes de qualquer
 comparação. Sem isso, o passo "Concluir" sumia depois da primeira
 sincronização.
+
+## Nova venda
+
+`/tiny/nova-venda` monta um pedido avulso, a "Nova venda" do AUVP-Eventos:
+
+- **Cliente** buscado pelo nome ou CPF/CNPJ no Tiny (`contatos.pesquisa.php`,
+  com o endereço de lá) e na base de clientes daqui, ou digitado. O CEP
+  preenche o endereço. A validação é a mesma da linha do lote.
+- **Produtos** do Tiny, quantos forem, com quantidade e preço ajustáveis.
+  Sem SKU não vai, como no resto.
+- **Transportadora, serviço, marcador** (opcional) e observação.
+
+O pedido entra na mesma fila (`origem = avulso`, com quem montou). A tela gera
+uma chave quando abre: dois cliques no enviar devolvem o mesmo pedido.
 
 ## Pedidos no Tiny
 

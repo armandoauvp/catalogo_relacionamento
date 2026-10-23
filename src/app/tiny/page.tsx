@@ -71,6 +71,7 @@ export default async function TinyPage({
         include: {
           solicitacao: { select: { id: true, codigo: true } },
           lote: { select: { id: true, marcador: true } },
+          criadoPor: { select: { nome: true } },
         },
       }),
       db.eventoTiny.findMany({ orderBy: { criadoEm: 'desc' }, take: 12 }),
@@ -273,7 +274,14 @@ export default async function TinyPage({
                             <span className="text-muted-foreground"> · linha {p.linha}</span>
                           ) : null}
                         </Link>
-                      ) : null}
+                      ) : (
+                        <span>
+                          Avulso
+                          {p.criadoPor ? (
+                            <span className="text-muted-foreground"> · {p.criadoPor.nome}</span>
+                          ) : null}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-56 truncate text-sm" title={p.resumo}>
                       {p.resumo}

@@ -13,6 +13,7 @@ const ABAS: { href: Route; rotulo: string; tambem?: string[] }[] = [
   { href: '/tiny', rotulo: 'Fila', tambem: ['/tiny/lotes'] },
   { href: '/tiny/pedidos', rotulo: 'Pedidos no Tiny' },
   { href: '/tiny/estoque', rotulo: 'Estoque' },
+  { href: '/tiny/nova-venda', rotulo: 'Nova venda' },
   { href: '/tiny/importar', rotulo: 'Importar lote' },
 ]
 

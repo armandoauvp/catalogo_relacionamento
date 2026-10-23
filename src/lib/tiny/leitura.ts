@@ -350,3 +350,47 @@ export function imagemDoProduto(p: Bruto): string | null {
   const externa = listaDe(p.imagens_externas, 'imagem_externa')[0]
   return enderecoWeb(texto(externa?.url))
 }
+
+// ---------------------------------------------------------------------------
+// Contatos (clientes do Tiny)
+// ---------------------------------------------------------------------------
+
+export type ContatoDoTiny = {
+  id: string
+  codigo: string | null
+  nome: string
+  fantasia: string | null
+  /** Só dígitos. */
+  cpfCnpj: string
+  email: string | null
+  fone: string | null
+  endereco: EnderecoDoTiny
+  ativo: boolean
+}
+
+export function lerContato(c: Bruto): ContatoDoTiny {
+  const situacao = texto(c.situacao).toLowerCase()
+  return {
+    id: texto(c.id),
+    codigo: ouNulo(c.codigo),
+    nome: texto(c.nome),
+    fantasia: ouNulo(c.fantasia),
+    cpfCnpj: texto(c.cpf_cnpj).replace(/\D/g, ''),
+    email: ouNulo(c.email),
+    fone: ouNulo(c.fone) ?? ouNulo(c.celular),
+    endereco: lerEndereco(c),
+    // A busca devolve "Ativo"/"Inativo"; o cadastro, "A"/"I".
+    ativo: !situacao || situacao.startsWith('a'),
+  }
+}
+
+export type PaginaDeContatos = { contatos: ContatoDoTiny[]; pagina: number; paginas: number }
+
+export function lerPaginaDeContatos(r: Bruto & { vazio?: boolean }): PaginaDeContatos {
+  if (r.vazio) return { contatos: [], pagina: 1, paginas: 1 }
+  return {
+    contatos: listaDe(r.contatos, 'contato').map(lerContato),
+    pagina: Number(r.pagina) || 1,
+    paginas: Number(r.numero_paginas) || 1,
+  }
+}

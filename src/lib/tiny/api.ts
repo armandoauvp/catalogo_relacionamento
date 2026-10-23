@@ -7,13 +7,17 @@ import {
   imagemDoProduto,
   lerDetalheDoPedido,
   lerEstoque,
+  lerContato,
+  lerPaginaDeContatos,
   lerPaginaDePedidos,
   lerPaginaDeProdutos,
   listaDe,
   texto,
+  type ContatoDoTiny,
   type CriterioDeBusca,
   type DetalheDoPedido,
   type EstoqueDoProduto,
+  type PaginaDeContatos,
   type PaginaDePedidos,
   type PaginaDeProdutos,
 } from './leitura'
@@ -201,4 +205,25 @@ export async function obterImagemDoProduto(id: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+// ---------------------------------------------------------------------------
+// Contatos: leitura. A escrita vai pela fila de contatos.
+// ---------------------------------------------------------------------------
+
+export async function pesquisarContatos(filtro: {
+  pesquisa?: string
+  cpfCnpj?: string
+  pagina?: number
+}): Promise<PaginaDeContatos> {
+  const parametros: Record<string, string> = { pagina: String(filtro.pagina ?? 1) }
+  if (filtro.pesquisa) parametros.pesquisa = filtro.pesquisa
+  if (filtro.cpfCnpj) parametros.cpf_cnpj = filtro.cpfCnpj
+  return lerPaginaDeContatos(await chamar('contatos.pesquisa.php', parametros))
+}
+
+export async function obterContato(id: string): Promise<ContatoDoTiny> {
+  const r = await chamar('contato.obter.php', { id })
+  if (r.vazio || !r.contato) throw new ErroDoTiny('O Tiny não achou este contato.', 20)
+  return lerContato(r.contato as Record<string, unknown>)
 }

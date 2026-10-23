@@ -7,7 +7,14 @@ import { autorizarAction } from '@/lib/auth-guards'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
 import { db } from '@/lib/db'
 import { tinyConfigurado } from '@/lib/env'
-import { listarTransportadoras, pesquisarProdutos, type ProdutoDoTiny } from '@/lib/tiny/api'
+import { clienteProvider } from '@/lib/providers'
+import {
+  listarTransportadoras,
+  pesquisarContatos,
+  pesquisarProdutos,
+  type ProdutoDoTiny,
+} from '@/lib/tiny/api'
+import { classificarBusca } from '@/lib/tiny/leitura'
 import {
   configuracaoTiny,
   marcarPassoDaExpedicao,
@@ -19,7 +26,7 @@ import {
 } from '@/lib/tiny/fila'
 import { validarLinha } from '@/lib/tiny/lote'
 import { chaveDoLote, montarPedido, resumoDosItens } from '@/lib/tiny/pedido'
-import { configuracaoTinySchema, loteSchema } from '@/lib/validators/tiny'
+import { configuracaoTinySchema, loteSchema, pedidoAvulsoSchema } from '@/lib/validators/tiny'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -358,6 +365,152 @@ export async function salvarConfiguracaoTiny(dados: FormData): Promise<Resultado
     await db.configuracaoTiny.update({ where: { id: 'unica' }, data: validado.data })
     revalidarTiny()
     return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Nova venda: pedido avulso
+// ---------------------------------------------------------------------------
+
+/** O cliente como a tela de nova venda preenche, venha do Tiny ou da base. */
+export type ClienteParaPedido = {
+  origem: 'tiny' | 'base'
+  nome: string
+  cpfCnpj: string
+  email: string | null
+  telefone: string | null
+  cep: string
+  endereco: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+export async function buscarClientesParaPedido(
+  texto: string,
+): Promise<ResultadoDaAction<ClienteParaPedido[]>> {
+  try {
+    await autorizarAction('tiny.operar')
+    const busca = texto.trim()
+    if (busca.length < 3) return { ok: false, erro: 'Digite ao menos 3 letras ou o CPF/CNPJ.' }
+    const criterio = classificarBusca(busca)
+
+    // A base daqui primeiro: é rápida e não gasta chamada do Tiny.
+    const daBase = await clienteProvider.buscarPorTexto(busca, 8)
+    const doTiny = tinyConfigurado
+      ? await pesquisarContatos(
+          criterio?.tipo === 'cpfCnpj' ? { cpfCnpj: criterio.valor } : { pesquisa: busca },
+        )
+          .then((r) => r.contatos.filter((c) => c.ativo).slice(0, 12))
+          .catch(() => [])
+      : []
+
+    // O mesmo documento nos dois lados: vale o do Tiny, que tem o endereço.
+    const noTiny = new Set(doTiny.map((c) => c.cpfCnpj))
+    const vazio = {
+      cep: '',
+      endereco: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
+    }
+    return {
+      ok: true,
+      dados: [
+        ...doTiny.map((c): ClienteParaPedido => ({
+          origem: 'tiny',
+          nome: c.nome,
+          cpfCnpj: c.cpfCnpj,
+          email: c.email,
+          telefone: c.fone,
+          ...c.endereco,
+        })),
+        ...daBase
+          .filter((c) => !noTiny.has(c.cpf))
+          .map((c): ClienteParaPedido => ({
+            origem: 'base',
+            nome: c.nome,
+            cpfCnpj: c.cpf,
+            email: c.email,
+            telefone: c.telefone,
+            ...vazio,
+          })),
+      ],
+    }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Grava o pedido montado à mão na fila, como os outros. A chave vem da tela:
+ * enviar duas vezes devolve o mesmo pedido em vez de criar outro.
+ */
+export async function criarPedidoAvulso(
+  entrada: unknown,
+): Promise<ResultadoDaAction<{ id: string }>> {
+  try {
+    const usuario = await autorizarAction('tiny.operar')
+    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
+
+    const validado = pedidoAvulsoSchema.safeParse(entrada)
+    if (!validado.success) return primeiroErro(validado.error)
+    const dados = validado.data
+
+    // Quantidade e valor são dos itens; da linha só interessa o destinatário.
+    const { destinatario, erros } = validarLinha({
+      ...dados.destinatario,
+      quantidade: '1',
+      valor: '',
+    })
+    if (erros.length) return { ok: false, erro: `Cliente: ${erros.join(' ')}` }
+
+    const chave = `avulso:${dados.chave}`
+    const existente = await db.pedidoTiny.findUnique({ where: { chave }, select: { id: true } })
+    if (existente) return { ok: true, dados: existente }
+
+    const itens = dados.itens.map((i) => ({
+      ...i,
+      valorUnitario: Number(i.valorUnitario).toFixed(2),
+    }))
+    const pedido = await db.$transaction(async (tx) => {
+      const criado = await tx.pedidoTiny.create({
+        data: {
+          origem: 'avulso',
+          chave,
+          criadoPorId: usuario.id,
+          destinatario: destinatario.nome,
+          cpfCnpj: destinatario.cpfCnpj,
+          resumo: resumoDosItens(itens),
+          payload: montarPedido({
+            destinatario,
+            itens,
+            transportadora: dados.transportadora,
+            formaFrete: dados.formaFrete,
+            marcador: dados.marcador,
+            observacao: dados.observacao,
+          }) as unknown as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      })
+      await registrarEvento(
+        tx,
+        criado.id,
+        'avulso',
+        `${usuario.nome} montou um pedido para ${destinatario.nome} (${resumoDosItens(itens)}).`,
+      )
+      return criado
+    })
+
+    processarDepois()
+    revalidarTiny()
+    return { ok: true, dados: pedido }
   } catch (e) {
     return comoErro(e)
   }
