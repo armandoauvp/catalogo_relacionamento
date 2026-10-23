@@ -123,16 +123,17 @@ export default async function AdminCatalogoPage({
               {listados.map((p) => (
                 <TableRow key={p.id} className={p.ativo ? undefined : 'text-muted-foreground'}>
                   <TableCell>
-                    <span className="font-medium">{p.nome}</span>
-                    {temSku(p) ? (
-                      <span className="text-muted-foreground block text-xs tabular-nums">
-                        SKU {p.skuTiny}
-                      </span>
-                    ) : (
-                      <Badge variant="warning" className="mt-1">
-                        sem SKU no Tiny
-                      </Badge>
-                    )}
+                    {/* Nome e SKU empilhados: a etiqueta inline colava no nome. */}
+                    <div className="flex flex-col items-start gap-1.5">
+                      <span className="font-medium">{p.nome}</span>
+                      {temSku(p) ? (
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          SKU {p.skuTiny}
+                        </span>
+                      ) : (
+                        <Badge variant="warning">sem SKU no Tiny</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{p.categoria.nome}</TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
