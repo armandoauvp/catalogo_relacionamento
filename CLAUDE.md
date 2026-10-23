@@ -97,6 +97,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   login por cartões de perfil fictícios (`src/lib/demonstracao.ts`); `env.ts`
   recusa subir fora da Vercel, no endereço da TI ou com Google ou Keycloak
   configurados. Não afrouxe essas travas.
+- **Perfil livre é fase de testes.** `PERFIL_LIVRE` deixa quem entra escolher
+  o perfil no menu da conta; a escolha mora no token, nunca na coluna
+  `perfil`, para que apagar a variável devolva a delimitação sem migrar nada.
+  O domínio continua conferido.
 - **Foto é reduzida no navegador** (`src/lib/arquivos-no-navegador.ts`) antes
   de subir: a Vercel recusa requisição acima de 4,5 MB, e o teto da aplicação
   é 4 MB.

@@ -222,3 +222,17 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   financeiro: 'Financeiro',
   logistica: 'Logística',
 }
+
+/**
+ * Perfil com que a sessão enxerga a ferramenta.
+ *
+ * Na fase de testes (`PERFIL_LIVRE`), quem entra escolhe no menu da conta e o
+ * escolhido vale por cima do cadastrado. Desligada a fase, volta o cadastrado
+ * na navegação seguinte, sem ninguém precisar sair; por isso a escolha mora no
+ * token, e não na coluna `perfil`, que segue sendo a delimitação de verdade.
+ */
+export function perfilEmVigor(cadastrado: Perfil, escolhido: unknown, livre: boolean): Perfil {
+  if (!livre) return cadastrado
+  const valido = (Object.values(Perfil) as unknown[]).includes(escolhido)
+  return valido ? (escolhido as Perfil) : cadastrado
+}

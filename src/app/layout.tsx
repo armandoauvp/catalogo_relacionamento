@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Anek_Latin, Roboto, Sora } from 'next/font/google'
 import { usuarioAtual } from '@/lib/auth-guards'
-import { modoDemonstracao } from '@/lib/env'
+import { modoDemonstracao, perfilLivre } from '@/lib/env'
 import { Nav } from '@/components/nav'
 import { Transicao } from '@/components/transicao'
 import './globals.css'
@@ -65,7 +65,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             vontade.
           </div>
         ) : null}
-        {usuario ? <Nav perfil={usuario.perfil} nome={usuario.nome} /> : null}
+        {/* A fase de testes precisa ser lembrada para ser desligada. */}
+        {perfilLivre && usuario ? (
+          <div className="bg-warning/15 border-warning/30 border-b px-4 py-2 text-center text-sm">
+            <strong>Fase de testes.</strong> Qualquer conta da AUVP escolhe o perfil no menu da
+            conta, e os dados são os de verdade.
+          </div>
+        ) : null}
+        {usuario ? (
+          <Nav perfil={usuario.perfil} nome={usuario.nome} perfilLivre={perfilLivre} />
+        ) : null}
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 md:px-8">
           <Transicao>{children}</Transicao>

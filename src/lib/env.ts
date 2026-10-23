@@ -83,6 +83,10 @@ const schema = (durandoBuild: boolean) =>
     // Aplicação real com dados fictícios e login por perfil, sem SSO. Ver
     // src/lib/demonstracao.ts e as travas em `carregarEnv`.
     MODO_DEMONSTRACAO: booleano,
+    // Fase de testes: quem entra escolhe, no menu da conta, o perfil com que vê
+    // a ferramenta. Desligar quando os perfis forem delimitados. Ver
+    // `perfilEmVigor` em src/lib/permissions.ts.
+    PERFIL_LIVRE: booleano,
     // A própria Vercel define `VERCEL=1` em build e runtime; a imagem Docker da
     // TI nunca tem.
     VERCEL: z.string().optional(),
@@ -226,6 +230,9 @@ export const ssoConfigurado =
 /** Login com o Google da AUVP, quando o client OAuth está inteiro. */
 export const googleConfigurado =
   !env.MODO_DEMONSTRACAO && Boolean(env.AUTH_GOOGLE_ID) && Boolean(env.AUTH_GOOGLE_SECRET)
+
+/** Fase de testes em que qualquer conta escolhe o perfil; ver `perfilEmVigor`. */
+export const perfilLivre = env.PERFIL_LIVRE
 
 /** O Tiny só é chamado com o token em mãos; sem ele, nada entra na fila. */
 export const tinyConfigurado = Boolean(env.TINY_API_TOKEN)

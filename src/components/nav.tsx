@@ -1,11 +1,12 @@
 'use client'
 
-import { forwardRef, useState } from 'react'
+import { forwardRef, useState, useTransition } from 'react'
 import Link, { useLinkStatus } from 'next/link'
 import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import type { Perfil } from '@prisma/client'
 import {
+  Check,
   ChevronDown,
   Gift,
   ListChecks,
@@ -28,7 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { sair } from '@/lib/actions/sessao'
+import { sair, verComoPerfil } from '@/lib/actions/sessao'
 import { pode, ROTULO_PERFIL, type Acao } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 
@@ -161,7 +162,9 @@ function Pendente() {
     <span
       aria-hidden="true"
       className={cn(
-        'ease-apple inline-block w-2 text-center transition-opacity duration-200',
+        // Fora do fluxo, no respiro à direita: ocupando largura, empurrava o
+        // rótulo para a esquerda do sublinhado do item ativo.
+        'ease-apple absolute top-1/2 right-1 flex -translate-y-1/2 transition-opacity duration-200',
         pending ? 'opacity-100' : 'opacity-0',
       )}
     >
@@ -216,9 +219,21 @@ const ItemDeLista = forwardRef<
   )
 })
 
-export function Nav({ perfil, nome }: { perfil: Perfil; nome: string }) {
+const PERFIS: Perfil[] = ['admin', 'consultor', 'financeiro', 'logistica']
+
+export function Nav({
+  perfil,
+  nome,
+  perfilLivre = false,
+}: {
+  perfil: Perfil
+  nome: string
+  /** Fase de testes: o menu da conta troca o perfil com que se vê a ferramenta. */
+  perfilLivre?: boolean
+}) {
   const caminho = usePathname()
   const [emHover, setEmHover] = useState<string | null>(null)
+  const [trocando, iniciarTroca] = useTransition()
 
   const ativo = (href: Route) => caminho === href || caminho.startsWith(`${href}/`)
 
@@ -399,6 +414,29 @@ export function Nav({ perfil, nome }: { perfil: Perfil; nome: string }) {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">
+              {perfilLivre ? (
+                <>
+                  <p className="text-muted-foreground font-roboto px-2 pt-1.5 pb-1 text-[10px] font-bold tracking-wider uppercase">
+                    Ver como
+                  </p>
+                  {PERFIS.map((opcao) => (
+                    <DropdownMenuItem
+                      key={opcao}
+                      disabled={trocando}
+                      onSelect={() => {
+                        if (opcao !== perfil) iniciarTroca(() => verComoPerfil(opcao))
+                      }}
+                    >
+                      <Check
+                        className={cn('h-4 w-4', opcao === perfil ? 'opacity-100' : 'opacity-0')}
+                        aria-hidden="true"
+                      />
+                      {ROTULO_PERFIL[opcao]}
+                    </DropdownMenuItem>
+                  ))}
+                  <div className="bg-border -mx-1 my-1 h-px" role="separator" />
+                </>
+              ) : null}
               <DropdownMenuItem asChild>
                 <button type="submit" form="form-sair" className="w-full items-center">
                   <LogOut className="h-4 w-4" aria-hidden="true" />

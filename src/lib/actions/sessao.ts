@@ -4,8 +4,10 @@ import type { Route } from 'next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getToken } from 'next-auth/jwt'
-import { signOut } from '@/lib/auth'
-import { env } from '@/lib/env'
+import { Perfil } from '@prisma/client'
+import { signOut, unstable_update } from '@/lib/auth'
+import { usuarioAtual } from '@/lib/auth-guards'
+import { env, perfilLivre } from '@/lib/env'
 import { endSessionEndpoint, urlDeSaidaDoSso } from '@/lib/sessao-sso'
 
 /**
@@ -37,4 +39,18 @@ export async function sair() {
   // Rotas tipadas só conhecem as internas; o endereço do Keycloak é externo.
   if (destino) redirect(destino as Route)
   redirect('/login')
+}
+
+/**
+ * Fase de testes: troca o perfil com que a pessoa vê a ferramenta. Não mexe no
+ * cadastro; ver `perfilEmVigor`. Volta para o início porque a tela atual pode
+ * não existir para o perfil novo.
+ */
+export async function verComoPerfil(perfil: Perfil) {
+  if (!perfilLivre) throw new Error('A troca de perfil está desligada.')
+  if (!Object.values(Perfil).includes(perfil)) throw new Error('Perfil desconhecido.')
+  if (!(await usuarioAtual())) redirect('/login')
+
+  await unstable_update({ user: { perfil } })
+  redirect('/')
 }

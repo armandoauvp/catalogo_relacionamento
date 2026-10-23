@@ -11,8 +11,10 @@ import {
   env,
   googleConfigurado,
   modoDemonstracao,
+  perfilLivre,
   ssoConfigurado,
 } from './env'
+import { perfilEmVigor } from './permissions'
 
 /**
  * Autenticação por SSO da AUVP (OIDC). Não existe senha própria.
@@ -179,10 +181,17 @@ export const authConfig: NextAuthConfig = {
       return registro.ativo
     },
 
-    async jwt({ token, account }) {
+    async jwt({ token, account, trigger, session }) {
       // Guardado só para o "Sair" encerrar também a sessão do Keycloak. Fica
       // no JWT, que é cifrado no cookie, e não vai para a sessão do navegador.
       if (account?.provider === 'auvp' && account.id_token) token.idToken = account.id_token
+
+      // Só `verComoPerfil` dispara o update. O valor fica como veio e é
+      // conferido por `perfilEmVigor` logo abaixo, a cada renovação.
+      if (trigger === 'update' && perfilLivre) {
+        const escolhido = (session as { user?: { perfil?: Perfil } } | undefined)?.user?.perfil
+        token.perfilEscolhido = escolhido
+      }
 
       if (!token.email) return token
 
@@ -193,7 +202,7 @@ export const authConfig: NextAuthConfig = {
 
       if (usuario) {
         token.usuarioId = usuario.id
-        token.perfil = usuario.perfil
+        token.perfil = perfilEmVigor(usuario.perfil, token.perfilEscolhido, perfilLivre)
         token.ativo = usuario.ativo
         token.name = usuario.nome
       }
@@ -212,4 +221,4 @@ export const authConfig: NextAuthConfig = {
   },
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(authConfig)

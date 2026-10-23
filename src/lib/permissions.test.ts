@@ -4,6 +4,7 @@ import {
   escopoDeDadosSensiveis,
   escopoDeSolicitacoes,
   filtroDeSolicitacoes,
+  perfilEmVigor,
   pode,
 } from './permissions'
 
@@ -130,5 +131,20 @@ describe('logística: dashboard e expedição', () => {
     expect(pode(Perfil.logistica, 'cliente.gerenciar')).toBe(false)
     expect(pode(Perfil.logistica, 'usuario.gerenciar')).toBe(false)
     expect(pode(Perfil.logistica, 'solicitacao.alterarStatus')).toBe(false)
+  })
+})
+
+describe('perfil livre, fase de testes', () => {
+  it('vale o escolhido enquanto a fase está ligada', () => {
+    expect(perfilEmVigor(Perfil.consultor, Perfil.admin, true)).toBe(Perfil.admin)
+  })
+
+  it('desligada a fase, volta o cadastrado mesmo com escolha no token', () => {
+    expect(perfilEmVigor(Perfil.consultor, Perfil.admin, false)).toBe(Perfil.consultor)
+  })
+
+  it('escolha que não é perfil é ignorada', () => {
+    expect(perfilEmVigor(Perfil.financeiro, 'root', true)).toBe(Perfil.financeiro)
+    expect(perfilEmVigor(Perfil.financeiro, undefined, true)).toBe(Perfil.financeiro)
   })
 })

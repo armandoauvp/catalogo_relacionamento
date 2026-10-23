@@ -174,6 +174,19 @@ mostrar a ferramenta a alguém sem dar acesso aos dados reais, ele precisa de
 outro projeto na Vercel com outro banco; a [vitrine estática](../demo/) é o
 caminho mais curto.
 
+## Fase de testes: perfil livre
+
+Enquanto os perfis de cada pessoa não são delimitados, `PERFIL_LIVRE=true`
+(Production) põe no menu da conta um **Ver como**: Admin, Consultor,
+Financeiro ou Logística. Continua entrando só quem é da AUVP, e os dados são
+os de verdade: quem escolhe Admin aprova, edita o catálogo e manda pedido ao
+Tiny. Uma faixa no topo lembra que a fase está ligada.
+
+A escolha fica no token da sessão, não no cadastro (`perfilEmVigor`, em
+`src/lib/permissions.ts`). Para delimitar: defina o perfil de cada pessoa em
+Administração → Usuários, apague `PERFIL_LIVRE` e faça o Redeploy. Cada um
+volta ao próprio perfil na navegação seguinte, sem precisar sair.
+
 ## Previews
 
 Cada push fora do `main` gera um preview, que serve só para conferir que **o

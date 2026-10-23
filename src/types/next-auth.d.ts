@@ -25,6 +25,8 @@ declare module '@auth/core/jwt' {
   interface JWT {
     usuarioId?: string
     perfil?: Perfil
+    /** Escolhido no menu da conta; só vale com `PERFIL_LIVRE`. */
+    perfilEscolhido?: Perfil
     ativo?: boolean
     /** Só de quem entrou pelo SSO; ver `src/lib/sessao-sso.ts`. */
     idToken?: string
