@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input'
 import { buscarProdutosNoTiny, buscarTransportadoras, criarLote } from '@/lib/actions/tiny'
 import type { ProdutoDoTiny } from '@/lib/tiny/api'
 import { formatarBRL } from '@/lib/money'
-import { tabelaDoCsv } from '@/lib/importacao-clientes'
 import {
   conferirRepetidos,
   lerLote,
@@ -25,6 +24,7 @@ import {
 } from '@/lib/tiny/lote'
 import { servicosDaTransportadora } from '@/lib/tiny/pedido'
 import { cn } from '@/lib/utils'
+import { baixarCsv, lerArquivo } from '../planilha'
 
 /**
  * Importação em lote, como no AUVP-Eventos: uma planilha com uma linha por
@@ -69,34 +69,7 @@ function baixarModelo() {
     '1',
     '',
   ]
-  const csv = '﻿' + [MODELO, exemplo].map((l) => l.map((c) => `"${c}"`).join(';')).join('\r\n')
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'modelo-envio-em-lote.csv'
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-/** A planilha como tabela de texto, linha a linha na mesma posição do Excel. */
-async function lerArquivo(arquivo: File): Promise<string[][]> {
-  if (/\.csv$/i.test(arquivo.name)) return tabelaDoCsv(await arquivo.text())
-
-  const ExcelJS = (await import('exceljs')).default
-  const livro = new ExcelJS.Workbook()
-  await livro.xlsx.load(await arquivo.arrayBuffer())
-  const aba = livro.worksheets[0]
-  if (!aba) return []
-  const tabela: string[][] = Array.from({ length: aba.rowCount }, () => [])
-  aba.eachRow({ includeEmpty: false }, (linha, numero) => {
-    // `text` é o que o Excel mostra: resolve fórmula, texto rico e data, que
-    // `String(valor)` transformaria em "[object Object]".
-    tabela[numero - 1] = Array.from(
-      { length: aba.columnCount },
-      (_, i) => linha.getCell(i + 1).text ?? '',
-    )
-  })
-  return tabela
+  baixarCsv('modelo-envio-em-lote.csv', [MODELO, exemplo])
 }
 
 function camposDe(l: LinhaDoLote): Record<CampoDoLote, string> {

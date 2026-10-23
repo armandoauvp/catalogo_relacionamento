@@ -1,5 +1,6 @@
 import { env } from '@/lib/env'
 import type { PedidoParaOTiny } from './pedido'
+import type { ContatoParaOTiny } from './contato'
 import { coletarErros, ErroDoTiny } from './erros'
 import {
   codigoDaSituacao,
@@ -226,4 +227,19 @@ export async function obterContato(id: string): Promise<ContatoDoTiny> {
   const r = await chamar('contato.obter.php', { id })
   if (r.vazio || !r.contato) throw new ErroDoTiny('O Tiny não achou este contato.', 20)
   return lerContato(r.contato as Record<string, unknown>)
+}
+
+/** Inclui ou altera um contato. Só a fila chama: escrita no Tiny passa por ela. */
+export async function gravarContato(contato: ContatoParaOTiny): Promise<{ id: string }> {
+  const endpoint = contato.id ? 'contato.alterar.php' : 'contato.incluir.php'
+  const r = await chamar(endpoint, { contato: JSON.stringify({ contatos: [{ contato }] }) })
+  const [registro] = listaDe(r.registros, 'registro')
+  // Com um contato só, o Tiny às vezes diz OK no geral e Erro no registro.
+  if (registro && texto(registro.status).toLowerCase() === 'erro') {
+    throw new ErroDoTiny(
+      coletarErros(registro) || 'O Tiny recusou o contato.',
+      Number(registro.codigo_erro) || null,
+    )
+  }
+  return { id: texto(registro?.id) || texto(contato.id) }
 }

@@ -204,13 +204,25 @@ export function conferirRepetidos<
   })
 }
 
-export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
+/**
+ * A planilha de contatos usa o mesmo leitor com outras colunas obrigatórias e
+ * outra validação; ver `lerContatos`.
+ */
+export type OpcoesDeLeitura = {
+  obrigatorias?: readonly CampoDoLote[]
+  validar?: (bruto: Partial<Record<CampoDoLote, string>>) => Omit<LinhaDoLote, 'linha'>
+}
+
+export function lerLote(
+  tabela: readonly (readonly string[])[],
+  { obrigatorias = OBRIGATORIAS, validar = validarLinha }: OpcoesDeLeitura = {},
+): LeituraDoLote {
   // O cabeçalho é a primeira linha que tem uma coluna de nome.
   const inicio = tabela.findIndex((linha) =>
     linha.some((celula) => COLUNAS.nome.includes(normalizar(celula))),
   )
   if (inicio < 0) {
-    return { linhas: [], faltando: OBRIGATORIAS.map((c) => ROTULO_DA_COLUNA[c]) }
+    return { linhas: [], faltando: obrigatorias.map((c) => ROTULO_DA_COLUNA[c]) }
   }
 
   const titulos = tabela[inicio]!.map(normalizar)
@@ -221,7 +233,7 @@ export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
     ]),
   ) as Record<CampoDoLote, number>
 
-  const faltando = OBRIGATORIAS.filter((c) => posicao[c] < 0).map((c) => ROTULO_DA_COLUNA[c])
+  const faltando = obrigatorias.filter((c) => posicao[c] < 0).map((c) => ROTULO_DA_COLUNA[c])
   if (faltando.length) return { linhas: [], faltando }
 
   const linhas: LinhaDoLote[] = []
@@ -235,7 +247,7 @@ export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
         posicao[campo] >= 0 ? String(celulas[posicao[campo]] ?? '') : '',
       ]),
     )
-    linhas.push({ linha: numero, ...validarLinha(bruto) })
+    linhas.push({ linha: numero, ...validar(bruto) })
   })
 
   return { linhas: conferirRepetidos(linhas), faltando: [] }

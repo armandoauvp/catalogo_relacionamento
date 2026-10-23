@@ -137,6 +137,27 @@ sincronização.
 O pedido entra na mesma fila (`origem = avulso`, com quem montou). A tela gera
 uma chave quando abre: dois cliques no enviar devolvem o mesmo pedido.
 
+## Contatos
+
+`/tiny/contatos` busca os clientes do Tiny pelo nome ou CPF/CNPJ
+(`contatos.pesquisa.php`) e abre cada um para editar (`contato.obter.php`).
+Também cadastra um novo e faz a **atualização cadastral em massa** por
+planilha (`/tiny/contatos/importar`), sem gerar pedido: só Nome e CPF/CNPJ são
+obrigatórios.
+
+Tudo o que grava vai pela fila, numa tabela própria (`contatos_tiny`), na
+mesma rodada e com o mesmo intervalo dos pedidos:
+
+- **Inclui ou altera pelo documento.** Sem o id do Tiny, a fila procura o
+  CPF/CNPJ antes: achou, altera; não achou, inclui. Cadastrar quem já existe
+  não duplica.
+- **Campo vazio não apaga.** Na alteração só vão os campos preenchidos; a
+  planilha pode trazer só o que muda.
+- **O mesmo CPF/CNPJ esperando a vez é atualizado**, não repetido: vale o dado
+  mais novo, numa chamada só.
+- A parte de baixo da tela mostra cada gravação, de onde veio, quem mandou e se
+  foi incluída, alterada ou recusada, com o Reenviar.
+
 ## Pedidos no Tiny
 
 `/tiny/pedidos` consulta **todos** os pedidos da conta, inclusive os do

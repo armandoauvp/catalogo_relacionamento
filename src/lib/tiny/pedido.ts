@@ -65,13 +65,13 @@ export type PedidoParaOTiny = {
   obs?: string
 }
 
-const corte = (valor: string | null | undefined, maximo: number) =>
+export const corte = (valor: string | null | undefined, maximo: number) =>
   (valor ?? '').replace(/\s+/g, ' ').trim().slice(0, maximo)
 
-const digitos = (valor: string | null | undefined) => (valor ?? '').replace(/\D/g, '')
+export const digitos = (valor: string | null | undefined) => (valor ?? '').replace(/\D/g, '')
 
 /** CEP como o Tiny guarda: 00000-000. */
-const cepFormatado = (cep: string) => {
+export const cepFormatado = (cep: string) => {
   const d = digitos(cep)
   return d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
 }

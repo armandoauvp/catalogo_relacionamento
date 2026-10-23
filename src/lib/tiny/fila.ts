@@ -1,7 +1,14 @@
 import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { tinyConfigurado } from '@/lib/env'
-import { alterarSituacao, incluirPedido, obterPedido } from './api'
+import {
+  alterarSituacao,
+  gravarContato,
+  incluirPedido,
+  obterPedido,
+  pesquisarContatos,
+} from './api'
+import { montarContato } from './contato'
 import {
   jaChegou,
   passoPermitido,
@@ -12,7 +19,13 @@ import {
 } from './ciclo'
 import { rotuloDaSituacao } from './rotulos'
 import { classificarErro, MAX_TENTATIVAS, proximaTentativa } from './erros'
-import { chaveDoPresente, montarPedido, resumoDosItens, type PedidoParaOTiny } from './pedido'
+import {
+  chaveDoPresente,
+  montarPedido,
+  resumoDosItens,
+  type Destinatario,
+  type PedidoParaOTiny,
+} from './pedido'
 
 /**
  * A fila de pedidos para o Tiny (ADR 0009).
@@ -206,6 +219,8 @@ export type ResultadoDaRodada = {
   adiados: number
   /** Fechamentos e conclusões da expedição levados ao Tiny. */
   situacoes: number
+  /** Contatos incluídos ou alterados no Tiny. */
+  contatos: number
   /** A rodada parou porque o token ou a conta do Tiny estão com problema. */
   interrompida: string | null
 }
@@ -224,6 +239,7 @@ export async function processarFila({
     falhas: 0,
     adiados: 0,
     situacoes: 0,
+    contatos: 0,
     interrompida: null,
   }
   if (!tinyConfigurado) {
@@ -232,13 +248,12 @@ export async function processarFila({
   }
 
   const fim = Date.now() + prazoMs
-  await db.pedidoTiny.updateMany({
-    where: {
-      envio: 'processando',
-      atualizadoEm: { lt: new Date(agora().getTime() - PROCESSANDO_PRESO_MS) },
-    },
-    data: { envio: 'pendente' },
-  })
+  const preso = {
+    envio: 'processando' as const,
+    atualizadoEm: { lt: new Date(agora().getTime() - PROCESSANDO_PRESO_MS) },
+  }
+  await db.pedidoTiny.updateMany({ where: preso, data: { envio: 'pendente' } })
+  await db.contatoTiny.updateMany({ where: preso, data: { envio: 'pendente' } })
 
   // Uma chamada ao Tiny por vez, com intervalo entre todas, de qualquer tipo.
   let chamou = false
@@ -340,7 +355,154 @@ export async function processarFila({
   }
 
   if (!resultado.interrompida) await levarSituacoesAoTiny(fim, antesDeChamar, resultado)
+  // Contatos por último: pedido e situação são o que a expedição espera.
+  if (!resultado.interrompida) await processarContatos(fim, antesDeChamar, resultado, agora)
   return resultado
+}
+
+// ---------------------------------------------------------------------------
+// Contatos
+// ---------------------------------------------------------------------------
+
+export type ContatoParaEnfileirar = {
+  destinatario: Destinatario
+  linha?: number | null
+  /** Conhecido quando a edição parte do contato aberto na tela. */
+  tinyId?: string | null
+}
+
+/**
+ * Põe contatos na fila. O CPF/CNPJ que já espera a vez é atualizado em vez de
+ * duplicado: vale o dado mais novo, e o Tiny recebe uma chamada só.
+ */
+export async function enfileirarContatos(
+  contatos: readonly ContatoParaEnfileirar[],
+  origem: string,
+  usuario: { id: string; nome: string },
+): Promise<{ novos: number; atualizados: number }> {
+  return db.$transaction(async (tx) => {
+    const esperando = await tx.contatoTiny.findMany({
+      where: { envio: 'pendente', cpfCnpj: { in: contatos.map((c) => c.destinatario.cpfCnpj) } },
+      select: { id: true, cpfCnpj: true },
+    })
+    const porDocumento = new Map(esperando.map((e) => [e.cpfCnpj, e.id]))
+    const campos = (c: ContatoParaEnfileirar) => ({
+      origem: origem.slice(0, 120),
+      linha: c.linha ?? null,
+      nome: c.destinatario.nome,
+      dados: c.destinatario as unknown as Prisma.InputJsonValue,
+      tinyId: c.tinyId ?? null,
+      criadoPorId: usuario.id,
+    })
+
+    const novos = contatos.filter((c) => !porDocumento.has(c.destinatario.cpfCnpj))
+    for (const c of contatos.filter((c) => porDocumento.has(c.destinatario.cpfCnpj))) {
+      await tx.contatoTiny.update({
+        where: { id: porDocumento.get(c.destinatario.cpfCnpj)! },
+        data: { ...campos(c), tentativas: 0, erro: null, proximaTentativaEm: new Date() },
+      })
+    }
+    await tx.contatoTiny.createMany({
+      data: novos.map((c) => ({ ...campos(c), cpfCnpj: c.destinatario.cpfCnpj })),
+    })
+
+    const total = contatos.length
+    await registrarEvento(
+      tx,
+      null,
+      'contatos',
+      `${usuario.nome} mandou ${total} ${total === 1 ? 'contato' : 'contatos'} ao Tiny (${origem}).`,
+    )
+    return { novos: novos.length, atualizados: total - novos.length }
+  })
+}
+
+/**
+ * Inclui ou altera cada contato. Sem o id do Tiny, procura antes pelo CPF/CNPJ:
+ * achou, altera; não achou, inclui. São duas chamadas, e as duas respeitam o
+ * intervalo da fila.
+ */
+async function processarContatos(
+  fim: number,
+  antesDeChamar: () => Promise<void>,
+  resultado: ResultadoDaRodada,
+  agora: () => Date,
+) {
+  while (Date.now() < fim) {
+    const proximo = await db.contatoTiny.findFirst({
+      where: { envio: 'pendente', proximaTentativaEm: { lte: agora() } },
+      orderBy: { criadoEm: 'asc' },
+      select: { id: true },
+    })
+    if (!proximo) break
+
+    const reservado = await db.contatoTiny.updateMany({
+      where: { id: proximo.id, envio: 'pendente' },
+      data: { envio: 'processando', tentativas: { increment: 1 } },
+    })
+    if (reservado.count === 0) continue
+
+    const contato = await db.contatoTiny.findUniqueOrThrow({ where: { id: proximo.id } })
+    const destinatario = contato.dados as unknown as Destinatario
+    try {
+      let id = contato.tinyId
+      if (!id) {
+        await antesDeChamar()
+        const achados = await pesquisarContatos({ cpfCnpj: contato.cpfCnpj })
+        id = achados.contatos.find((c) => c.cpfCnpj === contato.cpfCnpj)?.id ?? null
+      }
+      await antesDeChamar()
+      const gravado = await gravarContato(montarContato(destinatario, id))
+      const acao = id ? 'alterado' : 'incluido'
+      await db.contatoTiny.update({
+        where: { id: contato.id },
+        data: {
+          envio: 'enviado',
+          resultado: acao,
+          tinyId: gravado.id || id,
+          enviadoEm: agora(),
+          erro: null,
+        },
+      })
+      resultado.contatos++
+    } catch (erro) {
+      const tipo = classificarErro(erro)
+      const mensagem = erro instanceof Error ? erro.message : 'Erro desconhecido.'
+      const desiste =
+        tipo === 'recusado' || tipo === 'duplicidade' || contato.tentativas >= MAX_TENTATIVAS
+      await db.contatoTiny.update({
+        where: { id: contato.id },
+        data: {
+          envio: desiste ? 'falhou' : 'pendente',
+          // Duplicidade na inclusão: a busca pelo documento não achou o
+          // contato que o Tiny diz ter. Quem resolve é alguém, pela tela.
+          erro:
+            tipo === 'duplicidade'
+              ? `O Tiny já tem um contato com este CPF/CNPJ que a busca não achou. (${mensagem})`
+              : mensagem,
+          proximaTentativaEm: proximaTentativa(contato.tentativas, agora()),
+        },
+      })
+      if (desiste) {
+        await registrarEvento(db, null, 'falhou', `Contato ${contato.nome}: ${mensagem}`)
+        resultado.falhas++
+      } else {
+        resultado.adiados++
+      }
+      if (tipo === 'configuracao') {
+        resultado.interrompida = mensagem
+        break
+      }
+    }
+  }
+}
+
+/** Devolve à fila um contato que falhou, do zero. */
+export async function reenviarContato(id: string) {
+  await db.contatoTiny.updateMany({
+    where: { id, envio: 'falhou' },
+    data: { envio: 'pendente', tentativas: 0, proximaTentativaEm: new Date() },
+  })
 }
 
 /**

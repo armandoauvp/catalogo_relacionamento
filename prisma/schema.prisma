@@ -109,6 +109,7 @@ model Usuario {
   statusDefinidos StatusOperacionalSemana[]
   lotesTiny       LoteTiny[]
   pedidosTiny     PedidoTiny[]
+  contatosTiny    ContatoTiny[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -618,6 +619,41 @@ model LoteTiny {
 
   @@index([criadoEm])
   @@map("lotes_tiny")
+}
+
+/// Um contato (cliente) que esta ferramenta cria ou atualiza no Tiny. Vai pela
+/// mesma fila dos pedidos, com o mesmo intervalo entre as chamadas: a
+/// atualização cadastral em massa e a exportação da base passam por aqui.
+model ContatoTiny {
+  id                 String    @id @default(cuid())
+  /// De onde veio, para a tela: "Cadastro", "Planilha clientes.xlsx", "Base de clientes".
+  origem             String
+  /// Linha da planilha, quando veio de uma.
+  linha              Int?
+  cpfCnpj            String    @map("cpf_cnpj")
+  nome               String
+  /// O destinatário como foi validado aqui; o formato do Tiny é montado na hora.
+  dados              Json
+  /// Já conhecido quando a edição parte da tela do contato; senão, a fila
+  /// procura pelo CPF/CNPJ e decide entre incluir e alterar.
+  tinyId             String?   @map("tiny_id")
+  envio              EnvioTiny @default(pendente)
+  /// "incluido" ou "alterado", depois de enviado.
+  resultado          String?
+  tentativas         Int       @default(0)
+  proximaTentativaEm DateTime  @default(now()) @map("proxima_tentativa_em")
+  erro               String?
+  criadoPorId        String?   @map("criado_por_id")
+  enviadoEm          DateTime? @map("enviado_em")
+  criadoEm           DateTime  @default(now()) @map("criado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+
+  criadoPor Usuario? @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([envio, proximaTentativaEm])
+  @@index([cpfCnpj])
+  @@index([criadoEm])
+  @@map("contatos_tiny")
 }
 
 /// O que aconteceu com cada pedido: enviado, recusado, rastreio novo. É o

@@ -14,6 +14,7 @@ import {
   sincronizarAgora,
 } from '@/lib/actions/tiny'
 import type { ResultadoDaAction } from '@/lib/actions/comuns'
+import { reenviarContatoNoTiny } from '@/lib/actions/contatos-tiny'
 
 /** Mensagem de resultado ao lado do botão, que some sozinha. */
 function useAviso() {
@@ -83,15 +84,18 @@ export function BotoesDaFila() {
             if (!r.ok) setAviso({ texto: r.erro, erro: true })
             else if (r.dados.interrompida) setAviso({ texto: r.dados.interrompida, erro: true })
             else {
-              const { enviados, falhas, adiados, situacoes } = r.dados
+              const { enviados, falhas, adiados, situacoes, contatos } = r.dados
               setAviso({
                 texto:
-                  enviados + falhas + adiados + situacoes === 0
+                  enviados + falhas + adiados + situacoes + contatos === 0
                     ? 'A fila já estava vazia.'
                     : `${plural(enviados, 'enviado', 'enviados')}, ${plural(falhas, 'falha', 'falhas')}` +
                       (adiados ? `, ${plural(adiados, 'adiado', 'adiados')}` : '') +
                       (situacoes
                         ? `, ${plural(situacoes, 'situação atualizada', 'situações atualizadas')}`
+                        : '') +
+                      (contatos
+                        ? `, ${plural(contatos, 'contato gravado', 'contatos gravados')}`
                         : '') +
                       '.',
                 erro: falhas > 0,
@@ -112,7 +116,14 @@ export function BotoesDaFila() {
   )
 }
 
-export function BotaoReenviar({ id }: { id: string }) {
+export function BotaoReenviar({
+  id,
+  contato = false,
+}: {
+  id: string
+  /** Contato na fila de contatos, e não pedido. */
+  contato?: boolean
+}) {
   const router = useRouter()
   const [enviando, iniciar] = useTransition()
   const [aviso, setAviso] = useAviso()
@@ -124,7 +135,7 @@ export function BotaoReenviar({ id }: { id: string }) {
         disabled={enviando}
         onClick={() =>
           iniciar(async () => {
-            const r = await reenviar(id)
+            const r = contato ? await reenviarContatoNoTiny(id) : await reenviar(id)
             if (!r.ok) setAviso({ texto: r.erro, erro: true })
             router.refresh()
           })
