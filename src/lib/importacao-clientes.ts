@@ -43,6 +43,14 @@ const COLUNAS: Record<keyof LinhaImportacaoCliente, readonly string[]> = {
   cpf: ['cpf', 'documento', 'cpf/cnpj'],
   telefone: ['telefone', 'celular', 'fone', 'whatsapp'],
   email: ['email', 'e-mail', 'e mail'],
+  cep: ['cep'],
+  logradouro: ['endereco', 'logradouro', 'rua'],
+  numero: ['numero', 'n', 'no', 'num', 'nº', 'n°'],
+  complemento: ['complemento'],
+  bairro: ['bairro'],
+  cidade: ['cidade', 'municipio'],
+  uf: ['uf', 'estado'],
+  etiquetas: ['etiquetas', 'etiqueta', 'tags', 'tag'],
 }
 
 function detectarSeparador(cabecalho: string): string {
@@ -117,12 +125,11 @@ export function lerCsvDeClientes(conteudo: string): LeituraDoCsv {
   const indice = (campo: keyof LinhaImportacaoCliente) =>
     titulos.findIndex((titulo) => COLUNAS[campo].includes(titulo))
 
-  const posicoes = {
-    nome: indice('nome'),
-    cpf: indice('cpf'),
-    telefone: indice('telefone'),
-    email: indice('email'),
-  }
+  const campos = Object.keys(COLUNAS) as (keyof LinhaImportacaoCliente)[]
+  const posicoes = Object.fromEntries(campos.map((c) => [c, indice(c)])) as Record<
+    keyof LinhaImportacaoCliente,
+    number
+  >
 
   if (posicoes.nome < 0 || posicoes.cpf < 0) {
     return {
@@ -139,15 +146,12 @@ export function lerCsvDeClientes(conteudo: string): LeituraDoCsv {
     // +2: a primeira linha é o cabeçalho, e a contagem é a que a pessoa vê na
     // planilha, começando em 1.
     const numero = posicao + 2
-    const campos = dividir(linha, separador)
-    const em = (i: number) => (i >= 0 ? (campos[i] ?? '') : '')
+    const celulas = dividir(linha, separador)
+    const em = (i: number) => (i >= 0 ? (celulas[i] ?? '') : '')
 
-    const validado = linhaImportacaoClienteSchema.safeParse({
-      nome: em(posicoes.nome),
-      cpf: em(posicoes.cpf),
-      telefone: em(posicoes.telefone),
-      email: em(posicoes.email),
-    })
+    const validado = linhaImportacaoClienteSchema.safeParse(
+      Object.fromEntries(campos.map((c) => [c, em(posicoes[c])])),
+    )
 
     if (!validado.success) {
       erros.push({ linha: numero, motivo: validado.error.issues[0]?.message ?? 'Linha inválida.' })

@@ -8,7 +8,7 @@ describe('leitura do CSV de clientes', () => {
   it('aceita o ponto e vírgula do Excel pt-BR', () => {
     const leitura = lerCsvDeClientes(`nome;cpf;telefone\nMarina;${CPF_A};11988887777`)
     expect(leitura.erros).toEqual([])
-    expect(leitura.validas).toEqual([
+    expect(leitura.validas).toMatchObject([
       { nome: 'Marina', cpf: '52998224725', telefone: '11988887777', email: null },
     ])
   })
@@ -21,7 +21,7 @@ describe('leitura do CSV de clientes', () => {
   it('ignora acento e caixa no cabeçalho, e aceita sinônimos', () => {
     const leitura = lerCsvDeClientes(`Nome Completo;Documento;Celular;E-mail
 Marina Alves;${CPF_A};(11) 98888-7777;marina@exemplo.com`)
-    expect(leitura.validas[0]).toEqual({
+    expect(leitura.validas[0]).toMatchObject({
       nome: 'Marina Alves',
       cpf: '52998224725',
       telefone: '11988887777',
@@ -68,5 +68,25 @@ Marina Alves Pereira;${CPF_A}`)
 
   it('arquivo vazio não quebra', () => {
     expect(lerCsvDeClientes('')).toEqual({ total: 0, validas: [], erros: [] })
+  })
+})
+
+describe('endereço e etiquetas no CSV de clientes', () => {
+  it('lê o endereço padrão e as etiquetas, e devolve o zero do CEP', () => {
+    const leitura = lerCsvDeClientes(
+      `nome;cpf;cep;endereço;número;bairro;cidade;uf;tags\nMarina;${CPF_A};1310100;Av Paulista;1000;Bela Vista;São Paulo;sp;Evento X, turma 3; evento x`,
+    )
+    expect(leitura.erros).toEqual([])
+    expect(leitura.validas[0]).toMatchObject({
+      cep: '01310100',
+      logradouro: 'Av Paulista',
+      uf: 'SP',
+      etiquetas: ['Evento X', 'turma 3'],
+    })
+  })
+
+  it('UF que não existe é erro da linha', () => {
+    const leitura = lerCsvDeClientes(`nome;cpf;uf\nMarina;${CPF_A};XX`)
+    expect(leitura.erros).toEqual([{ linha: 2, motivo: 'UF inválida.' }])
   })
 })

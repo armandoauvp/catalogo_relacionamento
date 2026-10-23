@@ -341,6 +341,21 @@ export function FormularioDeSolicitacao({
       if (!r.ok) return setErro(r.erro)
       setCliente(r.dados)
       if (!r.dados) setNovoCliente((n) => ({ ...n, nome: '' }))
+      // O endereço padrão do cadastro adianta a entrega, sem passar por cima
+      // do que a pessoa já digitou; a solicitação guarda a própria cópia.
+      const encontrado = r.dados
+      if (encontrado?.endereco) {
+        setEntrega((e) =>
+          e.cep.trim()
+            ? e
+            : {
+                ...e,
+                ...encontrado.endereco,
+                cep: mascaraDeCep(encontrado.endereco!.cep),
+                destinatario: e.destinatario || encontrado.nome,
+              },
+        )
+      }
     } finally {
       setBuscando(false)
     }
@@ -380,6 +395,7 @@ export function FormularioDeSolicitacao({
       cpf,
       telefone: novoCliente.telefone || null,
       email: novoCliente.email || null,
+      endereco: null,
     })
   }
 

@@ -11,7 +11,8 @@ import { ehCookieDeSessao } from '@/lib/sessao-sso'
  */
 
 // A rota do agendador não tem sessão: ela confere o CRON_SECRET por conta própria.
-const ROTAS_PUBLICAS = ['/login', '/api/auth', '/api/tiny/cron']
+// As duas rotas de API daqui conferem o próprio segredo (Bearer).
+const ROTAS_PUBLICAS = ['/login', '/api/auth', '/api/tiny/cron', '/api/publico/clientes']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl

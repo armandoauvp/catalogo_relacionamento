@@ -52,6 +52,8 @@ enum OrigemCliente {
   manual
   importacao
   salesforce
+  /// Cadastro que chega do site da AUVP, pela rota pública com chave.
+  site
 }
 
 enum MotivoEnvio {
@@ -196,6 +198,17 @@ model Cliente {
   email        String?
   /// Fase 2: id do registro correspondente no Salesforce.
   salesforceId String?       @unique @map("salesforce_id")
+  /// Endereço padrão: só preenche a nova solicitação e os envios ao Tiny. Cada
+  /// solicitação guarda a própria cópia, e mudar aqui não reescreve nenhuma.
+  cep          String?
+  logradouro   String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  uf           String?       @db.Char(2)
+  /// Marcações livres da área (evento, turma, campanha), que se acumulam.
+  etiquetas    String[]      @default([])
   origem       OrigemCliente @default(manual)
   criadoPor    String?       @map("criado_por")
   criadoEm     DateTime      @default(now()) @map("criado_em")
@@ -205,6 +218,8 @@ model Cliente {
   solicitacoes Solicitacao[]
 
   @@index([nome])
+  @@index([etiquetas], type: Gin)
+  @@index([criadoEm])
   @@map("clientes")
 }
 

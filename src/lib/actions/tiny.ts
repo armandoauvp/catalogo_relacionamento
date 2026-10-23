@@ -7,7 +7,7 @@ import { autorizarAction } from '@/lib/auth-guards'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
 import { db } from '@/lib/db'
 import { tinyConfigurado } from '@/lib/env'
-import { clienteProvider } from '@/lib/providers'
+import { clienteProvider, type EnderecoDoCliente } from '@/lib/providers'
 import {
   listarTransportadoras,
   pesquisarContatos,
@@ -409,17 +409,17 @@ export async function buscarClientesParaPedido(
           .catch(() => [])
       : []
 
-    // O mesmo documento nos dois lados: vale o do Tiny, que tem o endereço.
+    // O mesmo documento nos dois lados: vale o do Tiny, que é o que vai no pedido.
     const noTiny = new Set(doTiny.map((c) => c.cpfCnpj))
-    const vazio = {
-      cep: '',
-      endereco: '',
-      numero: '',
-      complemento: '',
-      bairro: '',
-      cidade: '',
-      uf: '',
-    }
+    const enderecoDaBase = (e: EnderecoDoCliente | null) => ({
+      cep: e?.cep ?? '',
+      endereco: e?.logradouro ?? '',
+      numero: e?.numero ?? '',
+      complemento: e?.complemento ?? '',
+      bairro: e?.bairro ?? '',
+      cidade: e?.cidade ?? '',
+      uf: e?.uf ?? '',
+    })
     return {
       ok: true,
       dados: [
@@ -439,7 +439,7 @@ export async function buscarClientesParaPedido(
             cpfCnpj: c.cpf,
             email: c.email,
             telefone: c.telefone,
-            ...vazio,
+            ...enderecoDaBase(c.endereco),
           })),
       ],
     }

@@ -108,6 +108,9 @@ const schema = (durandoBuild: boolean) =>
     // Protege a rota que o agendador chama para esvaziar a fila do Tiny. Sem
     // ele, a rota responde 503: aberta, qualquer um mandaria pedidos.
     CRON_SECRET: z.string().default(''),
+    // Chave do site da AUVP para mandar cadastros de clientes (POST
+    // /api/publico/clientes). Sem ela, a rota responde 503.
+    CADASTRO_SITE_CHAVE: z.string().default(''),
     SALESFORCE_INSTANCE_URL: z.string().default(''),
     SALESFORCE_CLIENT_ID: z.string().default(''),
     SALESFORCE_CLIENT_SECRET: z.string().default(''),

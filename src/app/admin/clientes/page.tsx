@@ -1,33 +1,56 @@
+import Link from 'next/link'
+import type { Route } from 'next'
+import { Download } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
-import { formatarCpf, formatarTelefone, mascararCpf } from '@/lib/cpf'
-import { formatarData } from '@/lib/datas'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
+import { clientesDoFiltro, etiquetasEmUso } from '@/lib/clientes'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  filtroDeClientesSchema,
+  ORDENS_DE_CLIENTES,
+  queryDoFiltro,
+  whereDeClientes,
+} from '@/lib/filtro-de-clientes'
+import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { Stat } from '@/components/stat'
-import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { EditorDeCliente } from './editor-de-cliente'
 import { ImportarClientes } from './importar-clientes'
+import { TabelaDeClientes } from './tabela-de-clientes'
 
-/** Lista, edição e importação de clientes por CSV. */
-export default async function AdminClientesPage() {
+/** O teto da tela; a exportação leva o recorte inteiro. */
+const LIMITE = 300
+
+/**
+ * Base de clientes: cadastro, importação, filtros por etiqueta e período,
+ * exportação em Excel e, para quem opera o Tiny, mandar os escolhidos como
+ * contatos ou como um lote de pedidos.
+ */
+export default async function AdminClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
   const usuario = await exigirPermissao('cliente.gerenciar')
   const veDadosCompletos = pode(usuario.perfil, 'cliente.verDadosSensiveis')
+  const operaTiny = pode(usuario.perfil, 'tiny.operar')
 
-  const clientes = await db.cliente.findMany({
-    include: { _count: { select: { solicitacoes: true } } },
-    orderBy: { nome: 'asc' },
-    take: 200,
-  })
+  const filtro = filtroDeClientesSchema.parse(await searchParams)
+  const where = whereDeClientes(filtro)
+  const filtrando = Object.keys(where).length > 0
+
+  const [clientes, total, comEndereco, presenteados, etiquetas] = await Promise.all([
+    clientesDoFiltro(filtro, LIMITE),
+    db.cliente.count({ where }),
+    db.cliente.count({ where: { AND: [where, { cep: { not: null } }] } }),
+    db.cliente.count({ where: { AND: [where, { solicitacoes: { some: {} } }] } }),
+    etiquetasEmUso(),
+  ])
+
+  const query = queryDoFiltro(filtro)
 
   return (
     <>
@@ -36,6 +59,13 @@ export default async function AdminClientesPage() {
         descricao="Cadastro manual ou importação por CSV. O CPF é a chave que evita duplicatas."
         acoes={
           <>
+            <Button variant="outline" asChild>
+              {/* Arquivo, não tela: link comum, sem a navegação do app. */}
+              <a href={`/api/export/clientes${query ? `?${query}` : ''}`}>
+                <Download aria-hidden="true" />
+                Baixar Excel
+              </a>
+            </Button>
             <ImportarClientes />
             <EditorDeCliente />
           </>
@@ -43,71 +73,116 @@ export default async function AdminClientesPage() {
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat rotulo="Clientes" valor={clientes.length} />
         <Stat
-          rotulo="Cadastro manual"
-          valor={clientes.filter((c) => c.origem === 'manual').length}
+          rotulo={filtrando ? 'Clientes no filtro' : 'Clientes'}
+          valor={total}
+          apoio={total > LIMITE ? `A tela mostra ${LIMITE}; o Excel leva todos.` : undefined}
         />
+        <Stat rotulo="Com endereço" valor={comEndereco} apoio="Preenchem a entrega sozinhos." />
         <Stat
           rotulo="Já presenteados"
-          valor={clientes.filter((c) => c._count.solicitacoes > 0).length}
+          valor={presenteados}
           apoio="Com pelo menos uma solicitação."
         />
       </div>
 
+      <BarraDeFiltros>
+        <FormDeFiltro acao="/admin/clientes" className="flex flex-1 flex-wrap items-center gap-2">
+          <Input
+            name="busca"
+            defaultValue={filtro.busca}
+            placeholder="Nome, e-mail ou CPF"
+            aria-label="Buscar clientes"
+            className="w-56"
+          />
+          <Select
+            name="etiqueta"
+            defaultValue={filtro.etiqueta ?? ''}
+            aria-label="Etiqueta"
+            className="w-48"
+          >
+            <option value="">Todas as etiquetas</option>
+            {etiquetas.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </Select>
+          <Input
+            name="de"
+            type="date"
+            defaultValue={filtro.de}
+            aria-label="Cadastrado desde"
+            className="w-40"
+          />
+          <Input
+            name="ate"
+            type="date"
+            defaultValue={filtro.ate}
+            aria-label="Cadastrado até"
+            className="w-40"
+          />
+          <Select name="ordem" defaultValue={filtro.ordem} aria-label="Ordem" className="w-52">
+            {Object.entries(ORDENS_DE_CLIENTES).map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </Select>
+          <BotaoDeFiltro>Filtrar</BotaoDeFiltro>
+          {filtrando ? (
+            <LinkDeFiltro
+              href={'/admin/clientes' as Route}
+              className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
+            >
+              Limpar
+            </LinkDeFiltro>
+          ) : null}
+        </FormDeFiltro>
+      </BarraDeFiltros>
+
       {clientes.length === 0 ? (
         <EstadoVazio
-          titulo="Nenhum cliente cadastrado"
-          descricao="Cadastre manualmente ou importe um CSV. O CPF é a chave que impede duplicatas."
-          acao={<EditorDeCliente />}
+          titulo={filtrando ? 'Ninguém neste filtro' : 'Nenhum cliente cadastrado'}
+          descricao={
+            filtrando
+              ? 'Tire um dos filtros ou procure de outro jeito.'
+              : 'Cadastre manualmente ou importe um CSV. O CPF é a chave que impede duplicatas.'
+          }
+          acao={
+            filtrando ? (
+              <Button variant="outline" asChild>
+                <Link href="/admin/clientes">Ver todos</Link>
+              </Button>
+            ) : (
+              <EditorDeCliente />
+            )
+          }
         />
       ) : (
-        <Card className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CPF</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead className="text-right">Solicitações</TableHead>
-                <TableHead>Cadastro</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clientes.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.nome}</TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {veDadosCompletos ? formatarCpf(c.cpf) : mascararCpf(c.cpf)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {c.telefone ? formatarTelefone(c.telefone) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{c.origem}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{c._count.solicitacoes}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatarData(c.criadoEm)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <EditorDeCliente
-                      cliente={{
-                        id: c.id,
-                        nome: c.nome,
-                        cpf: c.cpf,
-                        telefone: c.telefone,
-                        email: c.email,
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <TabelaDeClientes
+          operaTiny={operaTiny}
+          veDadosCompletos={veDadosCompletos}
+          clientes={clientes.map((c) => ({
+            id: c.id,
+            nome: c.nome,
+            cpf: c.cpf,
+            telefone: c.telefone,
+            email: c.email,
+            cep: c.cep,
+            logradouro: c.logradouro,
+            numero: c.numero,
+            complemento: c.complemento,
+            bairro: c.bairro,
+            cidade: c.cidade,
+            uf: c.uf,
+            etiquetas: c.etiquetas,
+            origem: c.origem,
+            criadoEm: c.criadoEm.toISOString(),
+            solicitacoes: c.solicitacoes,
+            total: c.total?.toString() ?? '0',
+          }))}
+        />
       )}
     </>
   )

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
 import { autorizarAction } from '@/lib/auth-guards'
+import { db } from '@/lib/db'
 import { tinyConfigurado } from '@/lib/env'
 import { validarContato } from '@/lib/tiny/contato'
 import { enfileirarContatos, processarFila, reenviarContato } from '@/lib/tiny/fila'
@@ -101,6 +102,66 @@ export async function reenviarContatoNoTiny(id: string): Promise<ResultadoDaActi
     processarDepois()
     revalidatePath('/tiny/contatos')
     return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+const idsSchema = z
+  .array(z.string().min(1).max(40))
+  .min(1, 'Escolha ao menos um cliente.')
+  .max(500, 'Até 500 clientes por vez.')
+
+/**
+ * Manda clientes da base daqui ao Tiny como contatos. Quem não tem o mínimo
+ * (nome e documento válidos) fica de fora, com o motivo.
+ */
+export async function exportarClientesParaOTiny(
+  ids: unknown,
+): Promise<ResultadoDaAction<{ enviados: number; ignorados: { nome: string; motivo: string }[] }>> {
+  try {
+    const usuario = await autorizarAction('tiny.operar')
+    await autorizarAction('cliente.gerenciar')
+    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
+    const validado = idsSchema.safeParse(ids)
+    if (!validado.success) return primeiroErro(validado.error)
+
+    const clientes = await db.cliente.findMany({ where: { id: { in: validado.data } } })
+    const lidos = clientes.map((c) => ({
+      nome: c.nome,
+      ...validarContato({
+        nome: c.nome,
+        cpfCnpj: c.cpf,
+        email: c.email ?? undefined,
+        telefone: c.telefone ?? undefined,
+        cep: c.cep ?? undefined,
+        endereco: c.logradouro ?? undefined,
+        numero: c.numero ?? undefined,
+        complemento: c.complemento ?? undefined,
+        bairro: c.bairro ?? undefined,
+        cidade: c.cidade ?? undefined,
+        uf: c.uf ?? undefined,
+      }),
+    }))
+    const validos = lidos.filter((l) => !l.erros.length)
+    if (validos.length) {
+      await enfileirarContatos(
+        validos.map((l) => ({ destinatario: l.destinatario })),
+        'Base de clientes',
+        usuario,
+      )
+      processarDepois()
+    }
+    revalidatePath('/tiny/contatos')
+    return {
+      ok: true,
+      dados: {
+        enviados: validos.length,
+        ignorados: lidos
+          .filter((l) => l.erros.length)
+          .map((l) => ({ nome: l.nome, motivo: l.erros.join(' ') })),
+      },
+    }
   } catch (e) {
     return comoErro(e)
   }

@@ -39,6 +39,10 @@ duplique numa tela.
 | Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
 | Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
+| Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
+| Cadastro que chega do site       | `src/lib/clientes.ts`                     |
+| Leitura das respostas do Tiny    | `src/lib/tiny/leitura.ts`                 |
+| Contato do Tiny (cliente de lá)  | `src/lib/tiny/contato.ts`                 |
 | Catálogo de presentes da área    | `prisma/catalogo-auvp.ts`                 |
 | Aritmética de dinheiro           | `src/lib/money.ts`                        |
 | Colunas e formato da exportação  | `src/lib/export/`                         |
@@ -54,7 +58,14 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   solicitação antiga precisa continuar legível como foi criada.
 - **Valores congelam na criação.** `valorUnitario` é cópia, não referência.
   Reajuste de preço não mexe em solicitação já feita.
-- **Endereço é snapshot** na solicitação, não no cliente.
+- **Endereço é snapshot** na solicitação. O cliente tem um endereço padrão,
+  que só preenche a nova solicitação e os envios ao Tiny; mudar o padrão não
+  reescreve nenhuma solicitação.
+- **Importar não apaga.** CSV de clientes, planilha de contatos e cadastro do
+  site só gravam o que veio preenchido, e as etiquetas se somam.
+- **O site entra com chave e não lê nada.** `POST /api/publico/clientes` exige
+  `CADASTRO_SITE_CHAVE` (24+ caracteres) e devolve só id e se é novo. Não
+  existe consulta por CPF.
 - **Dinheiro é `Prisma.Decimal`.** `number` só na fronteira de exibição.
 - **Autorização acontece no servidor**, via `auth-guards.ts`. Esconder botão
   não é controle de acesso.

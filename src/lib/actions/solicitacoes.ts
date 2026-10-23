@@ -9,6 +9,7 @@ import { filtroDeSolicitacoes } from '@/lib/permissions'
 import { proximoCodigo } from '@/lib/codigo'
 import { totalDosItens } from '@/lib/money'
 import { normalizarCpf } from '@/lib/cpf'
+import { clienteProvider, type EnderecoDoCliente } from '@/lib/providers'
 import { acompanhamentosFaltando, mensagemDePendencia } from '@/lib/acompanhamentos'
 import {
   ROTULO_STATUS,
@@ -49,6 +50,8 @@ export type ClienteEncontrado = {
   cpf: string
   telefone: string | null
   email: string | null
+  /** O padrão do cadastro, que só preenche a entrega; a solicitação guarda a cópia. */
+  endereco: EnderecoDoCliente | null
 }
 
 /**
@@ -66,12 +69,10 @@ export async function buscarClientePorCpf(
     const limpo = normalizarCpf(cpf)
     if (limpo.length !== 11) return { ok: true, dados: null }
 
-    const cliente = await db.cliente.findUnique({
-      where: { cpf: limpo },
-      select: { id: true, nome: true, cpf: true, telefone: true, email: true },
-    })
-
-    return { ok: true, dados: cliente }
+    const cliente = await clienteProvider.buscarPorCpf(limpo)
+    if (!cliente) return { ok: true, dados: null }
+    const { id, nome, telefone, email, endereco } = cliente
+    return { ok: true, dados: { id, nome, cpf: cliente.cpf, telefone, email, endereco } }
   } catch (e) {
     return comoErro(e)
   }

@@ -1,6 +1,6 @@
-import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { env } from '@/lib/env'
+import { bearerConfere } from '@/lib/segredo'
 import { processarFila, sincronizarPedidos } from '@/lib/tiny/fila'
 
 /**
@@ -16,18 +16,13 @@ import { processarFila, sincronizarPedidos } from '@/lib/tiny/fila'
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
-function autorizado(req: Request): boolean {
-  if (!env.CRON_SECRET) return false
-  const recebido = Buffer.from(req.headers.get('authorization') ?? '')
-  const esperado = Buffer.from(`Bearer ${env.CRON_SECRET}`)
-  return recebido.length === esperado.length && timingSafeEqual(recebido, esperado)
-}
-
 async function rodar(req: Request) {
   if (!env.CRON_SECRET) {
     return NextResponse.json({ erro: 'CRON_SECRET não configurado.' }, { status: 503 })
   }
-  if (!autorizado(req)) return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401 })
+  if (!bearerConfere(req.headers.get('authorization'), env.CRON_SECRET)) {
+    return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401 })
+  }
 
   const fila = await processarFila({ prazoMs: 30_000 })
   const sincronizacao = await sincronizarPedidos({ prazoMs: 20_000 })

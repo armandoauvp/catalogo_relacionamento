@@ -71,6 +71,17 @@ export interface CatalogoProvider {
   consultarEstoque(id: string): Promise<number | null>
 }
 
+/** O endereço padrão do cliente: só preenche formulários, nunca é o do envio. */
+export type EnderecoDoCliente = {
+  cep: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
 export type ClienteEncontrado = {
   id: string
   nome: string
@@ -79,6 +90,9 @@ export type ClienteEncontrado = {
   email: string | null
   salesforceId: string | null
   origem: OrigemCliente
+  /** Nulo quando o cadastro não tem endereço. */
+  endereco: EnderecoDoCliente | null
+  etiquetas: string[]
 }
 
 export interface ClienteProvider {

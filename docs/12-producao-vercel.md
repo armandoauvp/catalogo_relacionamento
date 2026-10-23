@@ -148,6 +148,34 @@ como secret do GitHub Actions, os presentes aprovados e os lotes importados
 viram pedidos no Tiny, e o rastreio volta sozinho. Passo a passo em
 [docs/13-tiny.md](13-tiny.md#ligar).
 
+## Passo 9 (opcional): o cadastro pelo site
+
+Se o site da AUVP manda cadastros de clientes, como mandava ao AUVP-Eventos:
+
+1. Gere uma chave (`openssl rand -base64 32`) e cadastre em
+   `CADASTRO_SITE_CHAVE` (Production, Sensitive). Redeploy.
+2. O **servidor** do site chama, nunca o navegador (lá a chave fica à vista):
+
+   ```
+   POST https://catalogo-logistica.vercel.app/api/publico/clientes
+   Authorization: Bearer <a chave>
+   Content-Type: application/json
+
+   {"nome": "...", "cpf": "...", "email": "...", "telefone": "...",
+    "cep": "...", "logradouro": "...", "numero": "...", "complemento": "...",
+    "bairro": "...", "cidade": "...", "uf": "SP", "etiquetas": ["Evento X"]}
+   ```
+
+   Só `nome` e `cpf` são obrigatórios. Responde `201` (novo) ou `200` (já
+   existia e foi completado), com o `id`. Erro de campo volta `422` com o
+   campo; chave errada, `401`; sem chave configurada, `503`.
+
+3. O cliente entra com origem `site`. Quem já existe só ganha o que veio
+   preenchido, e as etiquetas se somam.
+
+A consulta por CPF que o AUVP-Eventos tinha não existe aqui: ela devolvia os
+dados de qualquer pessoa, sem login.
+
 ## Limites do Hobby
 
 A área escolheu o plano gratuito. O que muda na prática:

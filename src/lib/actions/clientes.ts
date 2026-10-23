@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { OrigemCliente } from '@prisma/client'
 import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
-import { clienteSchema } from '@/lib/validators/cliente'
+import {
+  acumularEtiquetas,
+  clienteSchema,
+  type LinhaImportacaoCliente,
+} from '@/lib/validators/cliente'
 import { lerCsvDeClientes, type ResumoDaImportacao } from '@/lib/importacao-clientes'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
@@ -25,6 +29,14 @@ export async function salvarCliente(dados: FormData): Promise<ResultadoDaAction<
       telefone: dados.get('telefone'),
       email: dados.get('email'),
       salesforceId: dados.get('salesforceId'),
+      cep: dados.get('cep'),
+      logradouro: dados.get('logradouro'),
+      numero: dados.get('numero'),
+      complemento: dados.get('complemento'),
+      bairro: dados.get('bairro'),
+      cidade: dados.get('cidade'),
+      uf: dados.get('uf'),
+      etiquetas: dados.get('etiquetas'),
     })
     if (!validado.success) return primeiroErro(validado.error)
 
@@ -54,6 +66,12 @@ export async function salvarCliente(dados: FormData): Promise<ResultadoDaAction<
   }
 }
 
+/** Só os campos que vieram preenchidos: vazio não apaga o cadastro. */
+function preenchidos(linha: LinhaImportacaoCliente) {
+  const { cpf: _cpf, etiquetas: _etiquetas, ...campos } = linha
+  return Object.fromEntries(Object.entries(campos).filter(([, v]) => v !== null && v !== ''))
+}
+
 /**
  * Importa clientes de um CSV.
  *
@@ -81,24 +99,21 @@ export async function importarClientes(
     // Quem já existe é contado antes: depois do upsert não dá mais para
     // distinguir criado de atualizado, e é essa a diferença que a pessoa quer
     // ver ao reimportar uma planilha.
-    const jaExistiam = new Set(
-      (
-        await db.cliente.findMany({
-          where: { cpf: { in: leitura.validas.map((l) => l.cpf) } },
-          select: { cpf: true },
-        })
-      ).map((c) => c.cpf),
-    )
+    const existentes = await db.cliente.findMany({
+      where: { cpf: { in: leitura.validas.map((l) => l.cpf) } },
+      select: { cpf: true, etiquetas: true },
+    })
+    const jaExistiam = new Set(existentes.map((c) => c.cpf))
+    const etiquetasAtuais = new Map(existentes.map((c) => [c.cpf, c.etiquetas]))
 
     for (const linha of leitura.validas) {
       await db.cliente.upsert({
         where: { cpf: linha.cpf },
         // A importação não apaga o que já estava lá: campo vazio na planilha
-        // mantém o valor do cadastro.
+        // mantém o valor do cadastro, e as etiquetas se somam.
         update: {
-          nome: linha.nome,
-          ...(linha.telefone ? { telefone: linha.telefone } : {}),
-          ...(linha.email ? { email: linha.email } : {}),
+          ...preenchidos(linha),
+          etiquetas: acumularEtiquetas(etiquetasAtuais.get(linha.cpf) ?? [], linha.etiquetas),
         },
         create: {
           ...linha,

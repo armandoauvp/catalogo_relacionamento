@@ -190,19 +190,35 @@ function Campo({
 const selectClasse =
   'border-input bg-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'
 
+/** Clientes escolhidos na base, já no formato da linha da planilha. */
+type LinhaDaBase = { linha: number; campos: Record<CampoDoLote, string> }
+
+function leituraDaBase(linhas: readonly LinhaDaBase[]): LeituraDoLote {
+  return {
+    linhas: conferirRepetidos(linhas.map((l) => ({ linha: l.linha, ...validarLinha(l.campos) }))),
+    faltando: [],
+  }
+}
+
 export function ImportarLote({
   subsidiarias,
   departamentos,
+  linhasDaBase = null,
 }: {
   subsidiarias: string[]
   departamentos: string[]
+  linhasDaBase?: LinhaDaBase[] | null
 }) {
   const router = useRouter()
-  const [arquivo, setArquivo] = useState<string | null>(null)
-  const [leitura, setLeitura] = useState<LeituraDoLote | null>(null)
+  const [arquivo, setArquivo] = useState<string | null>(linhasDaBase ? 'Base de clientes' : null)
+  const [leitura, setLeitura] = useState<LeituraDoLote | null>(() =>
+    linhasDaBase ? leituraDaBase(linhasDaBase) : null,
+  )
   const [erroDoArquivo, setErroDoArquivo] = useState<string | null>(null)
   const [lendo, setLendo] = useState(false)
-  const [soErros, setSoErros] = useState(false)
+  const [soErros, setSoErros] = useState(() =>
+    Boolean(linhasDaBase && leituraDaBase(linhasDaBase).linhas.some((l) => l.erros.length)),
+  )
 
   const [busca, setBusca] = useState('')
   const [produtos, setProdutos] = useState<ProdutoDoTiny[] | null>(null)
@@ -347,27 +363,39 @@ export function ImportarLote({
   return (
     <form action={enviar} className="space-y-6">
       <section className="bg-card space-y-4 rounded-lg border p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        {linhasDaBase ? (
           <div>
-            <h2 className="font-display text-lg font-semibold">1. A planilha</h2>
+            <h2 className="font-display text-lg font-semibold">1. Os clientes escolhidos</h2>
             <p className="text-muted-foreground text-sm">
-              Uma linha por destinatário, em .xlsx ou .csv. A planilha do AUVP-Eventos serve como
-              está.
+              Com o endereço padrão de cada um. Quem não tem endereço completo aparece com o erro:
+              corrija na linha ou tire do lote.
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={baixarModelo}>
-            <Download aria-hidden="true" />
-            Baixar modelo
-          </Button>
-        </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg font-semibold">1. A planilha</h2>
+                <p className="text-muted-foreground text-sm">
+                  Uma linha por destinatário, em .xlsx ou .csv. A planilha do AUVP-Eventos serve
+                  como está.
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={baixarModelo}>
+                <Download aria-hidden="true" />
+                Baixar modelo
+              </Button>
+            </div>
 
-        <Input
-          type="file"
-          accept=".xlsx,.csv"
-          onChange={aoEscolher}
-          aria-label="Planilha de destinatários"
-          className="file:bg-muted h-auto py-2 file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm"
-        />
+            <Input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={aoEscolher}
+              aria-label="Planilha de destinatários"
+              className="file:bg-muted h-auto py-2 file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm"
+            />
+          </>
+        )}
         {lendo ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />

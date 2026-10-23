@@ -158,6 +158,17 @@ mesma rodada e com o mesmo intervalo dos pedidos:
 - A parte de baixo da tela mostra cada gravação, de onde veio, quem mandou e se
   foi incluída, alterada ou recusada, com o Reenviar.
 
+## Da base de clientes ao Tiny
+
+Em Administração → Clientes (Admin), quem opera o Tiny escolhe clientes na
+tabela, que pode estar filtrada por etiqueta e período, e:
+
+- **Cadastrar no Tiny**: viram contatos, pela fila de contatos. Quem não tem
+  nome e CPF válidos fica de fora, com o motivo.
+- **Gerar lote de pedidos**: abre a importação de lote com eles nas linhas,
+  cada um com o endereço padrão. Quem não tem endereço completo aparece com o
+  erro e se corrige na prévia, como uma linha de planilha.
+
 ## Pedidos no Tiny
 
 `/tiny/pedidos` consulta **todos** os pedidos da conta, inclusive os do
