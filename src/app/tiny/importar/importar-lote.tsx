@@ -4,15 +4,25 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
-import { Download, FileSpreadsheet, Loader2, Search } from 'lucide-react'
+import { Download, FileSpreadsheet, Loader2, Pencil, Search, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialogo } from '@/components/ui/dialogo'
 import { Input } from '@/components/ui/input'
 import { buscarProdutosNoTiny, buscarTransportadoras, criarLote } from '@/lib/actions/tiny'
 import type { ProdutoDoTiny } from '@/lib/tiny/api'
 import { formatarBRL } from '@/lib/money'
 import { tabelaDoCsv } from '@/lib/importacao-clientes'
-import { lerLote, type LeituraDoLote, type LinhaDoLote } from '@/lib/tiny/lote'
+import {
+  conferirRepetidos,
+  lerLote,
+  ROTULO_DA_COLUNA,
+  validarLinha,
+  valorDaCelula,
+  type CampoDoLote,
+  type LeituraDoLote,
+  type LinhaDoLote,
+} from '@/lib/tiny/lote'
 import { servicosDaTransportadora } from '@/lib/tiny/pedido'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +50,7 @@ const MODELO = [
   'Cidade',
   'UF',
   'Quantidade',
+  'Valor',
 ]
 
 function baixarModelo() {
@@ -56,6 +67,7 @@ function baixarModelo() {
     'São Paulo',
     'SP',
     '1',
+    '',
   ]
   const csv = '﻿' + [MODELO, exemplo].map((l) => l.map((c) => `"${c}"`).join(';')).join('\r\n')
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -87,7 +99,7 @@ async function lerArquivo(arquivo: File): Promise<string[][]> {
   return tabela
 }
 
-function camposDe(l: LinhaDoLote): Record<string, string> {
+function camposDe(l: LinhaDoLote): Record<CampoDoLote, string> {
   const d = l.destinatario
   return {
     nome: d.nome,
@@ -102,7 +114,84 @@ function camposDe(l: LinhaDoLote): Record<string, string> {
     cidade: d.cidade,
     uf: d.uf,
     quantidade: String(l.quantidade),
+    valor: l.valorUnitario?.replace('.', ',') ?? '',
   }
+}
+
+/** A ordem dos campos no formulário de correção, como no modelo. */
+const CAMPOS_DA_CORRECAO: { campo: CampoDoLote; largo?: boolean }[] = [
+  { campo: 'nome', largo: true },
+  { campo: 'cpfCnpj' },
+  { campo: 'telefone' },
+  { campo: 'email', largo: true },
+  { campo: 'cep' },
+  { campo: 'uf' },
+  { campo: 'endereco', largo: true },
+  { campo: 'numero' },
+  { campo: 'complemento' },
+  { campo: 'bairro' },
+  { campo: 'cidade' },
+  { campo: 'quantidade' },
+  { campo: 'valor' },
+]
+
+/**
+ * Corrige uma linha sem voltar à planilha. Não é um `<form>`: o diálogo fica
+ * dentro do formulário do lote, e formulário dentro de formulário não existe.
+ */
+function CorrecaoDaLinha({
+  linha,
+  aoSalvar,
+  aoFechar,
+}: {
+  linha: LinhaDoLote
+  aoSalvar: (campos: Record<CampoDoLote, string>) => void
+  aoFechar: () => void
+}) {
+  const [campos, setCampos] = useState(() => camposDe(linha))
+  const previa = validarLinha(campos)
+
+  return (
+    <div className="space-y-4">
+      {previa.erros.length ? (
+        <ul className="text-destructive list-inside list-disc text-sm" aria-live="polite">
+          {previa.erros.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-success text-sm" aria-live="polite">
+          A linha está certa.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {CAMPOS_DA_CORRECAO.map(({ campo, largo }) => (
+          <Campo
+            key={campo}
+            rotulo={ROTULO_DA_COLUNA[campo]}
+            dica={campo === 'valor' ? 'Vazio usa o preço do lote.' : undefined}
+            className={largo ? 'sm:col-span-2' : undefined}
+          >
+            <Input
+              value={campos[campo]}
+              onChange={(e) => setCampos((c) => ({ ...c, [campo]: e.target.value }))}
+              inputMode={
+                campo === 'valor' ? 'decimal' : campo === 'quantidade' ? 'numeric' : undefined
+              }
+            />
+          </Campo>
+        ))}
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={aoFechar}>
+          Cancelar
+        </Button>
+        <Button type="button" onClick={() => aoSalvar(campos)}>
+          Salvar a linha
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 function Campo({
@@ -145,6 +234,8 @@ export function ImportarLote({
   const [busca, setBusca] = useState('')
   const [produtos, setProdutos] = useState<ProdutoDoTiny[] | null>(null)
   const [produto, setProduto] = useState<ProdutoDoTiny | null>(null)
+  const [preco, setPreco] = useState('')
+  const [corrigindo, setCorrigindo] = useState<number | null>(null)
   const [buscando, iniciarBusca] = useTransition()
   const [erroDaBusca, setErroDaBusca] = useState<string | null>(null)
 
@@ -174,6 +265,24 @@ export function ImportarLote({
   const validas = leitura?.linhas.filter((l) => l.erros.length === 0) ?? []
   const comErro = leitura?.linhas.filter((l) => l.erros.length > 0) ?? []
   const mostradas = soErros ? comErro : (leitura?.linhas ?? [])
+  const linhaEmCorrecao = leitura?.linhas.find((l) => l.linha === corrigindo) ?? null
+  const precoDoLote = valorDaCelula(preco)
+
+  function trocarLinhas(f: (linhas: LinhaDoLote[]) => LinhaDoLote[]) {
+    setLeitura((l) => (l ? { ...l, linhas: conferirRepetidos(f(l.linhas)) } : l))
+  }
+
+  function salvarCorrecao(campos: Record<CampoDoLote, string>) {
+    trocarLinhas((linhas) =>
+      linhas.map((l) => (l.linha === corrigindo ? { linha: l.linha, ...validarLinha(campos) } : l)),
+    )
+    setCorrigindo(null)
+  }
+
+  function escolherProduto(p: ProdutoDoTiny) {
+    setProduto(p)
+    setPreco(Number(p.preco).toFixed(2).replace('.', ','))
+  }
 
   async function aoEscolher(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -215,6 +324,7 @@ export function ImportarLote({
   function enviar(dados: FormData) {
     setErro(null)
     if (!produto) return setErro('Escolha o produto do Tiny.')
+    if (!precoDoLote) return setErro('Preço do lote inválido: use só o número, como 35,00.')
     if (!validas.length) return setErro('Nenhuma linha válida para enviar.')
     iniciarEnvio(async () => {
       const r = await criarLote({
@@ -222,7 +332,7 @@ export function ImportarLote({
         marcador: String(dados.get('marcador') ?? ''),
         subsidiaria: String(dados.get('subsidiaria') ?? ''),
         departamento: String(dados.get('departamento') ?? ''),
-        produto: { codigo: produto.codigo || null, nome: produto.nome, preco: produto.preco },
+        produto: { codigo: produto.codigo || null, nome: produto.nome, preco: precoDoLote },
         transportadora: transportadora || null,
         formaFrete: servico || null,
         linhas: validas.map((l) => ({ linha: l.linha, campos: camposDe(l) })),
@@ -335,7 +445,11 @@ export function ImportarLote({
                     <th className="px-3 py-2 font-medium">CPF/CNPJ</th>
                     <th className="px-3 py-2 font-medium">Cidade</th>
                     <th className="px-3 py-2 text-right font-medium">Qtd.</th>
+                    <th className="px-3 py-2 text-right font-medium">Valor</th>
                     <th className="px-3 py-2 font-medium">Situação</th>
+                    <th className="px-3 py-2">
+                      <span className="sr-only">Ações</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -349,12 +463,43 @@ export function ImportarLote({
                         {l.destinatario.uf ? `/${l.destinatario.uf}` : ''}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{l.quantidade}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                        {l.valorUnitario ? (
+                          formatarBRL(l.valorUnitario)
+                        ) : (
+                          <span className="text-muted-foreground text-xs">do lote</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         {l.erros.length ? (
                           <span className="text-destructive text-xs">{l.erros.join(' ')}</span>
                         ) : (
                           <Badge variant="success">ok</Badge>
                         )}
+                      </td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCorrigindo(l.linha)}
+                          aria-label={`Corrigir a linha ${l.linha}`}
+                        >
+                          <Pencil aria-hidden="true" />
+                          Corrigir
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            trocarLinhas((linhas) => linhas.filter((x) => x.linha !== l.linha))
+                          }
+                          aria-label={`Tirar a linha ${l.linha} do lote`}
+                          title="Tirar do lote"
+                        >
+                          <X aria-hidden="true" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -363,13 +508,29 @@ export function ImportarLote({
             </div>
           </div>
         ) : null}
+
+        <Dialogo
+          aberto={linhaEmCorrecao !== null}
+          aoFechar={() => setCorrigindo(null)}
+          titulo={`Corrigir a linha ${corrigindo ?? ''}`}
+          descricao="A correção vale só para este envio; a planilha continua como está."
+        >
+          {linhaEmCorrecao ? (
+            <CorrecaoDaLinha
+              linha={linhaEmCorrecao}
+              aoSalvar={salvarCorrecao}
+              aoFechar={() => setCorrigindo(null)}
+            />
+          ) : null}
+        </Dialogo>
       </section>
 
       <section className="bg-card space-y-4 rounded-lg border p-5">
         <div>
           <h2 className="font-display text-lg font-semibold">2. O produto no Tiny</h2>
           <p className="text-muted-foreground text-sm">
-            O mesmo para todas as linhas, com o preço do cadastro do Tiny.
+            O mesmo para todas as linhas. O preço vem do cadastro do Tiny e pode ser ajustado; a
+            coluna Valor da planilha, quando preenchida, vale para a própria linha.
           </p>
         </div>
         <div className="flex gap-2">
@@ -405,7 +566,7 @@ export function ImportarLote({
                   <button
                     type="button"
                     aria-pressed={escolhido}
-                    onClick={() => setProduto(p)}
+                    onClick={() => escolherProduto(p)}
                     className={cn(
                       'focus-visible:ring-ring w-full rounded-lg border p-3 text-left text-sm transition-colors outline-none focus-visible:ring-2',
                       escolhido
@@ -423,6 +584,20 @@ export function ImportarLote({
               )
             })}
           </ul>
+        ) : null}
+        {produto ? (
+          <Campo
+            rotulo="Preço unitário do lote"
+            dica={`No Tiny: ${formatarBRL(produto.preco)}. Vale para as linhas sem valor próprio.`}
+            className="max-w-xs"
+          >
+            <Input
+              value={preco}
+              onChange={(e) => setPreco(e.target.value)}
+              inputMode="decimal"
+              aria-invalid={!precoDoLote}
+            />
+          </Campo>
         ) : null}
       </section>
 

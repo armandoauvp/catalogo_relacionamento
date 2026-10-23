@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lerLote, validarLinha } from './lote'
+import { conferirRepetidos, lerLote, validarLinha, valorDaCelula } from './lote'
 
 /** O modelo de planilha do AUVP-Eventos, na ordem dele. */
 const CABECALHO_DO_AUVP_EVENTOS = [
@@ -132,5 +132,40 @@ describe('uma linha', () => {
       quantidade: '1,5',
     })
     expect(r.erros).toEqual(['Quantidade precisa ser um número inteiro de 1 a 99.'])
+  })
+})
+
+describe('valor por linha', () => {
+  it('a coluna Preço do AUVP-Eventos vira o valor da linha', () => {
+    const { linhas } = lerLote([CABECALHO_DO_AUVP_EVENTOS, linha({ Preço: 'R$ 1.234,5' })])
+    expect(linhas[0]!.valorUnitario).toBe('1234.50')
+    expect(linhas[0]!.erros).toEqual([])
+  })
+
+  it('vazio usa o preço do lote, e texto que não é dinheiro é erro', () => {
+    expect(valorDaCelula('')).toBeNull()
+    expect(valorDaCelula('35.00')).toBe('35.00')
+    expect(valorDaCelula('trinta')).toBeUndefined()
+    expect(validarLinha({ valor: 'abc' }).erros).toContain(
+      'Valor inválido: use só o número, como 35,00.',
+    )
+  })
+})
+
+describe('correção na prévia', () => {
+  it('trocar o documento repetido tira o aviso, e repetir de novo o devolve', () => {
+    const { linhas } = lerLote([
+      CABECALHO_DO_AUVP_EVENTOS,
+      linha(),
+      linha({ Nome: 'Outra Pessoa' }),
+    ])
+    expect(linhas[1]!.erros[0]).toMatch(/repetido/)
+
+    const corrigida = {
+      ...linhas[1]!,
+      destinatario: { ...linhas[1]!.destinatario, cpfCnpj: '39053344705' },
+    }
+    expect(conferirRepetidos([linhas[0]!, corrigida])[1]!.erros).toEqual([])
+    expect(conferirRepetidos([linhas[0]!, linhas[1]!])[1]!.erros).toHaveLength(1)
   })
 })

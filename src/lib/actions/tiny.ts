@@ -134,6 +134,8 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
       }
     }
 
+    // O preço do lote é o que a tela mandou, editável sobre o do Tiny; a
+    // coluna de valor da planilha, quando existe, vale para a própria linha.
     const valorUnitario = Number(dados.produto.preco).toFixed(2)
     const agora = new Date()
     const totalDeItens = novas.reduce((s, l) => s + l.quantidade, 0)
@@ -180,7 +182,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
               codigo: dados.produto.codigo,
               descricao: dados.produto.nome,
               quantidade: l.quantidade,
-              valorUnitario,
+              valorUnitario: l.valorUnitario ?? valorUnitario,
             },
           ]
           return {

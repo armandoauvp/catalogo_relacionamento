@@ -45,7 +45,7 @@ export const UFS = [
   'TO',
 ] as const
 
-export type CampoDoLote = keyof Destinatario | 'quantidade'
+export type CampoDoLote = keyof Destinatario | 'quantidade' | 'valor'
 
 const COLUNAS: Record<CampoDoLote, readonly string[]> = {
   nome: ['nome', 'nome completo', 'destinatario', 'cliente', 'nome do cliente'],
@@ -60,6 +60,8 @@ const COLUNAS: Record<CampoDoLote, readonly string[]> = {
   cidade: ['cidade', 'municipio'],
   uf: ['uf', 'estado'],
   quantidade: ['quantidade', 'qtd', 'qtde'],
+  // Opcional: sem ela, vale o preço do lote. É a coluna "Preço" do AUVP-Eventos.
+  valor: ['valor', 'preco', 'valor unitario', 'preco unitario'],
 }
 
 const OBRIGATORIAS: readonly CampoDoLote[] = [
@@ -86,6 +88,7 @@ export const ROTULO_DA_COLUNA: Record<CampoDoLote, string> = {
   cidade: 'Cidade',
   uf: 'UF',
   quantidade: 'Quantidade',
+  valor: 'Valor',
 }
 
 const normalizar = (texto: string) =>
@@ -98,6 +101,8 @@ export type LinhaDoLote = {
   linha: number
   destinatario: Destinatario
   quantidade: number
+  /** Valor unitário desta linha, "35.00"; nulo usa o preço do lote. */
+  valorUnitario: string | null
   erros: string[]
 }
 
@@ -154,7 +159,49 @@ export function validarLinha(
     erros.push('Quantidade precisa ser um número inteiro de 1 a 99.')
   }
 
-  return { destinatario, quantidade: Number.isInteger(quantidade) ? quantidade : 1, erros }
+  const valorUnitario = valorDaCelula(valor('valor'))
+  if (valorUnitario === undefined) erros.push('Valor inválido: use só o número, como 35,00.')
+
+  return {
+    destinatario,
+    quantidade: Number.isInteger(quantidade) ? quantidade : 1,
+    valorUnitario: valorUnitario ?? null,
+    erros,
+  }
+}
+
+/**
+ * "R$ 1.234,56", "35,5" e "35.00" viram "1234.56", "35.50" e "35.00". Vazio é
+ * nulo (vale o preço do lote); o que não é dinheiro é `undefined`, um erro.
+ */
+export function valorDaCelula(texto: string): string | null | undefined {
+  const limpo = texto.replace(/R\$|\s/g, '')
+  if (!limpo) return null
+  const normal = limpo.includes(',') ? limpo.replace(/\./g, '').replace(',', '.') : limpo
+  if (!/^\d+(\.\d{1,2})?$/.test(normal)) return undefined
+  return Number(normal).toFixed(2)
+}
+
+const AVISO_DE_REPETIDO = 'CPF/CNPJ repetido'
+
+/**
+ * Marca a segunda linha de um mesmo CPF/CNPJ. Refeita a cada correção na
+ * prévia: mudar o documento de uma linha pode resolver ou criar a repetição.
+ */
+export function conferirRepetidos<
+  T extends { linha: number; destinatario: Destinatario; erros: string[] },
+>(linhas: readonly T[]): T[] {
+  const vistos = new Map<string, number>()
+  return linhas.map((l) => {
+    const erros = l.erros.filter((e) => !e.startsWith(AVISO_DE_REPETIDO))
+    const doc = l.destinatario.cpfCnpj
+    if (doc && vistos.has(doc)) {
+      erros.push(`${AVISO_DE_REPETIDO}: já está na linha ${vistos.get(doc)}.`)
+    } else if (doc) {
+      vistos.set(doc, l.linha)
+    }
+    return { ...l, erros }
+  })
 }
 
 export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
@@ -178,7 +225,6 @@ export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
   if (faltando.length) return { linhas: [], faltando }
 
   const linhas: LinhaDoLote[] = []
-  const vistos = new Map<string, number>()
 
   tabela.slice(inicio + 1).forEach((celulas, i) => {
     if (celulas.every((c) => !String(c ?? '').trim())) return
@@ -189,15 +235,8 @@ export function lerLote(tabela: readonly (readonly string[])[]): LeituraDoLote {
         posicao[campo] >= 0 ? String(celulas[posicao[campo]] ?? '') : '',
       ]),
     )
-    const lida = validarLinha(bruto)
-    const doc = lida.destinatario.cpfCnpj
-    if (doc && vistos.has(doc)) {
-      lida.erros.push(`CPF/CNPJ repetido: já está na linha ${vistos.get(doc)}.`)
-    } else if (doc) {
-      vistos.set(doc, numero)
-    }
-    linhas.push({ linha: numero, ...lida })
+    linhas.push({ linha: numero, ...validarLinha(bruto) })
   })
 
-  return { linhas, faltando: [] }
+  return { linhas: conferirRepetidos(linhas), faltando: [] }
 }

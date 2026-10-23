@@ -154,11 +154,17 @@ O estoque do catálogo daqui continua sendo o que decide a rota
 - **Colunas** achadas pelo nome do cabeçalho, com sinônimos
   (`src/lib/tiny/lote.ts`). Obrigatórias: Nome, CPF/CNPJ, CEP, Endereço,
   Número, Bairro, Cidade, UF. Opcionais: Email, Telefone, Complemento,
-  Quantidade (padrão 1). A planilha do AUVP-Eventos é lida como está; o botão
+  Quantidade (padrão 1), Valor. A planilha do AUVP-Eventos é lida como está; o botão
   "Baixar modelo" gera uma vazia.
 - **Prévia** com o erro de cada linha: CPF ou CNPJ inválido ou repetido, CEP
   sem 8 dígitos, UF inexistente, campo obrigatório vazio. Só as linhas certas
   são enviadas; o servidor valida de novo.
+- **Corrigir na prévia.** Cada linha tem "Corrigir", que abre os campos com a
+  validação ao vivo, e o "x", que a tira do envio. A conferência de CPF/CNPJ
+  repetido é refeita a cada mudança. A planilha não é alterada.
+- **Preço.** O do cadastro do Tiny vem preenchido e pode ser ajustado para o
+  lote. A coluna opcional **Valor** (ou "Preço", a do AUVP-Eventos) vale para
+  a própria linha; vazia, vale o preço do lote.
 - CPF e CEP que o Excel guardou como número voltam com os zeros da frente.
 - **Um produto do Tiny** (busca pelo nome, com o preço do cadastro de lá), uma
   **transportadora** e um **marcador** para todas as linhas.
