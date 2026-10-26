@@ -13,6 +13,11 @@ import { StatusDaSemana } from './status-da-semana'
 import { VolumePorDepartamento } from './volume-por-departamento'
 import { Evolucao } from './evolucao'
 import { Trilha } from './trilha'
+import { filtroDaTrilhaSchema, queryDoRecorte, temRecorte } from '@/lib/logistica/filtro-da-trilha'
+import { LIMITE_DA_TRILHA_NA_TELA, trilhaDoPeriodo } from '@/lib/logistica/painel'
+import { ROTULO_FASE, ROTULO_PRIORIDADE } from '@/lib/logistica/demandas'
+import { hrefSemFiltro } from '@/lib/filtro-por-grupo'
+import type { FiltroAtivo } from '@/components/filtro-por-grupo'
 
 /** Já com a preposição: "à semana", "ao mês". */
 const EM_RELACAO_AO_ANTERIOR = {
@@ -43,12 +48,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 export default async function LogisticaPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    periodo?: string
-    ref?: string
-    de?: string
-    ate?: string
-  }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const usuario = await exigirPermissao('logistica.ver')
   const params = await searchParams
@@ -74,6 +74,41 @@ export default async function LogisticaPage({
   const atrasadas = abertas.filter((d) => d.atrasada).length
   const sinal = volume.variacao.diferenca > 0 ? '+' : ''
   const queryDoFiltro = queryDoPeriodo(periodo.params)
+
+  // O clique nos grupos da trilha recorta só a trilha e a exportação dela; os
+  // números e gráficos acima continuam do período inteiro.
+  const recorte = filtroDaTrilhaSchema.parse(params)
+  const trilha = temRecorte(recorte)
+    ? await trilhaDoPeriodo(periodo, { verObservacoes, limite: LIMITE_DA_TRILHA_NA_TELA, recorte })
+    : painel.trilha
+  const caminho = '/logistica'
+  const filtrosDaTrilha: FiltroAtivo[] = [
+    recorte.fase && {
+      coluna: 'Fase',
+      valor: ROTULO_FASE[recorte.fase],
+      semEle: hrefSemFiltro(caminho, params, 'fase'),
+    },
+    recorte.prioridade && {
+      coluna: 'Prioridade',
+      valor: ROTULO_PRIORIDADE[recorte.prioridade],
+      semEle: hrefSemFiltro(caminho, params, 'prioridade'),
+    },
+    recorte.departamento && {
+      coluna: 'Departamento',
+      valor: recorte.departamento,
+      semEle: hrefSemFiltro(caminho, params, 'departamento'),
+    },
+    recorte.origem && {
+      coluna: 'Origem',
+      valor: recorte.origem === 'solicitacao' ? 'Presente' : recorte.origem,
+      semEle: hrefSemFiltro(caminho, params, 'origem'),
+    },
+    recorte.recorrente && {
+      coluna: 'Recorrência',
+      valor: 'recorrentes',
+      semEle: hrefSemFiltro(caminho, params, 'recorrente'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   return (
     <>
@@ -126,9 +161,11 @@ export default async function LogisticaPage({
 
       <div className="mb-6">
         <Trilha
-          demandas={painel.trilha.demandas}
-          total={painel.trilha.total}
-          exportar={queryDoFiltro}
+          demandas={trilha.demandas}
+          total={trilha.total}
+          exportar={[queryDoFiltro, queryDoRecorte(recorte)].filter(Boolean).join('&')}
+          filtroDaUrl={params}
+          filtrosAtivos={filtrosDaTrilha}
           verObservacoes={verObservacoes}
           sugestoes={sugestoes}
         />

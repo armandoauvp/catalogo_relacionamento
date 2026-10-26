@@ -40,6 +40,9 @@ duplique numa tela.
 | Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
 | Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
+| Filtro por clique nos grupos     | `src/lib/filtro-por-grupo.ts`             |
+| Recorte da gestão (com a rota)   | `src/lib/solicitacoes-filtradas.ts`       |
+| Recorte da trilha da Logística   | `src/lib/logistica/filtro-da-trilha.ts`   |
 | Cadastro que chega do site       | `src/lib/clientes.ts`                     |
 | Leitura das respostas do Tiny    | `src/lib/tiny/leitura.ts`                 |
 | Contato do Tiny (cliente de lá)  | `src/lib/tiny/contato.ts`                 |
@@ -122,7 +125,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
 - **A tela não pisca.** Filtro é mudança da mesma tela: navega por
   `FormDeFiltro`/`LinkDeFiltro` (`src/components/filtro-sem-piscar.tsx`), nunca
   por `<form method="get">` solto nem `<a href>` cru, que recarregam a
-  aplicação inteira. A entrada de conteúdo parte de `opacity: 0.65`, não de
+  aplicação inteira. O selo de grupo de uma linha (status, categoria,
+  etiqueta...) filtra a tabela ao clique: envolva o selo em `FiltroDoGrupo`
+  (`src/components/filtro-por-grupo.tsx`) com o endereço de `hrefDoGrupo`, um
+  valor por coluna, e mostre o que está ligado com `FiltrosAtivos`. A entrada de conteúdo parte de `opacity: 0.65`, não de
   zero, e só roda na troca de rota. Na vitrine, `render()` só recria o elemento
   animado quando a tela muda, senão digitar uma letra reabriria a página.
 - **Movimento não pode gerar layout shift.** Anime só `opacity` e `transform`,

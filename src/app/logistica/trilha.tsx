@@ -20,6 +20,9 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { EditorDeDemanda } from './editor-de-demanda'
 import { Dica, FaseBadge, TituloDoBloco } from './pecas'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, valorDoFiltro, type ParametrosDaUrl } from '@/lib/filtro-por-grupo'
+import { ROTULO_FASE } from '@/lib/logistica/demandas'
 
 export type Sugestoes = Awaited<ReturnType<typeof sugestoesDoCadastro>>
 
@@ -46,6 +49,8 @@ export function Trilha({
   exportar,
   verObservacoes,
   sugestoes,
+  filtroDaUrl,
+  filtrosAtivos,
 }: {
   demandas: DemandaNaTrilha[]
   total: number
@@ -54,7 +59,14 @@ export function Trilha({
   verObservacoes: boolean
   /** Presente só para quem pode cadastrar: é o que liga a edição. */
   sugestoes: Sugestoes | null
+  /** A query da tela: os grupos da linha viram recorte da trilha. */
+  filtroDaUrl: ParametrosDaUrl
+  filtrosAtivos: readonly FiltroAtivo[]
 }) {
+  const grupo: Grupo = (chave, valor) => ({
+    href: hrefDoGrupo('/logistica', filtroDaUrl, chave, valor),
+    ativo: valorDoFiltro(filtroDaUrl, chave) === valor,
+  })
   const abertas = demandas.filter((d) => d.fase !== 'concluido')
   const prioritarias = abertas.filter((d) => d.prioritaria).length
   const atrasadas = abertas.filter((d) => d.atrasada).length
@@ -83,9 +95,13 @@ export function Trilha({
         />
       </div>
 
+      <FiltrosAtivos filtros={filtrosAtivos} className="mt-3 mb-0 px-5" />
+
       {demandas.length === 0 ? (
         <p className="text-muted-foreground px-5 pt-4 pb-10 text-center text-sm">
-          Nenhuma demanda em andamento no período.
+          {filtrosAtivos.length
+            ? 'Nenhuma demanda neste recorte. Tire um dos filtros acima.'
+            : 'Nenhuma demanda em andamento no período.'}
         </p>
       ) : (
         <ul className="border-t">
@@ -95,6 +111,7 @@ export function Trilha({
               demanda={d}
               verObservacoes={verObservacoes}
               sugestoes={sugestoes}
+              grupo={grupo}
             />
           ))}
         </ul>
@@ -110,19 +127,24 @@ export function Trilha({
   )
 }
 
+type Grupo = (chave: string, valor: string) => { href: string; ativo: boolean }
+
 function LinhaDaTrilha({
   demanda: d,
   verObservacoes,
   sugestoes,
+  grupo,
 }: {
   demanda: DemandaNaTrilha
   verObservacoes: boolean
   sugestoes: Sugestoes | null
+  grupo: Grupo
 }) {
   const concluida = d.fase === 'concluido'
   const contexto = [
-    // Departamento e produto às vezes têm o mesmo nome; uma vez basta.
-    ...new Set([d.departamento, d.produto, d.responsavel]),
+    // Departamento e produto às vezes têm o mesmo nome; uma vez basta. O
+    // departamento vem antes, à parte, porque é clicável.
+    ...new Set([d.produto, d.responsavel].filter((t) => t !== d.departamento)),
     d.complexidade ? `Complexidade ${ROTULO_COMPLEXIDADE[d.complexidade].toLowerCase()}` : null,
   ].filter(Boolean)
 
@@ -141,22 +163,31 @@ function LinhaDaTrilha({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {d.prioritaria && !concluida ? (
-            <Badge variant={d.prioridade === 'urgente' ? 'error' : 'warning'} className="gap-1">
-              <Flame className="size-3" aria-hidden="true" />
-              {ROTULO_PRIORIDADE[d.prioridade]}
-            </Badge>
+            <FiltroDoGrupo
+              {...grupo('prioridade', d.prioridade)}
+              rotulo={`prioridade ${ROTULO_PRIORIDADE[d.prioridade]}`}
+            >
+              <Badge variant={d.prioridade === 'urgente' ? 'error' : 'warning'} className="gap-1">
+                <Flame className="size-3" aria-hidden="true" />
+                {ROTULO_PRIORIDADE[d.prioridade]}
+              </Badge>
+            </FiltroDoGrupo>
           ) : null}
           {d.origem === 'solicitacao' ? (
-            <Badge variant="outline" className="gap-1">
-              <Gift className="size-3" aria-hidden="true" />
-              Presente
-            </Badge>
+            <FiltroDoGrupo {...grupo('origem', 'solicitacao')} rotulo="demandas de presente">
+              <Badge variant="outline" className="gap-1">
+                <Gift className="size-3" aria-hidden="true" />
+                Presente
+              </Badge>
+            </FiltroDoGrupo>
           ) : null}
           {d.recorrente ? (
-            <Badge variant="outline" className="gap-1">
-              <Repeat className="size-3" aria-hidden="true" />
-              {d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Recorrente'}
-            </Badge>
+            <FiltroDoGrupo {...grupo('recorrente', 'sim')} rotulo="demandas recorrentes">
+              <Badge variant="outline" className="gap-1">
+                <Repeat className="size-3" aria-hidden="true" />
+                {d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Recorrente'}
+              </Badge>
+            </FiltroDoGrupo>
           ) : null}
 
           {d.clickupUrl ? (
@@ -216,6 +247,18 @@ function LinhaDaTrilha({
               d.enviado.rotulo
             )}
           </span>
+          {d.departamento ? (
+            <span>
+              ·{' '}
+              <FiltroDoGrupo
+                {...grupo('departamento', d.departamento)}
+                rotulo={`departamento ${d.departamento}`}
+                texto
+              >
+                {d.departamento}
+              </FiltroDoGrupo>
+            </span>
+          ) : null}
           {contexto.map((t) => (
             <span key={t}>· {t}</span>
           ))}
@@ -223,7 +266,9 @@ function LinhaDaTrilha({
       </div>
 
       <div>
-        <FaseBadge fase={d.fase} />
+        <FiltroDoGrupo {...grupo('fase', d.fase)} rotulo={`fase ${ROTULO_FASE[d.fase]}`}>
+          <FaseBadge fase={d.fase} />
+        </FiltroDoGrupo>
       </div>
 
       <Previsao demanda={d} />

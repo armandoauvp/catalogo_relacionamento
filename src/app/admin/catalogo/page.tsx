@@ -14,6 +14,14 @@ import {
 } from '@/components/ui/table'
 import { Stat } from '@/components/stat'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
+import {
+  filtroDeProdutosSchema,
+  produtosDoFiltro,
+  ROTULO_DA_ORIGEM,
+  temSku,
+} from '@/lib/filtro-de-produtos'
 import { ValorDoProduto } from '@/components/valor-do-produto'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
@@ -28,11 +36,16 @@ import { EditorDeCategorias } from './editor-de-categorias'
 export default async function AdminCatalogoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sku?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await exigirPermissao('catalogo.gerenciar')
-  // A pauta de 22/10/2026 pede SKU em todo produto; o filtro mostra o que falta.
-  const soSemSku = (await searchParams).sku === 'falta'
+  const params = await searchParams
+  const filtro = filtroDeProdutosSchema.parse(params)
+  const caminho = '/admin/catalogo'
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
 
   const [produtos, categorias] = await Promise.all([
     db.produto.findMany({
@@ -43,9 +56,31 @@ export default async function AdminCatalogoPage({
   ])
 
   const ativos = produtos.filter((p) => p.ativo).length
-  const temSku = (p: { skuTiny: string | null }) => Boolean(p.skuTiny?.trim())
   const semSku = produtos.filter((p) => p.ativo && !temSku(p)).length
-  const listados = soSemSku ? produtos.filter((p) => p.ativo && !temSku(p)) : produtos
+  const listados = produtosDoFiltro(produtos, filtro)
+
+  const filtrosAtivos: FiltroAtivo[] = [
+    filtro.categoria && {
+      coluna: 'Categoria',
+      valor: categorias.find((c) => c.id === filtro.categoria)?.nome ?? 'escolhida',
+      semEle: hrefSemFiltro(caminho, params, 'categoria'),
+    },
+    filtro.origem && {
+      coluna: 'De onde sai',
+      valor: ROTULO_DA_ORIGEM[filtro.origem],
+      semEle: hrefSemFiltro(caminho, params, 'origem'),
+    },
+    filtro.situacao && {
+      coluna: 'Situação',
+      valor: filtro.situacao,
+      semEle: hrefSemFiltro(caminho, params, 'situacao'),
+    },
+    filtro.sku && {
+      coluna: 'SKU',
+      valor: 'sem SKU no Tiny',
+      semEle: hrefSemFiltro(caminho, params, 'sku'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   // Rótulos de acompanhamento que já existem, para o cadastro sugerir em vez
   // de deixar a área digitar "vinhos" e a trava deixar de parear.
@@ -87,10 +122,10 @@ export default async function AdminCatalogoPage({
           apoio={
             semSku ? (
               <LinkDeFiltro
-                href={(soSemSku ? '/admin/catalogo' : '/admin/catalogo?sku=falta') as Route}
+                href={grupo('sku', 'falta').href as Route}
                 className="text-primary-emphasis underline-offset-4 hover:underline"
               >
-                {soSemSku ? 'Mostrar todos' : 'Mostrar só estes'}
+                {filtro.sku ? 'Mostrar todos' : 'Mostrar só estes'}
               </LinkDeFiltro>
             ) : (
               'Todos os ativos têm SKU.'
@@ -107,89 +142,114 @@ export default async function AdminCatalogoPage({
           acao={<EditorDeProduto categorias={opcoesDeCategoria} rotulos={rotulos} />}
         />
       ) : (
-        <Card className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>De onde sai</TableHead>
-                <TableHead className="text-right">Usos</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {listados.map((p) => (
-                <TableRow key={p.id} className={p.ativo ? undefined : 'text-muted-foreground'}>
-                  <TableCell>
-                    {/* Nome e SKU empilhados: a etiqueta inline colava no nome. */}
-                    <div className="flex flex-col items-start gap-1.5">
-                      <span className="font-medium">{p.nome}</span>
-                      {temSku(p) ? (
-                        <Link
-                          href={`/tiny/estoque?busca=${encodeURIComponent(p.skuTiny!)}` as Route}
-                          className="text-muted-foreground hover:text-foreground text-xs tabular-nums underline-offset-4 hover:underline"
-                          title="Ver o saldo no Tiny"
-                        >
-                          SKU {p.skuTiny} · saldo no Tiny
-                        </Link>
-                      ) : (
-                        <Badge variant="warning">sem SKU no Tiny</Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.categoria.nome}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    <ValorDoProduto valor={p.valor} tipoValor={p.tipoValor} />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Badge variant={p.origem === 'estoque_interno' ? 'muted' : 'outline'}>
-                      {p.origem === 'estoque_interno' ? 'estoque' : 'sob pedido'}
-                    </Badge>
-                    {p.controlaEstoque ? (
-                      <span className="text-muted-foreground ml-2 text-xs tabular-nums">
-                        {p.estoque ?? 0} un.
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{p._count.itens}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.ativo ? 'outline' : 'muted'}>
-                      {p.ativo ? 'ativo' : 'desativado'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <EditorDeProduto
-                      categorias={opcoesDeCategoria}
-                      rotulos={rotulos}
-                      produto={{
-                        id: p.id,
-                        nome: p.nome,
-                        descricao: p.descricao,
-                        categoriaId: p.categoriaId,
-                        fotoUrl: p.fotoUrl,
-                        valor: p.valor ? p.valor.toFixed(2).replace('.', ',') : '',
-                        tipoValor: p.tipoValor,
-                        origem: p.origem,
-                        controlaEstoque: p.controlaEstoque,
-                        estoque: p.estoque,
-                        urlCompra: p.urlCompra,
-                        notaDeCompra: p.notaDeCompra,
-                        exigeAcompanhamento: p.exigeAcompanhamento,
-                        serveComoAcompanhamento: p.serveComoAcompanhamento,
-                        ativo: p.ativo,
-                        skuTiny: p.skuTiny,
-                      }}
-                    />
-                    <BotaoAtivar id={p.id} ativo={p.ativo} />
-                  </TableCell>
+        <>
+          <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>De onde sai</TableHead>
+                  <TableHead className="text-right">Usos</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {listados.map((p) => (
+                  <TableRow key={p.id} className={p.ativo ? undefined : 'text-muted-foreground'}>
+                    <TableCell>
+                      {/* Nome e SKU empilhados: a etiqueta inline colava no nome. */}
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span className="font-medium">{p.nome}</span>
+                        {temSku(p) ? (
+                          <Link
+                            href={`/tiny/estoque?busca=${encodeURIComponent(p.skuTiny!)}` as Route}
+                            className="text-muted-foreground hover:text-foreground text-xs tabular-nums underline-offset-4 hover:underline"
+                            title="Ver o saldo no Tiny"
+                          >
+                            SKU {p.skuTiny} · saldo no Tiny
+                          </Link>
+                        ) : p.ativo ? (
+                          <FiltroDoGrupo {...grupo('sku', 'falta')} rotulo="produtos sem SKU">
+                            <Badge variant="warning">sem SKU no Tiny</Badge>
+                          </FiltroDoGrupo>
+                        ) : (
+                          <Badge variant="warning">sem SKU no Tiny</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <FiltroDoGrupo
+                        {...grupo('categoria', p.categoriaId)}
+                        rotulo={`categoria ${p.categoria.nome}`}
+                        texto
+                      >
+                        {p.categoria.nome}
+                      </FiltroDoGrupo>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      <ValorDoProduto valor={p.valor} tipoValor={p.tipoValor} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <FiltroDoGrupo
+                        {...grupo('origem', p.origem)}
+                        rotulo={`origem ${ROTULO_DA_ORIGEM[p.origem]}`}
+                      >
+                        <Badge variant={p.origem === 'estoque_interno' ? 'muted' : 'outline'}>
+                          {ROTULO_DA_ORIGEM[p.origem]}
+                        </Badge>
+                      </FiltroDoGrupo>
+                      {p.controlaEstoque ? (
+                        <span className="text-muted-foreground ml-2 text-xs tabular-nums">
+                          {p.estoque ?? 0} un.
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{p._count.itens}</TableCell>
+                    <TableCell>
+                      <FiltroDoGrupo
+                        {...grupo('situacao', p.ativo ? 'ativo' : 'desativado')}
+                        rotulo={p.ativo ? 'produtos ativos' : 'produtos desativados'}
+                      >
+                        <Badge variant={p.ativo ? 'outline' : 'muted'}>
+                          {p.ativo ? 'ativo' : 'desativado'}
+                        </Badge>
+                      </FiltroDoGrupo>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <EditorDeProduto
+                        categorias={opcoesDeCategoria}
+                        rotulos={rotulos}
+                        produto={{
+                          id: p.id,
+                          nome: p.nome,
+                          descricao: p.descricao,
+                          categoriaId: p.categoriaId,
+                          fotoUrl: p.fotoUrl,
+                          valor: p.valor ? p.valor.toFixed(2).replace('.', ',') : '',
+                          tipoValor: p.tipoValor,
+                          origem: p.origem,
+                          controlaEstoque: p.controlaEstoque,
+                          estoque: p.estoque,
+                          urlCompra: p.urlCompra,
+                          notaDeCompra: p.notaDeCompra,
+                          exigeAcompanhamento: p.exigeAcompanhamento,
+                          serveComoAcompanhamento: p.serveComoAcompanhamento,
+                          ativo: p.ativo,
+                          skuTiny: p.skuTiny,
+                        }}
+                      />
+                      <BotaoAtivar id={p.id} ativo={p.ativo} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
       )}
     </>
   )

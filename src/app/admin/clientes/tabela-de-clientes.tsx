@@ -19,6 +19,8 @@ import {
 import { exportarClientesParaOTiny } from '@/lib/actions/contatos-tiny'
 import { formatarCpf, formatarTelefone, mascararCpf } from '@/lib/cpf'
 import { formatarBRL } from '@/lib/money'
+import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, valorDoFiltro, type ParametrosDaUrl } from '@/lib/filtro-por-grupo'
 import { EditorDeCliente, type ClienteEditavel } from './editor-de-cliente'
 
 export type ClienteNaTabela = ClienteEditavel & {
@@ -39,11 +41,19 @@ export function TabelaDeClientes({
   clientes,
   operaTiny,
   veDadosCompletos,
+  filtroDaUrl,
 }: {
   clientes: ClienteNaTabela[]
   operaTiny: boolean
   veDadosCompletos: boolean
+  /** A query da tela: etiqueta e UF da linha viram filtro. */
+  filtroDaUrl: ParametrosDaUrl
 }) {
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo('/admin/clientes', filtroDaUrl, chave, valor),
+    ativo: valorDoFiltro(filtroDaUrl, chave) === valor,
+  })
+
   const router = useRouter()
   const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set())
   const [enviando, iniciar] = useTransition()
@@ -178,9 +188,9 @@ export function TabelaDeClientes({
                   {c.etiquetas.length ? (
                     <span className="mt-1 flex flex-wrap gap-1">
                       {c.etiquetas.slice(0, 4).map((e) => (
-                        <Badge key={e} variant="muted">
-                          {e}
-                        </Badge>
+                        <FiltroDoGrupo key={e} {...grupo('etiqueta', e)} rotulo={`etiqueta ${e}`}>
+                          <Badge variant="muted">{e}</Badge>
+                        </FiltroDoGrupo>
                       ))}
                       {c.etiquetas.length > 4 ? (
                         <span className="text-muted-foreground text-xs">
@@ -200,8 +210,12 @@ export function TabelaDeClientes({
                   {c.email ?? (c.telefone ? null : '-')}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {c.cidade ? (
-                    `${c.cidade}/${c.uf ?? ''}`
+                  {c.cidade && c.uf ? (
+                    <FiltroDoGrupo {...grupo('uf', c.uf)} rotulo={`UF ${c.uf}`} texto>
+                      {c.cidade}/{c.uf}
+                    </FiltroDoGrupo>
+                  ) : c.cidade ? (
+                    c.cidade
                   ) : (
                     <span className="text-muted-foreground">sem endereço</span>
                   )}

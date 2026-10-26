@@ -19,6 +19,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/status-badge'
+import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
+import { ROTULO_STATUS } from '@/lib/status'
 import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { cn } from '@/lib/utils'
@@ -107,7 +109,10 @@ export default async function Home() {
     }),
     db.solicitacao.findMany({
       where: escopo,
-      include: { cliente: { select: { nome: true } }, consultor: { select: { nome: true } } },
+      include: {
+        cliente: { select: { id: true, nome: true } },
+        consultor: { select: { id: true, nome: true } },
+      },
       orderBy: { dataSolicitacao: 'desc' },
       take: 5,
     }),
@@ -258,12 +263,39 @@ export default async function Home() {
                       <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
                         {formatarData(s.dataSolicitacao)}
                       </TableCell>
-                      <TableCell>{veTudo ? s.consultor.nome : s.cliente.nome}</TableCell>
+                      <TableCell>
+                        {/* Atalho para a lista inteira, já filtrada por esta pessoa. */}
+                        {veTudo ? (
+                          <FiltroDoGrupo
+                            href={`/admin/solicitacoes?consultorId=${s.consultor.id}`}
+                            ativo={false}
+                            rotulo={`consultor ${s.consultor.nome}`}
+                            texto
+                          >
+                            {s.consultor.nome}
+                          </FiltroDoGrupo>
+                        ) : (
+                          <FiltroDoGrupo
+                            href={`/solicitacoes?clienteId=${s.cliente.id}`}
+                            ativo={false}
+                            rotulo={`cliente ${s.cliente.nome}`}
+                            texto
+                          >
+                            {s.cliente.nome}
+                          </FiltroDoGrupo>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                         {formatarBRL(s.valorTotal)}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={s.status} />
+                        <FiltroDoGrupo
+                          href={`${veTudo ? '/admin/solicitacoes' : '/solicitacoes'}?status=${s.status}`}
+                          ativo={false}
+                          rotulo={`status ${ROTULO_STATUS[s.status]}`}
+                        >
+                          <StatusBadge status={s.status} />
+                        </FiltroDoGrupo>
                       </TableCell>
                     </TableRow>
                   ))}

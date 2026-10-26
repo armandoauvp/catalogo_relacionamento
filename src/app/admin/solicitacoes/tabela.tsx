@@ -17,6 +17,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/status-badge'
+import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, valorDoFiltro, type ParametrosDaUrl } from '@/lib/filtro-por-grupo'
+import { ROTULO_STATUS } from '@/lib/status'
 import { encaminharEmLote, type ResumoDoLote } from '@/lib/actions/solicitacoes'
 import type { Encaminhamento } from '@/lib/status'
 import { cn } from '@/lib/utils'
@@ -39,7 +42,9 @@ export type LinhaDaGestao = {
   codigo: string
   data: string
   consultor: string
+  consultorId: string
   cliente: string
+  clienteId: string
   itens: number
   valor: string
   status: StatusSolicitacao
@@ -57,10 +62,18 @@ const ENCAMINHAVEIS: readonly StatusSolicitacao[] = [
 export function TabelaDaGestao({
   linhas,
   podeEncaminhar,
+  filtroDaUrl,
 }: {
   linhas: LinhaDaGestao[]
   podeEncaminhar: boolean
+  /** A query da tela, para os grupos da linha virarem filtro. */
+  filtroDaUrl: ParametrosDaUrl
 }) {
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo('/admin/solicitacoes', filtroDaUrl, chave, valor),
+    ativo: valorDoFiltro(filtroDaUrl, chave) === valor,
+  })
+
   const router = useRouter()
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [enviando, iniciar] = useTransition()
@@ -175,8 +188,24 @@ export function TabelaDaGestao({
                   <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
                     {l.data}
                   </TableCell>
-                  <TableCell>{l.consultor}</TableCell>
-                  <TableCell>{l.cliente}</TableCell>
+                  <TableCell>
+                    <FiltroDoGrupo
+                      {...grupo('consultorId', l.consultorId)}
+                      rotulo={`consultor ${l.consultor}`}
+                      texto
+                    >
+                      {l.consultor}
+                    </FiltroDoGrupo>
+                  </TableCell>
+                  <TableCell>
+                    <FiltroDoGrupo
+                      {...grupo('clienteId', l.clienteId)}
+                      rotulo={`cliente ${l.cliente}`}
+                      texto
+                    >
+                      {l.cliente}
+                    </FiltroDoGrupo>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{l.itens}</TableCell>
                   <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                     {l.valor}
@@ -187,13 +216,22 @@ export function TabelaDaGestao({
                     {l.precisaDeCompra === null ? (
                       <span className="text-muted-foreground">-</span>
                     ) : l.precisaDeCompra ? (
-                      <Badge variant="outline">compra</Badge>
+                      <FiltroDoGrupo {...grupo('rota', 'compra')} rotulo="rota compra">
+                        <Badge variant="outline">compra</Badge>
+                      </FiltroDoGrupo>
                     ) : (
-                      <Badge variant="muted">estoque</Badge>
+                      <FiltroDoGrupo {...grupo('rota', 'estoque')} rotulo="rota estoque">
+                        <Badge variant="muted">estoque</Badge>
+                      </FiltroDoGrupo>
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={l.status} />
+                    <FiltroDoGrupo
+                      {...grupo('status', l.status)}
+                      rotulo={`status ${ROTULO_STATUS[l.status]}`}
+                    >
+                      <StatusBadge status={l.status} />
+                    </FiltroDoGrupo>
                     {l.rastreio ? (
                       <span className="text-muted-foreground mt-0.5 block text-xs tabular-nums">
                         {l.rastreio}

@@ -28,6 +28,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SeloDaSituacao } from '../selo-do-pedido'
+import { FiltroDoGrupo, FiltrosAtivos } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro } from '@/lib/filtro-por-grupo'
 
 /**
  * Todos os pedidos do Tiny, inclusive os do e-commerce e os que nasceram lá:
@@ -162,6 +164,20 @@ export default async function PedidosNoTinyPage({
         />
       ) : null}
 
+      <FiltrosAtivos
+        filtros={
+          situacao
+            ? [
+                {
+                  coluna: 'Situação',
+                  valor: rotuloDaSituacao(situacao) ?? situacao,
+                  semEle: hrefSemFiltro('/tiny/pedidos', params, 'situacao'),
+                },
+              ]
+            : []
+        }
+      />
+
       {resultado && resultado.pedidos.length > 0 ? (
         <>
           <div className="bg-card overflow-hidden rounded-lg border">
@@ -201,7 +217,18 @@ export default async function PedidosNoTinyPage({
                         {formatarBRL(p.valor)}
                       </TableCell>
                       <TableCell>
-                        <SeloDaSituacao situacao={p.situacao} />
+                        {/* Só as situações que a busca do Tiny aceita viram filtro. */}
+                        {(SITUACOES_DE_PEDIDO as readonly string[]).includes(p.situacao) ? (
+                          <FiltroDoGrupo
+                            href={hrefDoGrupo('/tiny/pedidos', params, 'situacao', p.situacao)}
+                            ativo={situacao === p.situacao}
+                            rotulo={`situação ${rotuloDaSituacao(p.situacao)}`}
+                          >
+                            <SeloDaSituacao situacao={p.situacao} />
+                          </FiltroDoGrupo>
+                        ) : (
+                          <SeloDaSituacao situacao={p.situacao} />
+                        )}
                       </TableCell>
                       <TableCell className="text-sm tabular-nums">
                         {p.rastreio ?? <span className="text-muted-foreground">-</span>}

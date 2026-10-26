@@ -4,7 +4,10 @@ import { filaDeExpedicao, pecasASeparar, STATUS_DA_EXPEDICAO } from '@/lib/exped
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
 import { ROTULO_STATUS } from '@/lib/status'
+import type { Route } from 'next'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,13 +63,24 @@ function NoTiny({ tiny, operaTiny }: { tiny: PedidoNoTiny | undefined; operaTiny
 export default async function ExpedicaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ enviadas?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const usuario = await exigirPermissao('expedicao.verFila')
   const podeRegistrarRastreio = pode(usuario.perfil, 'expedicao.registrarRastreio')
   const operaTiny = pode(usuario.perfil, 'tiny.operar')
-  const { enviadas } = await searchParams
-  const incluirEnviadas = enviadas === '1'
+  const params = await searchParams
+  const incluirEnviadas = params.enviadas === '1'
+  const caminho = '/expedicao'
+
+  // O clique no status, no consultor ou na origem do item recorta os cartões;
+  // os números de cima e o "Fechar expedição" continuam valendo para a fila toda.
+  const status = STATUS_DA_EXPEDICAO.find((s) => s === params.status)
+  const consultor = params.consultor || undefined
+  const item = (['estoque', 'compra'] as const).find((i) => i === params.item)
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
 
   const pedidos = await filaDeExpedicao({ incluirEnviadas })
   const aSeparar = pedidos.filter((p) => p.status !== 'entregue')
@@ -102,6 +116,30 @@ export default async function ExpedicaoPage({
     .map((p) => p.id)
 
   const query = incluirEnviadas ? '?enviadas=1' : ''
+
+  const listados = pedidos.filter(
+    (p) =>
+      (!status || p.status === status) &&
+      (!consultor || p.consultor === consultor) &&
+      (!item || p.itens.some((i) => i.jaEmEstoque === (item === 'estoque'))),
+  )
+  const filtrosAtivos: FiltroAtivo[] = [
+    status && {
+      coluna: 'Status',
+      valor: ROTULO_STATUS[status],
+      semEle: hrefSemFiltro(caminho, params, 'status'),
+    },
+    consultor && {
+      coluna: 'Consultor',
+      valor: consultor,
+      semEle: hrefSemFiltro(caminho, params, 'consultor'),
+    },
+    item && {
+      coluna: 'Tem item de',
+      valor: item,
+      semEle: hrefSemFiltro(caminho, params, 'item'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   return (
     <>
@@ -144,31 +182,62 @@ export default async function ExpedicaoPage({
         {/* Âncora crua recarregava o documento inteiro a cada troca, e a fila
             piscava em branco. É filtro da mesma tela, não navegação. */}
         <Button variant={incluirEnviadas ? 'outline' : 'secondary'} asChild>
-          <LinkDeFiltro href="/expedicao">Só o que falta enviar</LinkDeFiltro>
+          <LinkDeFiltro href={hrefSemFiltro(caminho, params, 'enviadas') as Route}>
+            Só o que falta enviar
+          </LinkDeFiltro>
         </Button>
         <Button variant={incluirEnviadas ? 'secondary' : 'outline'} asChild>
-          <LinkDeFiltro href="/expedicao?enviadas=1">Incluir já enviados</LinkDeFiltro>
+          <LinkDeFiltro
+            href={
+              hrefDoGrupo(caminho, { ...params, enviadas: undefined }, 'enviadas', '1') as Route
+            }
+          >
+            Incluir já enviados
+          </LinkDeFiltro>
         </Button>
       </div>
+
+      <FiltrosAtivos
+        filtros={filtrosAtivos}
+        limpar={incluirEnviadas ? '/expedicao?enviadas=1' : caminho}
+      />
 
       {pedidos.length === 0 ? (
         <EstadoVazio
           titulo="Nada para separar agora"
           descricao="Os pedidos aparecem aqui quando o Admin move a solicitação para organizando envio, seja depois da compra, seja direto da aprovação quando já há estoque."
         />
+      ) : listados.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhum pedido neste filtro"
+          descricao="Tire um dos filtros acima para ver os outros pedidos."
+        />
       ) : (
         <div className="space-y-4">
-          {pedidos.map((pedido) => (
+          {listados.map((pedido) => (
             <Card key={pedido.id}>
               <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-4">
                 <div>
                   <CardTitle className="text-base tabular-nums">{pedido.codigo}</CardTitle>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    {formatarData(pedido.data)} · {pedido.consultor} · {pedido.motivo}
+                    {formatarData(pedido.data)} ·{' '}
+                    <FiltroDoGrupo
+                      {...grupo('consultor', pedido.consultor)}
+                      rotulo={`consultor ${pedido.consultor}`}
+                      texto
+                    >
+                      {pedido.consultor}
+                    </FiltroDoGrupo>{' '}
+                    · {pedido.motivo}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <StatusBadge status={pedido.status} />
+                  <FiltroDoGrupo
+                    {...grupo('status', pedido.status)}
+                    rotulo={`status ${ROTULO_STATUS[pedido.status]}`}
+                  >
+                    <StatusBadge status={pedido.status} />
+                  </FiltroDoGrupo>
                   <NoTiny tiny={noTiny.get(pedido.id)} operaTiny={operaTiny} />
                 </div>
               </CardHeader>
@@ -187,9 +256,18 @@ export default async function ExpedicaoPage({
                         <span>
                           <span className="tabular-nums">{item.quantidade}×</span> {item.produto}
                         </span>
-                        <Badge variant={item.jaEmEstoque ? 'secondary' : 'outline'}>
-                          {item.jaEmEstoque ? 'estoque' : 'compra'}
-                        </Badge>
+                        <FiltroDoGrupo
+                          {...grupo('item', item.jaEmEstoque ? 'estoque' : 'compra')}
+                          rotulo={
+                            item.jaEmEstoque
+                              ? 'pedidos com item do estoque'
+                              : 'pedidos com item comprado'
+                          }
+                        >
+                          <Badge variant={item.jaEmEstoque ? 'secondary' : 'outline'}>
+                            {item.jaEmEstoque ? 'estoque' : 'compra'}
+                          </Badge>
+                        </FiltroDoGrupo>
                       </li>
                     ))}
                   </ul>

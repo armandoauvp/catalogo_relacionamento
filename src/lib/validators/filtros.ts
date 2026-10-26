@@ -13,7 +13,14 @@ export const filtroSolicitacoesSchema = z.object({
   consultorId: z.string().optional(),
   clienteId: z.string().optional(),
   produtoId: z.string().optional(),
-  status: z.array(z.nativeEnum(StatusSolicitacao)).optional(),
+  // A URL traz um valor só (`?status=aprovado`) ou vários repetidos; a
+  // exportação lê a query com `Object.fromEntries`, que entrega texto.
+  status: z.preprocess(
+    (v) => (v === undefined || v === '' ? undefined : [v].flat()),
+    z.array(z.nativeEnum(StatusSolicitacao)).optional(),
+  ),
+  /** Só para pendente e aguardando aprovação: tem o que comprar, ou sai do estoque. */
+  rota: z.enum(['compra', 'estoque']).optional().catch(undefined),
   busca: z.string().trim().optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   porPagina: z.coerce.number().int().min(1).max(200).default(50),

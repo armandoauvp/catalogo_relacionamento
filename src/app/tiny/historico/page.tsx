@@ -12,6 +12,8 @@ import {
   whereDoHistorico,
 } from '@/lib/tiny/historico'
 import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,7 +58,7 @@ export default async function HistoricoDoTinyPage({
       skip: (filtro.pagina - 1) * POR_PAGINA,
       take: POR_PAGINA,
       include: {
-        usuario: { select: { nome: true } },
+        usuario: { select: { id: true, nome: true } },
         pedido: {
           select: {
             tinyId: true,
@@ -75,6 +77,26 @@ export default async function HistoricoDoTinyPage({
   ])
 
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+  const caminho = '/tiny/historico'
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
+  const filtrosAtivos: FiltroAtivo[] = [
+    filtro.tipo && {
+      coluna: 'Tipo',
+      valor: rotuloDoEvento(filtro.tipo),
+      semEle: hrefSemFiltro(caminho, params, 'tipo'),
+    },
+    filtro.pessoa && {
+      coluna: 'Quem',
+      valor:
+        filtro.pessoa === PESSOA_DA_FILA
+          ? 'automático'
+          : (pessoas.find((p) => p.id === filtro.pessoa)?.nome ?? 'escolhida'),
+      semEle: hrefSemFiltro(caminho, params, 'pessoa'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
   const linkDaPagina = (n: number) => {
     const q = new URLSearchParams()
     for (const [chave, valor] of Object.entries(params)) {
@@ -141,6 +163,8 @@ export default async function HistoricoDoTinyPage({
         </FormDeFiltro>
       </BarraDeFiltros>
 
+      <FiltrosAtivos filtros={filtrosAtivos} limpar="/tiny/historico" />
+
       {eventos.length === 0 ? (
         <EstadoVazio
           titulo="Nada neste recorte"
@@ -166,11 +190,24 @@ export default async function HistoricoDoTinyPage({
                       {formatarDataHora(e.criadoEm)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={tomDoEvento(e.tipo)}>{rotuloDoEvento(e.tipo)}</Badge>
+                      <FiltroDoGrupo
+                        {...grupo('tipo', e.tipo)}
+                        rotulo={`tipo ${rotuloDoEvento(e.tipo)}`}
+                      >
+                        <Badge variant={tomDoEvento(e.tipo)}>{rotuloDoEvento(e.tipo)}</Badge>
+                      </FiltroDoGrupo>
                     </TableCell>
                     <TableCell className="max-w-md text-sm">{e.mensagem}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {e.usuario?.nome ?? <span className="text-muted-foreground">automático</span>}
+                      <FiltroDoGrupo
+                        {...grupo('pessoa', e.usuario?.id ?? PESSOA_DA_FILA)}
+                        rotulo={e.usuario ? `pessoa ${e.usuario.nome}` : 'o que foi automático'}
+                        texto
+                      >
+                        {e.usuario?.nome ?? (
+                          <span className="text-muted-foreground">automático</span>
+                        )}
+                      </FiltroDoGrupo>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
                       {e.pedido?.solicitacao ? (

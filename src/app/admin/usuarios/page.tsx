@@ -1,4 +1,7 @@
+import { Perfil } from '@prisma/client'
 import { db } from '@/lib/db'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { ROTULO_PERFIL } from '@/lib/permissions'
 import { formatarBRL } from '@/lib/money'
@@ -22,13 +25,41 @@ import { EditorDeUsuario } from './editor-de-usuario'
  * O usuário é criado no primeiro login pelo SSO, com perfil `consultor`. Esta
  * tela é onde o Admin promove e define limite, sem passar por TI.
  */
-export default async function AdminUsuariosPage() {
+export default async function AdminUsuariosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
   await exigirPermissao('usuario.gerenciar')
+  const params = await searchParams
+  const caminho = '/admin/usuarios'
+  // O time cabe numa tela: o recorte do clique é feito na memória.
+  const perfil = Object.values(Perfil).find((p) => p === params.perfil)
+  const situacao = ['ativo', 'desativado'].find((s) => s === params.situacao)
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
 
   const usuarios = await db.usuario.findMany({
     include: { _count: { select: { solicitacoes: true } } },
     orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
   })
+  const listados = usuarios.filter(
+    (u) => (!perfil || u.perfil === perfil) && (!situacao || u.ativo === (situacao === 'ativo')),
+  )
+  const filtrosAtivos: FiltroAtivo[] = [
+    perfil && {
+      coluna: 'Perfil',
+      valor: ROTULO_PERFIL[perfil],
+      semEle: hrefSemFiltro(caminho, params, 'perfil'),
+    },
+    situacao && {
+      coluna: 'Situação',
+      valor: situacao,
+      semEle: hrefSemFiltro(caminho, params, 'situacao'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   return (
     <>
@@ -55,6 +86,7 @@ export default async function AdminUsuariosPage() {
         Esta tela promove, define o teto mensal e desativa quem saiu do time.
       </p>
 
+      <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
       <Card className="overflow-hidden">
         <Table>
           <TableHeader>
@@ -69,28 +101,38 @@ export default async function AdminUsuariosPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {usuarios.length === 0 ? (
+            {listados.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-muted-foreground py-10 text-center">
-                  Nenhum usuário ainda.
+                  {usuarios.length ? 'Ninguém neste filtro.' : 'Nenhum usuário ainda.'}
                 </TableCell>
               </TableRow>
             ) : (
-              usuarios.map((u) => (
+              listados.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.nome}</TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{ROTULO_PERFIL[u.perfil]}</Badge>
+                    <FiltroDoGrupo
+                      {...grupo('perfil', u.perfil)}
+                      rotulo={`perfil ${ROTULO_PERFIL[u.perfil]}`}
+                    >
+                      <Badge variant="secondary">{ROTULO_PERFIL[u.perfil]}</Badge>
+                    </FiltroDoGrupo>
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {u.limiteMensal ? formatarBRL(u.limiteMensal) : '-'}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{u._count.solicitacoes}</TableCell>
                   <TableCell>
-                    <Badge variant={u.ativo ? 'outline' : 'muted'}>
-                      {u.ativo ? 'ativo' : 'desativado'}
-                    </Badge>
+                    <FiltroDoGrupo
+                      {...grupo('situacao', u.ativo ? 'ativo' : 'desativado')}
+                      rotulo={u.ativo ? 'usuários ativos' : 'usuários desativados'}
+                    >
+                      <Badge variant={u.ativo ? 'outline' : 'muted'}>
+                        {u.ativo ? 'ativo' : 'desativado'}
+                      </Badge>
+                    </FiltroDoGrupo>
                   </TableCell>
                   <TableCell className="text-right">
                     <EditorDeUsuario

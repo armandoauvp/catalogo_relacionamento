@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import { AlertTriangle, Upload } from 'lucide-react'
-import type { EnvioTiny, Prisma } from '@prisma/client'
+import type { EnvioTiny, OrigemPedidoTiny, Prisma } from '@prisma/client'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { env, tinyConfigurado } from '@/lib/env'
 import { formatarDataHora } from '@/lib/datas'
 import { configuracaoTiny, enviadosNaSemana } from '@/lib/tiny/fila'
+import { ROTULO_ENVIO } from '@/lib/tiny/rotulos'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { Stat } from '@/components/stat'
@@ -35,21 +38,46 @@ const FILTROS: { valor: EnvioTiny | null; rotulo: string }[] = [
   { valor: 'enviado', rotulo: 'No Tiny' },
 ]
 
+const ROTULO_DA_ORIGEM: Record<OrigemPedidoTiny, string> = {
+  solicitacao: 'Presente',
+  lote: 'Lote',
+  avulso: 'Avulso',
+}
+
 export default async function TinyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ envio?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await exigirPermissao('tiny.operar')
-  const { envio: envioNaUrl } = await searchParams
-  const filtro = FILTROS.find((f) => f.valor === envioNaUrl)?.valor ?? null
+  const params = await searchParams
+  const caminho = '/tiny'
+  const filtro = FILTROS.find((f) => f.valor === params.envio)?.valor ?? null
+  const origem = (Object.keys(ROTULO_DA_ORIGEM) as OrigemPedidoTiny[]).find(
+    (o) => o === params.origem,
+  )
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
 
-  const onde: Prisma.PedidoTinyWhereInput =
-    filtro === 'pendente'
+  const onde: Prisma.PedidoTinyWhereInput = {
+    ...(filtro === 'pendente'
       ? { envio: { in: ['pendente', 'processando'] } }
       : filtro
         ? { envio: filtro }
-        : {}
+        : {}),
+    ...(origem ? { origem } : {}),
+  }
+  const filtrosAtivos: FiltroAtivo[] = origem
+    ? [
+        {
+          coluna: 'Origem',
+          valor: ROTULO_DA_ORIGEM[origem],
+          semEle: hrefSemFiltro(caminho, params, 'origem'),
+        },
+      ]
+    : []
 
   const [configuracao, porEnvio, enviadosNaUltimaSemana, lotes, pedidos, eventos] =
     await Promise.all([
@@ -224,7 +252,11 @@ export default async function TinyPage({
                 asChild
               >
                 <LinkDeFiltro
-                  href={(f.valor ? `/tiny?envio=${f.valor}` : '/tiny') as Route}
+                  href={
+                    (f.valor
+                      ? hrefDoGrupo(caminho, { ...params, envio: undefined }, 'envio', f.valor)
+                      : hrefSemFiltro(caminho, params, 'envio')) as Route
+                  }
                   aria-current={filtro === f.valor ? 'true' : undefined}
                 >
                   {f.rotulo}
@@ -233,6 +265,7 @@ export default async function TinyPage({
             ))}
           </nav>
         </div>
+        <FiltrosAtivos filtros={filtrosAtivos} />
         {pedidos.length === 0 ? (
           <EstadoVazio
             titulo="Nenhum pedido aqui"
@@ -261,6 +294,14 @@ export default async function TinyPage({
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
+                      <FiltroDoGrupo
+                        {...grupo('origem', p.origem)}
+                        rotulo={`origem ${ROTULO_DA_ORIGEM[p.origem]}`}
+                        texto
+                        className="text-muted-foreground mr-1.5 text-xs"
+                      >
+                        {ROTULO_DA_ORIGEM[p.origem]}
+                      </FiltroDoGrupo>
                       {p.solicitacao ? (
                         <Link
                           href={`/admin/solicitacoes/${p.solicitacao.id}` as Route}
@@ -278,20 +319,21 @@ export default async function TinyPage({
                             <span className="text-muted-foreground"> · linha {p.linha}</span>
                           ) : null}
                         </Link>
-                      ) : (
-                        <span>
-                          Avulso
-                          {p.criadoPor ? (
-                            <span className="text-muted-foreground"> · {p.criadoPor.nome}</span>
-                          ) : null}
-                        </span>
-                      )}
+                      ) : p.criadoPor ? (
+                        <span className="text-muted-foreground">{p.criadoPor.nome}</span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="max-w-56 truncate text-sm" title={p.resumo}>
                       {p.resumo}
                     </TableCell>
                     <TableCell>
-                      <SeloDoPedido pedido={p} />
+                      {/* "Enviando" é a fila no meio do envio: entra no mesmo grupo da fila. */}
+                      <FiltroDoGrupo
+                        {...grupo('envio', p.envio === 'processando' ? 'pendente' : p.envio)}
+                        rotulo={`andamento ${ROTULO_ENVIO[p.envio]}`}
+                      >
+                        <SeloDoPedido pedido={p} />
+                      </FiltroDoGrupo>
                       {p.erro ? (
                         <p className="text-destructive mt-1 max-w-72 text-xs">{p.erro}</p>
                       ) : null}

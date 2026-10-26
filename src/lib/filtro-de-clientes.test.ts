@@ -33,6 +33,11 @@ describe('filtro da base de clientes', () => {
     )
   })
 
+  it('UF entra em maiúsculas, e o que não é sigla é ignorado', () => {
+    expect(whereDeClientes(filtro({ uf: 'sp' }))).toEqual({ AND: [{ uf: 'SP' }] })
+    expect(filtro({ uf: 'São Paulo' }).uf).toBeUndefined()
+  })
+
   it('valor estranho na URL vira o padrão, não erro', () => {
     const f = filtro({ ordem: 'qualquer', de: 'ontem' })
     expect(f.ordem).toBe('nome')

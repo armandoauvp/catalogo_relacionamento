@@ -166,6 +166,15 @@ Regras, todas em `src/lib/periodo.ts` e cobertas por teste:
 - **Endereço inválido não quebra a tela:** volta para a semana atual e avisa.
 - O personalizado vai até três anos.
 
+## Recorte da trilha
+
+Clicar num grupo de uma linha da trilha (fase, prioridade, departamento, o selo
+"Presente" ou o de recorrência) recorta **só a trilha e a exportação dela**,
+somando-se ao período: `?fase=em_execucao&departamento=RH`. Os números e os
+gráficos de cima continuam do período inteiro (decisão de 26/10/2026). Um
+valor por coluna; clicar de novo, ou no "×" da linha "Filtrando por", tira o
+filtro. A regra mora em `src/lib/logistica/filtro-da-trilha.ts`.
+
 ## Perfis
 
 Ver [perfis e permissões](02-perfis-e-permissoes.md#perfil-logística). Todo

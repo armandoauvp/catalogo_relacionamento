@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/table'
 import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
 import { EditorDeCliente } from '../editor-de-cliente'
+import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
+import { ROTULO_STATUS } from '@/lib/status'
 
 /**
  * Um cliente e tudo o que foi mandado para ele: as solicitações de presente e
@@ -140,7 +142,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                             .join(', ')}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={s.status} />
+                          {/* Leva à gestão com as solicitações deste cliente neste status. */}
+                          <FiltroDoGrupo
+                            href={`/admin/solicitacoes?clienteId=${cliente.id}&status=${s.status}`}
+                            ativo={false}
+                            rotulo={`status ${ROTULO_STATUS[s.status]} deste cliente`}
+                          >
+                            <StatusBadge status={s.status} />
+                          </FiltroDoGrupo>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatarBRL(s.valorTotal)}

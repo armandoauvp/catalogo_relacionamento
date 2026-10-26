@@ -25,6 +25,13 @@ const dia = z
 export const filtroDeClientesSchema = z.object({
   busca: z.string().trim().max(100).optional().catch(undefined),
   etiqueta: z.string().trim().max(40).optional().catch(undefined),
+  uf: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/)
+    .optional()
+    .catch(undefined),
   de: dia,
   ate: dia,
   ordem: z
@@ -58,6 +65,7 @@ export function whereDeClientes(f: FiltroDeClientes): Prisma.ClienteWhereInput {
     )
   }
   if (f.etiqueta) e.push({ etiquetas: { has: f.etiqueta } })
+  if (f.uf) e.push({ uf: f.uf })
   if (f.de) e.push({ criadoEm: { gte: inicioDoDia(f.de) } })
   const fim = fimDoDiaLocal(f.ate)
   if (fim) e.push({ criadoEm: { lte: fim } })

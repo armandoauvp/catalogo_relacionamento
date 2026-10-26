@@ -17,6 +17,8 @@ import {
 import { StatusBadge } from '@/components/status-badge'
 import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 
 /**
  * Fila de compras: tela do perfil Financeiro.
@@ -26,12 +28,34 @@ import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
  * compra acontece item a item: um pedido com três presentes pode ter três
  * origens diferentes.
  */
-export default async function FilaDeComprasPage() {
+export default async function FilaDeComprasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
   await exigirPermissao('compras.verFila')
+  const params = await searchParams
+  const caminho = '/financeiro/compras'
+  const status = STATUS_DA_FILA_DE_COMPRAS.find((s) => s === params.status)
 
   const itens = await filaDeCompras()
   const total = totalDaFila(itens)
   const aguardando = itens.filter((i) => i.status === 'aguardando_compra')
+  // Os números de cima são da fila inteira; o clique no status recorta a lista.
+  const listados = status ? itens.filter((i) => i.status === status) : itens
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
+  const filtrosAtivos: FiltroAtivo[] = status
+    ? [
+        {
+          coluna: 'Status',
+          valor: ROTULO_STATUS[status],
+          semEle: hrefSemFiltro(caminho, params, 'status'),
+        },
+      ]
+    : []
 
   return (
     <>
@@ -61,53 +85,61 @@ export default async function FilaDeComprasPage() {
           descricao="As solicitações aparecem aqui assim que o Admin as move para aguardando compra."
         />
       ) : (
-        <Card className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead>Site</TableHead>
-                <TableHead className="text-right">Qtd.</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itens.map((item) => (
-                <TableRow key={item.itemId}>
-                  <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
-                    {formatarData(item.data)}
-                  </TableCell>
-                  <TableCell className="font-medium whitespace-nowrap tabular-nums">
-                    {item.codigo}
-                  </TableCell>
-                  <TableCell className="min-w-56">
-                    <div className="font-medium">{item.produto}</div>
-                    <div className="text-muted-foreground mt-0.5 text-xs">
-                      {item.consultorNome} · para {item.clienteNome}
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-64">
-                    <SiteDeCompra
-                      site={item.site}
-                      nota={item.notaDeCompra}
-                      categoria={item.categoria}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{item.quantidade}</TableCell>
-                  <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
-                    {formatarBRL(item.valor)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={item.status} />
-                  </TableCell>
+        <>
+          <FiltrosAtivos filtros={filtrosAtivos} />
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Site</TableHead>
+                  <TableHead className="text-right">Qtd.</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {listados.map((item) => (
+                  <TableRow key={item.itemId}>
+                    <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
+                      {formatarData(item.data)}
+                    </TableCell>
+                    <TableCell className="font-medium whitespace-nowrap tabular-nums">
+                      {item.codigo}
+                    </TableCell>
+                    <TableCell className="min-w-56">
+                      <div className="font-medium">{item.produto}</div>
+                      <div className="text-muted-foreground mt-0.5 text-xs">
+                        {item.consultorNome} · para {item.clienteNome}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-64">
+                      <SiteDeCompra
+                        site={item.site}
+                        nota={item.notaDeCompra}
+                        categoria={item.categoria}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{item.quantidade}</TableCell>
+                    <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                      {formatarBRL(item.valor)}
+                    </TableCell>
+                    <TableCell>
+                      <FiltroDoGrupo
+                        {...grupo('status', item.status)}
+                        rotulo={`status ${ROTULO_STATUS[item.status]}`}
+                      >
+                        <StatusBadge status={item.status} />
+                      </FiltroDoGrupo>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
       )}
 
       <p className="text-muted-foreground mt-4 text-xs">

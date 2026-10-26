@@ -4,7 +4,8 @@ import { formatarISO } from '@/lib/datas'
 import { subtotal, paraNumero } from '@/lib/money'
 import { ROTULO_STATUS } from '@/lib/status'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
-import { whereDeSolicitacoes, type FiltroSolicitacoes } from '@/lib/validators/filtros'
+import { whereDaGestao } from '@/lib/solicitacoes-filtradas'
+import type { FiltroSolicitacoes } from '@/lib/validators/filtros'
 
 /**
  * Montagem das linhas de exportação (seção 7 da spec).
@@ -81,7 +82,7 @@ function enderecoCompleto(s: {
  */
 export async function linhasParaExportar(filtro: FiltroSolicitacoes): Promise<LinhaExport[]> {
   const solicitacoes = await db.solicitacao.findMany({
-    where: whereDeSolicitacoes(filtro),
+    where: await whereDaGestao(filtro),
     include: {
       consultor: { select: { nome: true } },
       cliente: { select: { nome: true, cpf: true, telefone: true } },

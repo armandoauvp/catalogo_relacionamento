@@ -12,6 +12,8 @@ import {
   whereDeClientes,
 } from '@/lib/filtro-de-clientes'
 import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefSemFiltro } from '@/lib/filtro-por-grupo'
 import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { Stat } from '@/components/stat'
 import { Button } from '@/components/ui/button'
@@ -38,7 +40,8 @@ export default async function AdminClientesPage({
   const veDadosCompletos = pode(usuario.perfil, 'cliente.verDadosSensiveis')
   const operaTiny = pode(usuario.perfil, 'tiny.operar')
 
-  const filtro = filtroDeClientesSchema.parse(await searchParams)
+  const params = await searchParams
+  const filtro = filtroDeClientesSchema.parse(params)
   const where = whereDeClientes(filtro)
   const filtrando = Object.keys(where).length > 0
 
@@ -51,6 +54,15 @@ export default async function AdminClientesPage({
   ])
 
   const query = queryDoFiltro(filtro)
+  const caminho = '/admin/clientes'
+  const filtrosAtivos: FiltroAtivo[] = [
+    filtro.etiqueta && {
+      coluna: 'Etiqueta',
+      valor: filtro.etiqueta,
+      semEle: hrefSemFiltro(caminho, params, 'etiqueta'),
+    },
+    filtro.uf && { coluna: 'UF', valor: filtro.uf, semEle: hrefSemFiltro(caminho, params, 'uf') },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   return (
     <>
@@ -160,29 +172,33 @@ export default async function AdminClientesPage({
           }
         />
       ) : (
-        <TabelaDeClientes
-          operaTiny={operaTiny}
-          veDadosCompletos={veDadosCompletos}
-          clientes={clientes.map((c) => ({
-            id: c.id,
-            nome: c.nome,
-            cpf: c.cpf,
-            telefone: c.telefone,
-            email: c.email,
-            cep: c.cep,
-            logradouro: c.logradouro,
-            numero: c.numero,
-            complemento: c.complemento,
-            bairro: c.bairro,
-            cidade: c.cidade,
-            uf: c.uf,
-            etiquetas: c.etiquetas,
-            origem: c.origem,
-            criadoEm: c.criadoEm.toISOString(),
-            solicitacoes: c.solicitacoes,
-            total: c.total?.toString() ?? '0',
-          }))}
-        />
+        <>
+          <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
+          <TabelaDeClientes
+            filtroDaUrl={params}
+            operaTiny={operaTiny}
+            veDadosCompletos={veDadosCompletos}
+            clientes={clientes.map((c) => ({
+              id: c.id,
+              nome: c.nome,
+              cpf: c.cpf,
+              telefone: c.telefone,
+              email: c.email,
+              cep: c.cep,
+              logradouro: c.logradouro,
+              numero: c.numero,
+              complemento: c.complemento,
+              bairro: c.bairro,
+              cidade: c.cidade,
+              uf: c.uf,
+              etiquetas: c.etiquetas,
+              origem: c.origem,
+              criadoEm: c.criadoEm.toISOString(),
+              solicitacoes: c.solicitacoes,
+              total: c.total?.toString() ?? '0',
+            }))}
+          />
+        </>
       )}
     </>
   )

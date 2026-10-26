@@ -24,6 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AtualizarEnquanto, BotaoReenviar } from '../acoes-da-fila'
+import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
+import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 
 /**
  * Contatos (clientes) do Tiny: buscar, abrir para editar, cadastrar e
@@ -33,7 +35,10 @@ import { AtualizarEnquanto, BotaoReenviar } from '../acoes-da-fila'
 
 const documento = (d: string) => (d.length === 11 ? formatarCpf(d) : d)
 
-type Params = { busca?: string; pagina?: string }
+type Params = Record<string, string | undefined>
+
+/** Os grupos de andamento das gravações; "Na fila" junta pendente e processando. */
+const ENVIOS = ['pendente', 'falhou', 'enviado'] as const
 
 export default async function ContatosDoTinyPage({
   searchParams,
@@ -43,6 +48,21 @@ export default async function ContatosDoTinyPage({
   await exigirPermissao('tiny.operar')
   const params = await searchParams
   const busca = (params.busca ?? '').trim()
+  const caminho = '/tiny/contatos'
+  const envio = ENVIOS.find((e) => e === params.envio)
+  const origem = params.origem?.slice(0, 120) || undefined
+  const grupo = (chave: string, valor: string) => ({
+    href: hrefDoGrupo(caminho, params, chave, valor),
+    ativo: valorDoFiltro(params, chave) === valor,
+  })
+  const filtrosAtivos: FiltroAtivo[] = [
+    envio && {
+      coluna: 'Andamento',
+      valor: ROTULO_ENVIO[envio],
+      semEle: hrefSemFiltro(caminho, params, 'envio'),
+    },
+    origem && { coluna: 'Origem', valor: origem, semEle: hrefSemFiltro(caminho, params, 'origem') },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
   const pagina = Math.max(1, Number(params.pagina) || 1)
 
   let resultado: PaginaDeContatos | null = null
@@ -64,6 +84,14 @@ export default async function ContatosDoTinyPage({
   const [naFila, recentes] = await Promise.all([
     db.contatoTiny.count({ where: { envio: { in: ['pendente', 'processando'] } } }),
     db.contatoTiny.findMany({
+      where: {
+        ...(envio === 'pendente'
+          ? { envio: { in: ['pendente', 'processando'] } }
+          : envio
+            ? { envio }
+            : {}),
+        ...(origem ? { origem } : {}),
+      },
       orderBy: [{ criadoEm: 'desc' }],
       take: 30,
       include: { criadoPor: { select: { nome: true } } },
@@ -216,7 +244,13 @@ export default async function ContatosDoTinyPage({
             <span className="text-muted-foreground ml-2 text-sm font-normal">{naFila} na fila</span>
           ) : null}
         </h2>
-        {recentes.length === 0 ? (
+        <FiltrosAtivos filtros={filtrosAtivos} />
+        {recentes.length === 0 && filtrosAtivos.length ? (
+          <EstadoVazio
+            titulo="Nada neste filtro"
+            descricao="Tire o filtro acima para ver as outras gravações."
+          />
+        ) : recentes.length === 0 ? (
           <EstadoVazio
             titulo="Nada gravado ainda"
             descricao="Cadastros, edições e planilhas de contatos aparecem aqui com o andamento de cada um."
@@ -242,7 +276,13 @@ export default async function ContatosDoTinyPage({
                       </span>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {c.origem}
+                      <FiltroDoGrupo
+                        {...grupo('origem', c.origem)}
+                        rotulo={`origem ${c.origem}`}
+                        texto
+                      >
+                        {c.origem}
+                      </FiltroDoGrupo>
                       {c.linha ? (
                         <span className="text-muted-foreground"> · linha {c.linha}</span>
                       ) : null}
@@ -253,13 +293,18 @@ export default async function ContatosDoTinyPage({
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={tomDoPedido(c.envio, null)}>
-                        {c.envio === 'enviado'
-                          ? c.resultado === 'incluido'
-                            ? 'Incluído no Tiny'
-                            : 'Alterado no Tiny'
-                          : ROTULO_ENVIO[c.envio]}
-                      </Badge>
+                      <FiltroDoGrupo
+                        {...grupo('envio', c.envio === 'processando' ? 'pendente' : c.envio)}
+                        rotulo={`andamento ${ROTULO_ENVIO[c.envio]}`}
+                      >
+                        <Badge variant={tomDoPedido(c.envio, null)}>
+                          {c.envio === 'enviado'
+                            ? c.resultado === 'incluido'
+                              ? 'Incluído no Tiny'
+                              : 'Alterado no Tiny'
+                            : ROTULO_ENVIO[c.envio]}
+                        </Badge>
+                      </FiltroDoGrupo>
                       {c.erro ? (
                         <p className="text-destructive mt-1 max-w-80 text-xs">{c.erro}</p>
                       ) : null}

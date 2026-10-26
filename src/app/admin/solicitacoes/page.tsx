@@ -3,7 +3,10 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { formatarBRL, totalDosItens } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
-import { filtroSolicitacoesSchema, whereDeSolicitacoes } from '@/lib/validators/filtros'
+import { filtroSolicitacoesSchema } from '@/lib/validators/filtros'
+import { whereDaGestao } from '@/lib/solicitacoes-filtradas'
+import { hrefSemFiltro } from '@/lib/filtro-por-grupo'
+import { FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { ROTULO_STATUS, STATUS_FORA_DO_SALDO, precisaDeCompra } from '@/lib/status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,19 +30,15 @@ export default async function AdminSolicitacoesPage({
   const usuario = await exigirPermissao('solicitacao.verTodas')
 
   const params = await searchParams
-  const filtro = filtroSolicitacoesSchema.parse({
-    ...params,
-    status: params.status ? [params.status].flat() : undefined,
-  })
-
-  const where = whereDeSolicitacoes(filtro)
+  const filtro = filtroSolicitacoesSchema.parse(params)
+  const where = await whereDaGestao(filtro)
 
   const [solicitacoes, total, consultores, comProblema, soma] = await Promise.all([
     db.solicitacao.findMany({
       where,
       include: {
-        cliente: { select: { nome: true } },
-        consultor: { select: { nome: true } },
+        cliente: { select: { id: true, nome: true } },
+        consultor: { select: { id: true, nome: true } },
         _count: { select: { itens: true } },
         // Só para a coluna "rota": ela é o que evita abrir vinte telas para
         // saber quais pedidos têm algo a comprar.
@@ -76,8 +75,42 @@ export default async function AdminSolicitacoesPage({
   ).toString()
 
   const filtrando = Boolean(
-    params.busca || params.de || params.ate || params.consultorId || params.status,
+    params.busca ||
+    params.de ||
+    params.ate ||
+    params.consultorId ||
+    params.clienteId ||
+    params.status ||
+    params.rota,
   )
+
+  // O que o clique nos grupos da tabela ligou, com o "×" de cada um.
+  const caminho = '/admin/solicitacoes'
+  const clienteFiltrado = filtro.clienteId
+    ? await db.cliente.findUnique({ where: { id: filtro.clienteId }, select: { nome: true } })
+    : null
+  const filtrosAtivos: FiltroAtivo[] = [
+    filtro.status?.length === 1 && {
+      coluna: 'Status',
+      valor: ROTULO_STATUS[filtro.status[0]!],
+      semEle: hrefSemFiltro(caminho, params, 'status'),
+    },
+    filtro.consultorId && {
+      coluna: 'Consultor',
+      valor: consultores.find((c) => c.id === filtro.consultorId)?.nome ?? 'escolhido',
+      semEle: hrefSemFiltro(caminho, params, 'consultorId'),
+    },
+    filtro.clienteId && {
+      coluna: 'Cliente',
+      valor: clienteFiltrado?.nome ?? 'escolhido',
+      semEle: hrefSemFiltro(caminho, params, 'clienteId'),
+    },
+    filtro.rota && {
+      coluna: 'Rota',
+      valor: filtro.rota,
+      semEle: hrefSemFiltro(caminho, params, 'rota'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   // `Prisma.Decimal` não atravessa a fronteira do servidor, e a rota só importa
   // enquanto a solicitação ainda não foi encaminhada.
@@ -86,7 +119,9 @@ export default async function AdminSolicitacoesPage({
     codigo: s.codigo,
     data: formatarData(s.dataSolicitacao),
     consultor: s.consultor.nome,
+    consultorId: s.consultor.id,
     cliente: s.cliente.nome,
+    clienteId: s.cliente.id,
     itens: s._count.itens,
     valor: formatarBRL(s.valorTotal),
     status: s.status,
@@ -208,10 +243,14 @@ export default async function AdminSolicitacoesPage({
           }
         />
       ) : (
-        <TabelaDaGestao
-          linhas={linhas}
-          podeEncaminhar={pode(usuario.perfil, 'solicitacao.alterarStatus')}
-        />
+        <>
+          <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
+          <TabelaDaGestao
+            linhas={linhas}
+            podeEncaminhar={pode(usuario.perfil, 'solicitacao.alterarStatus')}
+            filtroDaUrl={params}
+          />
+        </>
       )}
     </>
   )

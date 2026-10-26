@@ -34,6 +34,7 @@ import {
   sugerirSituacao,
   type StatusDaSemana,
 } from './status-operacional'
+import { whereDoRecorte, type FiltroDaTrilha } from './filtro-da-trilha'
 
 /**
  * Leitura do banco para o Dashboard Logístico.
@@ -96,10 +97,18 @@ export function whereDaTrilha(periodo: Periodo): Prisma.DemandaLogisticaWhereInp
 
 export async function trilhaDoPeriodo(
   periodo: Periodo,
-  opcoes: { verObservacoes: boolean; agora?: Date; limite?: number },
+  opcoes: {
+    verObservacoes: boolean
+    agora?: Date
+    limite?: number
+    /** O clique nos grupos da linha; só a trilha e a exportação o respeitam. */
+    recorte?: FiltroDaTrilha
+  },
 ): Promise<{ demandas: DemandaNaTrilha[]; total: number }> {
   const agora = opcoes.agora ?? new Date()
-  const linhas = await db.demandaLogistica.findMany({ where: whereDaTrilha(periodo) })
+  const linhas = await db.demandaLogistica.findMany({
+    where: { AND: [whereDaTrilha(periodo), whereDoRecorte(opcoes.recorte ?? {})] },
+  })
 
   const ordenadas = linhas.sort(compararNaTrilha(agora))
   const visiveis = opcoes.limite ? ordenadas.slice(0, opcoes.limite) : ordenadas

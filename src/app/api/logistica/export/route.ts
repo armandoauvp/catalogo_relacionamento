@@ -3,6 +3,7 @@ import { autorizarAction, SemPermissaoError } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { lerPeriodo } from '@/lib/periodo'
 import { trilhaDoPeriodo } from '@/lib/logistica/painel'
+import { filtroDaTrilhaSchema } from '@/lib/logistica/filtro-da-trilha'
 import { gerarCsv, gerarXlsx } from '@/lib/export'
 import { colunasDaTrilha, linhasDaTrilha, nomeDoArquivoDaTrilha } from '@/lib/export/demandas'
 
@@ -33,7 +34,9 @@ export async function GET(req: Request) {
   })
 
   const verObservacoes = pode(usuario.perfil, 'logistica.verObservacoes')
-  const { demandas } = await trilhaDoPeriodo(periodo, { verObservacoes })
+  // O mesmo recorte que o clique nos grupos fez na tela.
+  const recorte = filtroDaTrilhaSchema.parse(Object.fromEntries(params))
+  const { demandas } = await trilhaDoPeriodo(periodo, { verObservacoes, recorte })
   const linhas = linhasDaTrilha(demandas)
   const colunas = colunasDaTrilha(verObservacoes)
   const nome = nomeDoArquivoDaTrilha(periodo.rotulo, formato)
