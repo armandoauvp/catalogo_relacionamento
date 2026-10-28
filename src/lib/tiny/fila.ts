@@ -10,6 +10,7 @@ import {
 } from './api'
 import { montarContato } from './contato'
 import {
+  cancelamentoCabe,
   jaChegou,
   passoPermitido,
   ROTULO_DO_PASSO,
@@ -220,6 +221,73 @@ export async function marcarPassoDaExpedicao(
 }
 
 // ---------------------------------------------------------------------------
+// Solicitação cancelada
+// ---------------------------------------------------------------------------
+
+/**
+ * A solicitação cancelada não pode seguir viva no Tiny, onde a expedição
+ * continuaria vendo o pedido para despachar. Recebe a transação de quem mudou
+ * o status, como a aprovação.
+ *
+ * - Ainda na fila ou parado em Falhou: não vai mais.
+ * - Já no Tiny e ainda na AUVP: vai a "Cancelado" pela fila.
+ * - Já despachado: fica como está, com o aviso no histórico.
+ *
+ * Devolve se há algo para a fila levar ao Tiny.
+ */
+export async function cancelarPresenteNoTiny(
+  tx: Banco,
+  solicitacaoId: string,
+  usuarioId: string | null = null,
+): Promise<boolean> {
+  const pedido = await tx.pedidoTiny.findUnique({
+    where: { chave: chaveDoPresente(solicitacaoId) },
+  })
+  if (!pedido) return false
+
+  // Condicionado ao envio: a fila pode ter reservado o pedido neste instante.
+  const parado = await tx.pedidoTiny.updateMany({
+    where: { id: pedido.id, envio: { in: ['pendente', 'falhou'] } },
+    data: { envio: 'cancelado', erro: null },
+  })
+  if (parado.count) {
+    await registrarEvento(
+      tx,
+      pedido.id,
+      'cancelado',
+      `${pedido.destinatario}: solicitação cancelada antes de ir ao Tiny; o pedido não será criado.`,
+      usuarioId,
+    )
+    return false
+  }
+
+  const numero = pedido.tinyNumero ? `O pedido ${pedido.tinyNumero}` : 'O pedido'
+  const vigente = situacaoVigente(pedido)
+  if (!cancelamentoCabe(vigente)) {
+    await registrarEvento(
+      tx,
+      pedido.id,
+      'cancelado',
+      `${pedido.destinatario}: solicitação cancelada, mas ${numero.toLowerCase()} já está "${rotuloDaSituacao(vigente)}" no Tiny; nada foi mudado lá.`,
+      usuarioId,
+    )
+    return false
+  }
+
+  // Também cobre o pedido que a fila está criando agora: ele nasce e, na
+  // mesma rodada, recebe o cancelamento.
+  await tx.pedidoTiny.update({ where: { id: pedido.id }, data: { situacaoPendente: 'cancelado' } })
+  await registrarEvento(
+    tx,
+    pedido.id,
+    'cancelado',
+    `${pedido.destinatario}: solicitação cancelada; ${numero.toLowerCase()} vai a "Cancelado" no Tiny.`,
+    usuarioId,
+  )
+  return true
+}
+
+// ---------------------------------------------------------------------------
 // Envio
 // ---------------------------------------------------------------------------
 
@@ -286,9 +354,23 @@ export async function processarFila({
     })
     if (reservado.count === 0) continue
 
-    await antesDeChamar()
-
     const pedido = await db.pedidoTiny.findUniqueOrThrow({ where: { id: proximo.id } })
+    // Cancelado enquanto esperava uma nova tentativa: não nasce no Tiny.
+    if (pedido.situacaoPendente === 'cancelado') {
+      await db.pedidoTiny.update({
+        where: { id: pedido.id },
+        data: { envio: 'cancelado', situacaoPendente: null },
+      })
+      await registrarEvento(
+        db,
+        pedido.id,
+        'cancelado',
+        `${pedido.destinatario}: solicitação cancelada; o pedido não foi criado no Tiny.`,
+      )
+      continue
+    }
+
+    await antesDeChamar()
     try {
       const criado = await incluirPedido(pedido.payload as unknown as PedidoParaOTiny)
       await db.$transaction(async (tx) => {
@@ -735,7 +817,8 @@ export async function reenviarPedido(
 ) {
   await db.$transaction(async (tx) => {
     const pedido = await tx.pedidoTiny.findUniqueOrThrow({ where: { id } })
-    if (pedido.envio === 'enviado' || pedido.envio === 'processando') return
+    // Cancelado acompanha a solicitação: reenviar seria mandar um presente cancelado.
+    if (pedido.envio !== 'falhou' && pedido.envio !== 'pendente') return
 
     const remontado = pedido.solicitacaoId ? await pedidoDoPresente(tx, pedido.solicitacaoId) : null
 

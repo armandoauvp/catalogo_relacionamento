@@ -7,6 +7,7 @@ export const ROTULO_ENVIO: Record<EnvioTiny, string> = {
   processando: 'Enviando',
   enviado: 'No Tiny',
   falhou: 'Falhou',
+  cancelado: 'Cancelado',
 }
 
 /** As situações de pedido do Tiny (tabela "Situações dos Pedidos" da API v2). */
@@ -53,6 +54,7 @@ export type TomDoSelo = 'success' | 'warning' | 'error' | 'info' | 'muted'
 /** A cor do selo junta o envio e a situação no Tiny: o que importa a quem olha. */
 export function tomDoPedido(envio: EnvioTiny, situacao: string | null): TomDoSelo {
   if (envio === 'falhou') return 'error'
+  if (envio === 'cancelado') return 'muted'
   if (envio !== 'enviado') return 'warning'
   const codigo = codigoDaSituacao(situacao)
   if (codigo === 'entregue') return 'success'

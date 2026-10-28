@@ -24,7 +24,7 @@ import {
 } from '@/lib/validators/solicitacao'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
-import { enfileirarPresente, processarFila } from '@/lib/tiny/fila'
+import { cancelarPresenteNoTiny, enfileirarPresente, processarFila } from '@/lib/tiny/fila'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -321,9 +321,14 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
       // Aprovado, o presente entra na trilha da Logística; os status seguintes
       // movem a fase. Na mesma transação: ou anda tudo, ou nada.
       await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
-      return statusNovo === StatusSolicitacao.organizando_envio
-        ? enfileirarPresente(tx, solicitacao.id, usuario.id)
-        : false
+      if (statusNovo === StatusSolicitacao.organizando_envio) {
+        return enfileirarPresente(tx, solicitacao.id, usuario.id)
+      }
+      // Cancelado aqui não pode seguir para despacho no Tiny.
+      if (statusNovo === StatusSolicitacao.cancelado) {
+        return cancelarPresenteNoTiny(tx, solicitacao.id, usuario.id)
+      }
+      return false
     })
     if (foiParaOTiny) processarFilaDepois()
 
@@ -421,6 +426,10 @@ export async function encaminharEmLote(
         if (anterior === StatusSolicitacao.organizando_envio) {
           algumParaOTiny =
             (await enfileirarPresente(tx, solicitacao.id, usuario.id)) || algumParaOTiny
+        }
+        if (anterior === StatusSolicitacao.cancelado) {
+          algumParaOTiny =
+            (await cancelarPresenteNoTiny(tx, solicitacao.id, usuario.id)) || algumParaOTiny
         }
       })
 

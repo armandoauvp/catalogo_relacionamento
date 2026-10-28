@@ -116,6 +116,12 @@ Definido na pauta de 22/10/2026 (regra em `src/lib/tiny/ciclo.ts`):
   sincronização traz a situação de lá e o passo pedido aqui é descartado,
   para não fazer o pedido voltar.
 - O que alguém mudar direto no Tiny aparece aqui na próxima sincronização.
+- **Cancelar a solicitação cancela o pedido no Tiny**, a única volta permitida
+  (`cancelarPresenteNoTiny`). Se o pedido ainda não nasceu lá, ele não vai
+  mais (envio "Cancelado", sem Reenviar). Se já está lá e ainda na AUVP, de
+  "Em aberto" a "Pronto para envio", vai a "Cancelado" pela fila. Se já foi
+  "Enviado", nada muda lá: o presente está com a transportadora, e o
+  histórico registra o aviso.
 - Entradas pelo e-commerce não passam por esta ferramenta: nascem direto no
   Tiny e seguem o fluxo de lá. Ficou como pauta da reunião.
 

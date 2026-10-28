@@ -555,6 +555,8 @@ enum EnvioTiny {
   processando
   enviado
   falhou
+  /// A solicitação foi cancelada antes de o pedido ir ao Tiny: ele não vai mais.
+  cancelado
 }
 
 /// Um pedido que esta ferramenta manda ao Tiny, e a fila que o leva até lá.

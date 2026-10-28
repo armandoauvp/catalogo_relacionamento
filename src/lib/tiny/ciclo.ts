@@ -10,6 +10,9 @@
  * O nascimento é a própria criação do pedido (`pedido.incluir`). Os dois
  * passos seguintes partem daqui, pela fila, com `pedido.alterar.situacao`; e o
  * que alguém mudar direto no Tiny volta pela sincronização.
+ *
+ * A única volta permitida é o cancelamento: a solicitação cancelada aqui
+ * cancela o pedido lá, enquanto ele ainda não saiu da AUVP.
  */
 
 import { codigoDaSituacao } from './leitura'
@@ -54,12 +57,25 @@ export function situacaoVigente(p: {
  * mandá-lo faria o pedido voltar.
  */
 export function jaChegou(situacaoNoTiny: string | null, destino: string): boolean {
+  // O cancelamento perde o sentido quando o pedido já saiu ou já foi cancelado.
+  if (destino === 'cancelado') return !cancelamentoCabe(situacaoNoTiny)
   if (!situacaoNoTiny) return false
   // Pedido sincronizado antes da tradução tem a situação em texto ("Em aberto").
   const codigo = codigoDaSituacao(situacaoNoTiny)
   if (codigo === 'cancelado' || codigo === 'nao_entregue') return true
   const atual = ORDEM.indexOf(codigo)
   return atual >= 0 && atual >= ORDEM.indexOf(destino)
+}
+
+/**
+ * O pedido ainda está na AUVP? Depois de "Enviado" o presente está com os
+ * Correios: cancelar no Tiny não o traria de volta, só esconderia o envio.
+ * Sem situação, o pedido ainda vai nascer, e cancelar é não mandá-lo.
+ */
+export function cancelamentoCabe(situacao: string | null): boolean {
+  if (situacao === null) return true
+  const atual = ORDEM.indexOf(codigoDaSituacao(situacao))
+  return atual >= 0 && atual < ORDEM.indexOf('enviado')
 }
 
 /**

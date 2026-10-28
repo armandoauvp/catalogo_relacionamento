@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { jaChegou, passoPermitido, situacaoVigente, SITUACAO_DO_PASSO } from './ciclo'
+import {
+  cancelamentoCabe,
+  jaChegou,
+  passoPermitido,
+  situacaoVigente,
+  SITUACAO_DO_PASSO,
+} from './ciclo'
 
 describe('ciclo de vida do pedido no Tiny', () => {
   it('fechar leva a "Preparando envio" e concluir a "Pronto para envio", como na pauta', () => {
@@ -38,5 +44,25 @@ describe('ciclo de vida do pedido no Tiny', () => {
       'preparando_envio',
     )
     expect(situacaoVigente({ situacao: 'aberto', situacaoPendente: null })).toBe('aberto')
+  })
+
+  it('cancelar cabe enquanto o presente não saiu da AUVP', () => {
+    expect(cancelamentoCabe(null)).toBe(true)
+    expect(cancelamentoCabe('aberto')).toBe(true)
+    expect(cancelamentoCabe('Pronto para envio')).toBe(true)
+    expect(cancelamentoCabe('enviado')).toBe(false)
+    expect(cancelamentoCabe('entregue')).toBe(false)
+    expect(cancelamentoCabe('cancelado')).toBe(false)
+  })
+
+  it('o cancelamento pedido aqui perde o sentido se o pedido já saiu ou já foi cancelado', () => {
+    expect(jaChegou('pronto_envio', 'cancelado')).toBe(false)
+    expect(jaChegou(null, 'cancelado')).toBe(false)
+    expect(jaChegou('enviado', 'cancelado')).toBe(true)
+    expect(jaChegou('Cancelado', 'cancelado')).toBe(true)
+  })
+
+  it('pedido cancelado não recebe mais passo da expedição', () => {
+    expect(passoPermitido('cancelado', 'concluir')).toBe(false)
   })
 })

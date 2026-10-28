@@ -5,6 +5,7 @@ import { formatarCep } from './cep'
 import { formatarData } from './datas'
 import { totalDosItens, type Dinheiro } from './money'
 import { ROTULO_MOTIVO } from './validators/solicitacao'
+import { precisaDeCompra } from './status'
 import type { ColunaExport } from './export/linhas'
 
 /**
@@ -142,9 +143,9 @@ export async function filaDeExpedicao(
       produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
       quantidade: item.quantidade,
       deCatalogo: item.produtoId !== null,
-      jaEmEstoque: Boolean(
-        item.produto?.controlaEstoque && (item.produto.estoque ?? 0) >= item.quantidade,
-      ),
+      // A mesma regra que decidiu a rota na aprovação: pela origem do produto,
+      // e não pela contagem de peças, que a área não mantém.
+      jaEmEstoque: !precisaDeCompra([item]),
     })),
     valorTotal: totalDosItens(
       s.itens.map((i) => ({ valorUnitario: i.valorUnitario, quantidade: i.quantidade })),

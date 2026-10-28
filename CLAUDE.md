@@ -223,7 +223,9 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   presente com produto sem SKU fica em Falhou com o aviso, em vez de ir pela
   descrição. Só o presente específico, fora do catálogo, vai sem SKU.
 - **O pedido no Tiny só anda para a frente:** Em aberto → Preparando envio
-  (fechar expedição) → Pronto para envio (concluir), por `passoPermitido`.
+  (fechar expedição) → Pronto para envio (concluir), por `passoPermitido`. A
+  exceção é o cancelamento: solicitação cancelada aqui cancela o pedido lá
+  enquanto ele não foi "Enviado" (`cancelamentoCabe`).
 - **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
   (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 

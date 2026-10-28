@@ -14,6 +14,7 @@ export const ROTULO_DO_EVENTO: Record<string, string> = {
   adiado: 'Adiado',
   duplicidade: 'Duplicidade',
   reenviado: 'Reenviado',
+  cancelado: 'Cancelado',
   expedicao: 'Expedição',
   situacao: 'Situação no Tiny',
   rastreio: 'Rastreio',
