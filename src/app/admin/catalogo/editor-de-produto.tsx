@@ -171,6 +171,9 @@ export function EditorDeProduto({
                 required
                 maxLength={60}
               />
+              <p className="text-muted-foreground text-xs">
+                Conferido no Tiny ao salvar: o código precisa existir lá antes.
+              </p>
             </div>
 
             <div className="space-y-1.5">

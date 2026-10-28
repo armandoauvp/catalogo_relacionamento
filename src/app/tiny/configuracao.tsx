@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { salvarConfiguracaoTiny } from '@/lib/actions/tiny'
+import { Select } from '@/components/ui/select'
+import { buscarTransportadoras, salvarConfiguracaoTiny } from '@/lib/actions/tiny'
+import { servicosDaTransportadora } from '@/lib/tiny/pedido'
 
 type Configuracao = {
   enviarPresentes: boolean
@@ -23,6 +25,23 @@ export function ConfiguracaoDosPresentes({ configuracao }: { configuracao: Confi
   const router = useRouter()
   const [salvando, iniciar] = useTransition()
   const [aviso, setAviso] = useState<{ texto: string; erro: boolean } | null>(null)
+  // Da lista do Tiny, e não digitada: "Correios" escrito à mão não é o nome
+  // cadastrado lá ("Empresa brasileira de correios e telégrafos").
+  const [transportadoras, setTransportadoras] = useState<string[]>([])
+  const [transportadora, setTransportadora] = useState(configuracao.transportadora ?? '')
+  const [servico, setServico] = useState(configuracao.formaFrete ?? '')
+
+  useEffect(() => {
+    buscarTransportadoras().then((r) => {
+      if (r.ok) setTransportadoras(r.dados)
+    })
+  }, [])
+
+  // O valor salvo continua na lista mesmo que o Tiny tenha mudado o cadastro.
+  const opcoes = [...new Set([...(transportadora ? [transportadora] : []), ...transportadoras])]
+  const servicos = transportadora
+    ? [...new Set([...(servico ? [servico] : []), ...servicosDaTransportadora(transportadora)])]
+    : []
 
   return (
     <form
@@ -55,21 +74,39 @@ export function ConfiguracaoDosPresentes({ configuracao }: { configuracao: Confi
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="tiny-transportadora">Transportadora</Label>
-          <Input
+          <Select
             id="tiny-transportadora"
             name="transportadora"
-            defaultValue={configuracao.transportadora ?? ''}
-            placeholder="Correios"
-          />
+            value={transportadora}
+            onChange={(e) => {
+              setTransportadora(e.target.value)
+              setServico(e.target.value ? (servicosDaTransportadora(e.target.value)[0] ?? '') : '')
+            }}
+          >
+            <option value="">Padrão do Tiny</option>
+            {opcoes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tiny-frete">Serviço de envio</Label>
-          <Input
+          <Select
             id="tiny-frete"
             name="formaFrete"
-            defaultValue={configuracao.formaFrete ?? ''}
-            placeholder="PAC CONTRATO"
-          />
+            value={servico}
+            onChange={(e) => setServico(e.target.value)}
+            disabled={!servicos.length}
+          >
+            {servicos.length ? null : <option value="">-</option>}
+            {servicos.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="tiny-marcador">Marcador no Tiny</Label>

@@ -10,6 +10,7 @@ import {
   imagemDoProduto,
   lerDetalheDoPedido,
   lerEstoque,
+  paginaNoTiny,
   lerPaginaDePedidos,
 } from './leitura'
 import { rotuloDaSituacao } from './rotulos'
@@ -175,5 +176,19 @@ describe('estoque', () => {
     const externa = { imagens_externas: [{ imagem_externa: { url: 'https://x/b.png' } }] }
     expect(imagemDoProduto({ anexos: [], ...externa })).toBe('https://x/b.png')
     expect(imagemDoProduto({ anexos: [{ anexo: 'javascript:alert(1)' }] })).toBeNull()
+  })
+})
+
+describe('paginaNoTiny', () => {
+  it('a página 1 daqui é a última do Tiny, onde estão os mais novos', () => {
+    expect(paginaNoTiny(1, 12)).toBe(12)
+    expect(paginaNoTiny(12, 12)).toBe(1)
+    expect(paginaNoTiny(3, 12)).toBe(10)
+  })
+
+  it('não sai do intervalo que o Tiny tem', () => {
+    expect(paginaNoTiny(40, 12)).toBe(1)
+    expect(paginaNoTiny(0, 12)).toBe(12)
+    expect(paginaNoTiny(1, 0)).toBe(1)
   })
 })

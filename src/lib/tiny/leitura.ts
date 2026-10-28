@@ -135,6 +135,12 @@ export function lerResumoDoPedido(p: Bruto): ResumoDoPedido {
 
 export type PaginaDePedidos = { pedidos: ResumoDoPedido[]; pagina: number; paginas: number }
 
+/** A página exibida (1 é a dos mais novos) na numeração do Tiny, que começa nos mais antigos. */
+export function paginaNoTiny(exibida: number, total: number): number {
+  const paginas = Math.max(1, total)
+  return paginas - Math.min(Math.max(1, exibida), paginas) + 1
+}
+
 export function lerPaginaDePedidos(r: Bruto & { vazio?: boolean }): PaginaDePedidos {
   if (r.vazio) return { pedidos: [], pagina: 1, paginas: 1 }
   return {

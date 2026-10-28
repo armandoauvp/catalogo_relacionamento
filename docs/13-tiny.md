@@ -28,14 +28,26 @@ Quem opera: **Admin e Logística** (`tiny.operar` em `src/lib/permissions.ts`).
    Se o endereço da produção mudar, ajuste a variável `URL_DA_PRODUCAO` no
    mesmo lugar do GitHub (o padrão é `https://catalogo-logistica.vercel.app`).
 
+   O GitHub não cumpre o intervalo: entre 22 e 28/10/2026 o workflow rodou a
+   cada 3 a 6 horas, e não a cada 10 minutos. Para a fila andar de verdade,
+   cadastre também um agendador externo, como o [cron-job.org](https://cron-job.org)
+   (gratuito): a cada 5 minutos, `POST https://catalogo-logistica.vercel.app/api/tiny/cron`
+   com o cabeçalho `Authorization: Bearer <CRON_SECRET>`. Os três agendadores
+   podem conviver: duas rodadas ao mesmo tempo não duplicam pedido.
+
 3. **SKUs.** Em Administração → Produtos, preencha **SKU no Tiny** de cada
-   presente. É obrigatório (pauta de 22/10/2026, responsável: Murilo): o
-   cartão "Sem SKU no Tiny" conta o que falta e "Mostrar só estes" filtra.
+   presente, um por um ou de uma vez em **SKUs por planilha**
+   (`/admin/catalogo/skus`). É obrigatório (pauta de 22/10/2026, responsável:
+   Murilo): o cartão "Sem SKU no Tiny" conta o que falta e "Mostrar só estes"
+   filtra. O código precisa existir no Tiny **antes**: o cadastro e a planilha
+   o procuram lá e recusam código inexistente ou de produto-pai de variações,
+   que o Tiny não vende (regra em `src/lib/tiny/skus.ts`).
    Presente com produto sem SKU **não vai**: fica em Falhou com o aviso de
    quais produtos faltam, e o Reenviar o leva depois de preenchido. O presente
    específico, comprado fora do catálogo, não tem SKU e vai pela descrição.
 4. **Padrão dos presentes.** Na tela `/tiny`, em "Presentes aprovados":
-   transportadora, serviço e marcador. Vazios usam o padrão da conta no Tiny.
+   transportadora (da lista do Tiny, com o nome como está cadastrado lá),
+   serviço e marcador. Vazios usam o padrão da conta no Tiny.
 5. Publique (Redeploy). A tela `/tiny` deixa de mostrar o aviso amarelo.
 
 ## A fila
@@ -46,7 +58,9 @@ linha em `pedidos_tiny` na mesma transação e segue. Quem envia é
 `processarFila` (`src/lib/tiny/fila.ts`), que roda:
 
 - logo depois de cada aprovação ou importação, em segundo plano (`after()`);
-- a cada 10 minutos, pelo GitHub Actions (`.github/workflows/tiny.yml`);
+- pelo GitHub Actions (`.github/workflows/tiny.yml`), pedido a cada 10
+  minutos, mas que na prática roda de horas em horas;
+- pelo agendador externo, se cadastrado (ver "Ligar");
 - uma vez por dia, pelo cron da Vercel (`vercel.json`; o plano Hobby não
   permite mais que isso);
 - no botão **Processar fila agora**.
@@ -175,7 +189,8 @@ tabela, que pode estar filtrada por etiqueta e período, e:
 e-commerce e os criados direto no Tiny (`pedidos.pesquisa.php`). Uma caixa só
 de busca: só dígitos e curto é número do pedido, 11 ou 14 dígitos é CPF/CNPJ,
 o resto é nome do cliente. Filtros por situação e período, paginação do
-próprio Tiny. O detalhe (`pedido.obter.php`) mostra itens, cliente, entrega,
+próprio Tiny, dos mais novos para os mais antigos (a API devolve do mais
+antigo, então a página 1 daqui é a última de lá, invertida). O detalhe (`pedido.obter.php`) mostra itens, cliente, entrega,
 transporte, rastreio e marcadores, e leva à solicitação ou ao lote quando o
 pedido nasceu aqui.
 

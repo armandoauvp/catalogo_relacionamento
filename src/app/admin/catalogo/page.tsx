@@ -2,7 +2,9 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
+import { FileSpreadsheet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
   Table,
@@ -104,6 +106,12 @@ export default async function AdminCatalogoPage({
         acoes={
           <>
             <EditorDeCategorias categorias={opcoesDeCategoria} />
+            <Button variant="outline" asChild>
+              <Link href={'/admin/catalogo/skus' as Route}>
+                <FileSpreadsheet aria-hidden="true" />
+                SKUs por planilha
+              </Link>
+            </Button>
             <EditorDeProduto categorias={opcoesDeCategoria} rotulos={rotulos} />
           </>
         }

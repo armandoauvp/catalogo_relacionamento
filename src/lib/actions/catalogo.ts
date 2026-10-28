@@ -6,6 +6,10 @@ import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fotoDoFormulario } from '@/lib/arquivos'
 import { produtoSchema, categoriaSchema } from '@/lib/validators/produto'
+import { tinyConfigurado } from '@/lib/env'
+import { pesquisarProdutos } from '@/lib/tiny/api'
+import { ErroDoTiny } from '@/lib/tiny/erros'
+import { conferirSku, lerPlanilhaDeSkus, type ConferenciaDoSku } from '@/lib/tiny/skus'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -60,6 +64,15 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
     if (!validado.success) return primeiroErro(validado.error)
 
     const id = String(dados.get('id') ?? '')
+    // Só confere quando o SKU muda: editar a foto não pode depender do Tiny.
+    const anterior = id
+      ? await db.produto.findUnique({ where: { id }, select: { skuTiny: true } })
+      : null
+    if (validado.data.skuTiny !== anterior?.skuTiny) {
+      const conferencia = await conferirNoTiny(validado.data.skuTiny)
+      if (!conferencia.ok) return { ok: false, erro: conferencia.erro, campo: 'skuTiny' }
+    }
+
     const valores = {
       ...validado.data,
       fotoUrl: urlRelativa ?? validado.data.fotoUrl,
@@ -76,6 +89,75 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
 
     revalidarCatalogo()
     return { ok: true, dados: { id: produto.id } }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Procura o SKU no Tiny. Sem token (desenvolvimento, demonstração) não há o
+ * que conferir, e o SKU passa como veio.
+ */
+async function conferirNoTiny(sku: string): Promise<ConferenciaDoSku> {
+  if (!tinyConfigurado) return { ok: true, nomeNoTiny: '' }
+  try {
+    return conferirSku(sku, await pesquisarProdutos(sku.trim()))
+  } catch (e) {
+    if (!(e instanceof ErroDoTiny)) throw e
+    return {
+      ok: false,
+      erro: `Não deu para conferir o SKU no Tiny agora: ${e.message} Tente de novo.`,
+    }
+  }
+}
+
+/** Uma conferência por vez: a tela de importação chama em sequência, no ritmo do Tiny. */
+export async function conferirSkuNoTiny(
+  sku: string,
+): Promise<ResultadoDaAction<ConferenciaDoSku & { limite: boolean }>> {
+  try {
+    await autorizarAction('catalogo.gerenciar')
+    if (!tinyConfigurado) return { ok: true, dados: { ok: true, nomeNoTiny: '', limite: false } }
+    try {
+      return {
+        ok: true,
+        dados: { ...conferirSku(sku, await pesquisarProdutos(sku.trim())), limite: false },
+      }
+    } catch (e) {
+      if (!(e instanceof ErroDoTiny)) throw e
+      // 6 e 11 são o bloqueio de um minuto por excesso de chamadas: a tela espera e repete.
+      const limite = e.codigo === 6 || e.codigo === 11
+      return { ok: true, dados: { ok: false, erro: e.message, limite } }
+    }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Grava os SKUs da planilha. O servidor lê a tabela de novo contra o catálogo
+ * e só grava as linhas que a tela mandou, as que passaram na conferência do
+ * Tiny. Conferir de novo aqui dobraria as chamadas, e o limite do Tiny é por
+ * minuto: dezenas de SKUs não caberiam numa requisição.
+ */
+export async function gravarSkus(
+  tabela: string[][],
+  linhasConferidas: number[],
+): Promise<ResultadoDaAction<{ gravados: number }>> {
+  try {
+    await autorizarAction('catalogo.gerenciar')
+    const catalogo = await db.produto.findMany({ select: { id: true, nome: true, skuTiny: true } })
+    const conferidas = new Set(linhasConferidas)
+    const gravar = lerPlanilhaDeSkus(tabela, catalogo).linhas.filter(
+      (l) => !l.erro && l.produtoId && conferidas.has(l.linha),
+    )
+    await db.$transaction(
+      gravar.map((l) =>
+        db.produto.update({ where: { id: l.produtoId! }, data: { skuTiny: l.sku } }),
+      ),
+    )
+    revalidarCatalogo()
+    return { ok: true, dados: { gravados: gravar.length } }
   } catch (e) {
     return comoErro(e)
   }

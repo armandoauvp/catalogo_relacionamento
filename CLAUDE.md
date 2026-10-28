@@ -46,6 +46,7 @@ duplique numa tela.
 | Cadastro que chega do site       | `src/lib/clientes.ts`                     |
 | Leitura das respostas do Tiny    | `src/lib/tiny/leitura.ts`                 |
 | Contato do Tiny (cliente de lá)  | `src/lib/tiny/contato.ts`                 |
+| SKU conferido no Tiny e planilha | `src/lib/tiny/skus.ts`                    |
 | Catálogo de presentes da área    | `prisma/catalogo-auvp.ts`                 |
 | Aritmética de dinheiro           | `src/lib/money.ts`                        |
 | Colunas e formato da exportação  | `src/lib/export/`                         |

@@ -13,6 +13,7 @@ import {
   lerPaginaDePedidos,
   lerPaginaDeProdutos,
   listaDe,
+  paginaNoTiny,
   texto,
   type ContatoDoTiny,
   type CriterioDeBusca,
@@ -88,6 +89,8 @@ export type ProdutoDoTiny = {
   nome: string
   preco: string
   unidade: string
+  /** "P" é o pai de variações, que o Tiny não vende; "V" e "N" vendem. */
+  tipoVariacao: string
 }
 
 export async function pesquisarProdutos(pesquisa: string): Promise<ProdutoDoTiny[]> {
@@ -99,6 +102,7 @@ export async function pesquisarProdutos(pesquisa: string): Promise<ProdutoDoTiny
     // O Tiny devolve "35.00" ou "35,00", conforme a conta.
     preco: decimalDoTiny(p.preco),
     unidade: texto(p.unidade) || 'UN',
+    tipoVariacao: texto(p.tipoVariacao) || 'N',
   }))
 }
 
@@ -172,6 +176,22 @@ export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaD
   if (filtro.dataInicial) parametros.dataInicial = filtro.dataInicial
   if (filtro.dataFinal) parametros.dataFinal = filtro.dataFinal
   return lerPaginaDePedidos(await chamar('pedidos.pesquisa.php', parametros))
+}
+
+/**
+ * A busca do Tiny devolve do mais antigo para o mais novo, e a primeira página
+ * é a de meses atrás. Aqui a página 1 é a última de lá, invertida. Custa uma
+ * chamada a mais, para saber quantas páginas há, quando a busca tem mais de uma.
+ */
+export async function pesquisarPedidosRecentesPrimeiro(
+  filtro: FiltroDePedidos,
+): Promise<PaginaDePedidos> {
+  const primeira = await pesquisarPedidos({ ...filtro, pagina: 1 })
+  const total = primeira.paginas
+  const exibida = Math.min(Math.max(1, filtro.pagina ?? 1), total)
+  const noTiny = paginaNoTiny(exibida, total)
+  const pagina = noTiny === 1 ? primeira : await pesquisarPedidos({ ...filtro, pagina: noTiny })
+  return { pedidos: [...pagina.pedidos].reverse(), pagina: exibida, paginas: total }
 }
 
 export async function detalharPedido(id: string): Promise<DetalheDoPedido> {

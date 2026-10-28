@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { tinyConfigurado } from '@/lib/env'
 import { formatarBRL } from '@/lib/money'
-import { pesquisarPedidos } from '@/lib/tiny/api'
+import { pesquisarPedidosRecentesPrimeiro } from '@/lib/tiny/api'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import {
   classificarBusca,
@@ -34,7 +34,8 @@ import { hrefDoGrupo, hrefSemFiltro } from '@/lib/filtro-por-grupo'
 /**
  * Todos os pedidos do Tiny, inclusive os do e-commerce e os que nasceram lá:
  * a consulta que o AUVP-Eventos tinha. Só leitura, direto da API, sem guardar
- * nada aqui. Os que esta ferramenta criou ganham o link para a origem.
+ * nada aqui, dos mais novos para os mais antigos. Os que esta ferramenta criou
+ * ganham o link para a origem.
  */
 
 type Params = { busca?: string; situacao?: string; de?: string; ate?: string; pagina?: string }
@@ -53,7 +54,7 @@ export default async function PedidosNoTinyPage({
   let erro: string | null = null
   if (tinyConfigurado) {
     try {
-      resultado = await pesquisarPedidos({
+      resultado = await pesquisarPedidosRecentesPrimeiro({
         pagina,
         busca: classificarBusca(params.busca ?? ''),
         situacao,
