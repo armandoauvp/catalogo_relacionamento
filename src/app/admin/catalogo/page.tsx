@@ -187,6 +187,11 @@ export default async function AdminCatalogoPage({
                         ) : (
                           <Badge variant="warning">sem SKU no Tiny</Badge>
                         )}
+                        {temSku(p) && p.nomeNoTiny ? (
+                          <span className="text-muted-foreground text-xs">
+                            No Olist: {p.nomeNoTiny}
+                          </span>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">

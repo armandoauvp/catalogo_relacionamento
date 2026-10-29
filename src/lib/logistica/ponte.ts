@@ -118,7 +118,12 @@ export async function sincronizarDemandaDoPresente(
     select: { id: true, concluidaEm: true },
   })
 
-  if (destino === 'arquivar') {
+  // Teste não ocupa a trilha da Logística, que mede o trabalho de verdade.
+  const { teste } = await tx.solicitacao.findUniqueOrThrow({
+    where: { id: solicitacaoId },
+    select: { teste: true },
+  })
+  if (destino === 'arquivar' || teste) {
     if (existente)
       await tx.demandaLogistica.update({ where: { id: existente.id }, data: { ativa: false } })
     return

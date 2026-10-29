@@ -122,7 +122,8 @@ async function pedidoDoPresente(banco: Banco, solicitacaoId: string) {
     formaFrete: config.formaFrete,
     marcador: config.marcadorPresentes,
     numeroNoSistema: s.codigo,
-    observacao: `Catálogo de Presentes · ${s.codigo}`,
+    // O teste vai ao Tiny como os outros, para homologar, mas quem olha lá sabe.
+    observacao: `${s.teste ? 'TESTE · ' : ''}Catálogo de Presentes · ${s.codigo}`,
   })
 
   // A pauta de 22/10/2026 exige SKU em todo produto do catálogo: sem ele o

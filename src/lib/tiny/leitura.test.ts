@@ -10,10 +10,10 @@ import {
   imagemDoProduto,
   lerDetalheDoPedido,
   lerEstoque,
-  paginaNoTiny,
+  trechosDosMaisNovos,
   lerPaginaDePedidos,
 } from './leitura'
-import { rotuloDaSituacao } from './rotulos'
+import { rotuloDaSituacao, rotuloDoServico } from './rotulos'
 
 describe('situação do pedido', () => {
   it('traduz o texto da tela do Tiny para o código', () => {
@@ -179,16 +179,47 @@ describe('estoque', () => {
   })
 })
 
-describe('paginaNoTiny', () => {
-  it('a página 1 daqui é a última do Tiny, onde estão os mais novos', () => {
-    expect(paginaNoTiny(1, 12)).toBe(12)
-    expect(paginaNoTiny(12, 12)).toBe(1)
-    expect(paginaNoTiny(3, 12)).toBe(10)
+describe('trechosDosMaisNovos', () => {
+  // 12 páginas de 100 no Tiny, a última com 12 pedidos: 1112 no total.
+  it('a página 1 daqui junta a última do Tiny com o fim da penúltima, cheia', () => {
+    expect(trechosDosMaisNovos(1, 12, 100, 12)).toEqual({
+      paginas: 12,
+      trechos: [
+        { paginaTiny: 11, de: 12, ate: 100 },
+        { paginaTiny: 12, de: 0, ate: 12 },
+      ],
+    })
   })
 
-  it('não sai do intervalo que o Tiny tem', () => {
-    expect(paginaNoTiny(40, 12)).toBe(1)
-    expect(paginaNoTiny(0, 12)).toBe(12)
-    expect(paginaNoTiny(1, 0)).toBe(1)
+  it('a última página daqui fica com o que sobra dos mais antigos', () => {
+    expect(trechosDosMaisNovos(12, 12, 100, 12).trechos).toEqual([
+      { paginaTiny: 1, de: 0, ate: 12 },
+    ])
+  })
+
+  it('quando a última do Tiny vem cheia, cada página daqui é uma de lá', () => {
+    expect(trechosDosMaisNovos(1, 3, 100, 100).trechos).toEqual([
+      { paginaTiny: 3, de: 0, ate: 100 },
+    ])
+  })
+
+  it('não sai do intervalo', () => {
+    expect(trechosDosMaisNovos(40, 2, 100, 50).trechos).toEqual([{ paginaTiny: 1, de: 0, ate: 50 }])
+    expect(trechosDosMaisNovos(0, 2, 100, 50).trechos).toEqual([
+      { paginaTiny: 1, de: 50, ate: 100 },
+      { paginaTiny: 2, de: 0, ate: 50 },
+    ])
+  })
+})
+
+describe('rotuloDoServico', () => {
+  it('mostra o serviço quando o Tiny o tem', () => {
+    expect(rotuloDoServico('PAC CONTRATO', 'C')).toBe('PAC CONTRATO')
+  })
+
+  it('não mostra o código cru de uma letra', () => {
+    expect(rotuloDoServico(null, 'S')).toBe('Não definido no Tiny')
+    expect(rotuloDoServico('', null)).toBe('Não definido no Tiny')
+    expect(rotuloDoServico(null, 'C')).toBe('Forma de envio "C" do Tiny, sem serviço')
   })
 })

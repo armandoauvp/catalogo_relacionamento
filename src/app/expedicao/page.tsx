@@ -1,6 +1,14 @@
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
-import { filaDeExpedicao, pecasASeparar, STATUS_DA_EXPEDICAO } from '@/lib/expedicao'
+import { AlertTriangle } from 'lucide-react'
+import {
+  filaDeExpedicao,
+  pecasASeparar,
+  pendenciaDoEnvio,
+  STATUS_DA_EXPEDICAO,
+  type PendenciaDoEnvio,
+} from '@/lib/expedicao'
+import { cn } from '@/lib/utils'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
 import { ROTULO_STATUS } from '@/lib/status'
@@ -17,6 +25,7 @@ import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import type { EnvioTiny } from '@prisma/client'
 import { db } from '@/lib/db'
 import { passoPermitido, situacaoVigente } from '@/lib/tiny/ciclo'
+import { codigoDaSituacao } from '@/lib/tiny/leitura'
 import { BotaoConcluir, BotaoFecharExpedicao } from '@/app/tiny/acoes-da-fila'
 import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
 import { Rastreio } from './rastreio'
@@ -57,6 +66,22 @@ function NoTiny({ tiny, operaTiny }: { tiny: PedidoNoTiny | undefined; operaTiny
       ) : null}
       {podeConcluir ? <BotaoConcluir pedidoTinyId={tiny.id} /> : null}
     </>
+  )
+}
+
+/** O que falta para o pacote sair, no topo do cartão, sem abrir o Tiny. */
+function Pendencia({ pendencia }: { pendencia: PendenciaDoEnvio | null }) {
+  if (!pendencia) return null
+  return (
+    <p
+      className={cn(
+        'flex max-w-72 items-start gap-1.5 text-right text-xs',
+        pendencia.tom === 'error' ? 'text-destructive' : 'text-warning',
+      )}
+    >
+      <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+      {pendencia.texto}
+    </p>
   )
 }
 
@@ -114,6 +139,13 @@ export default async function ExpedicaoPage({
       return t && t.envio !== 'falhou' && passoPermitido(situacaoVigente(t), 'fechar')
     })
     .map((p) => p.id)
+
+  // A situação que vale para a pendência: o passo já pedido conta, mesmo a caminho.
+  const tiny = (id: string) => {
+    const t = noTiny.get(id)
+    const vigente = t ? situacaoVigente(t) : null
+    return t ? { envio: t.envio, situacao: vigente ? codigoDaSituacao(vigente) : null } : null
+  }
 
   const query = incluirEnviadas ? '?enviadas=1' : ''
 
@@ -218,7 +250,10 @@ export default async function ExpedicaoPage({
             <Card key={pedido.id}>
               <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-4">
                 <div>
-                  <CardTitle className="text-base tabular-nums">{pedido.codigo}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base tabular-nums">
+                    {pedido.codigo}
+                    {pedido.teste ? <Badge variant="warning">teste</Badge> : null}
+                  </CardTitle>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {formatarData(pedido.data)} ·{' '}
                     <FiltroDoGrupo
@@ -239,6 +274,7 @@ export default async function ExpedicaoPage({
                     <StatusBadge status={pedido.status} />
                   </FiltroDoGrupo>
                   <NoTiny tiny={noTiny.get(pedido.id)} operaTiny={operaTiny} />
+                  <Pendencia pendencia={pendenciaDoEnvio(pedido, tiny(pedido.id))} />
                 </div>
               </CardHeader>
 

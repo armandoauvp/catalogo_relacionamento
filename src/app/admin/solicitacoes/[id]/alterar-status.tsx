@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ROTULO_STATUS, exigeMotivo } from '@/lib/status'
-import { alterarStatus } from '@/lib/actions/solicitacoes'
+import { alterarStatus, encaminharEmLote, marcarComoTeste } from '@/lib/actions/solicitacoes'
 
 /**
  * Mudança de status.
@@ -27,11 +27,14 @@ export function AlterarStatus({
   opcoes,
   sugerido,
   explicacaoDoAtalho,
+  aprovarPara,
 }: {
   solicitacaoId: string
   opcoes: StatusSolicitacao[]
   sugerido?: StatusSolicitacao
   explicacaoDoAtalho?: string
+  /** Para onde a aprovação leva, quando ainda falta aprovar. */
+  aprovarPara?: StatusSolicitacao
 }) {
   const router = useRouter()
   const [salvando, iniciar] = useTransition()
@@ -50,6 +53,20 @@ export function AlterarStatus({
   const [erro, setErro] = useState<string | null>(null)
 
   if (!status) return null
+
+  // O mesmo caminho da gestão em lote: a aprovação vira uma linha do histórico
+  // e o pedido segue para onde os itens mandam, num clique só.
+  function aprovar() {
+    setErro(null)
+    iniciar(async () => {
+      const r = await encaminharEmLote([solicitacaoId], 'automatico')
+      if (!r.ok) return setErro(r.erro)
+      const ignorada = r.dados.ignoradas[0]
+      if (ignorada) return setErro(ignorada.motivo)
+      setEscolhido(null)
+      router.refresh()
+    })
+  }
 
   const precisaDeMotivo = exigeMotivo(status)
 
@@ -73,6 +90,25 @@ export function AlterarStatus({
 
   return (
     <div className="space-y-4">
+      {aprovarPara ? (
+        <div className="space-y-2 border-b pb-4">
+          <Button
+            onClick={aprovar}
+            disabled={salvando}
+            className="h-auto w-full py-2.5 leading-snug whitespace-normal"
+          >
+            {salvando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+            {`Aprovar e mandar para ${ROTULO_STATUS[aprovarPara]}`}
+          </Button>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {aprovarPara === StatusSolicitacao.organizando_envio
+              ? 'Tudo em estoque: vai direto para a expedição, sem passar pelo Financeiro.'
+              : 'Há o que comprar: vai para a fila do Financeiro antes da expedição.'}{' '}
+            Ou escolha outro status abaixo.
+          </p>
+        </div>
+      ) : null}
+
       {explicacaoDoAtalho ? (
         <p className="bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed">
           {explicacaoDoAtalho}
@@ -119,6 +155,7 @@ export function AlterarStatus({
 
       <Button
         onClick={enviar}
+        variant={aprovarPara ? 'outline' : 'default'}
         disabled={salvando || (precisaDeMotivo && !motivo.trim())}
         // Alguns rótulos são longos ("Entregue / rastreio finalizado") e o
         // botão do DS não quebra linha: sem isto o texto vaza do cartão.
@@ -127,6 +164,52 @@ export function AlterarStatus({
         {salvando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
         {salvando ? 'Gravando…' : `Mudar para ${ROTULO_STATUS[status]}`}
       </Button>
+    </div>
+  )
+}
+
+/**
+ * Marca a solicitação como teste: fora do saldo do mês e da trilha da
+ * Logística, com o selo nas telas e "TESTE" na observação do pedido no Tiny.
+ */
+export function MarcarComoTeste({
+  solicitacaoId,
+  teste,
+}: {
+  solicitacaoId: string
+  teste: boolean
+}) {
+  const router = useRouter()
+  const [salvando, iniciar] = useTransition()
+  const [erro, setErro] = useState<string | null>(null)
+  return (
+    <div className="mt-4 space-y-1 border-t pt-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={salvando}
+        onClick={() =>
+          iniciar(async () => {
+            setErro(null)
+            const r = await marcarComoTeste(solicitacaoId, !teste)
+            if (!r.ok) return setErro(r.erro)
+            router.refresh()
+          })
+        }
+      >
+        {salvando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+        {teste ? 'Desmarcar como teste' : 'Marcar como teste'}
+      </Button>
+      <p className="text-muted-foreground text-xs">
+        {teste
+          ? 'Esta solicitação é teste: não conta no limite do mês nem na trilha da Logística.'
+          : 'Teste não conta no limite do mês nem na trilha da Logística.'}
+      </p>
+      {erro ? (
+        <p role="alert" className="text-destructive text-xs">
+          {erro}
+        </p>
+      ) : null}
     </div>
   )
 }

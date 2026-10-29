@@ -22,6 +22,15 @@ const ESPERA_DO_BLOQUEIO_MS = 61_000
 
 const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms))
 
+/** Cada conferência leva o intervalo mais a resposta do Tiny, perto de 1,5 s. */
+function restante({ feitos, total }: { feitos: number; total: number }) {
+  const segundos = Math.ceil(((total - feitos) * 1_500) / 1_000)
+  if (segundos < 5) return ''
+  return segundos < 60
+    ? `, falta cerca de ${segundos} s`
+    : `, falta cerca de ${Math.ceil(segundos / 60)} min`
+}
+
 type Conferencia = { ok: true; nomeNoTiny: string } | { ok: false; erro: string }
 
 export function ImportarSkus({ catalogo }: { catalogo: ProdutoDoCatalogo[] }) {
@@ -106,7 +115,10 @@ export function ImportarSkus({ catalogo }: { catalogo: ProdutoDoCatalogo[] }) {
     iniciar(async () => {
       const r = await gravarSkus(
         tabela,
-        prontas.map((l) => l.linha),
+        prontas.map((l) => {
+          const c = conferencias.get(chave(l.sku))
+          return { linha: l.linha, nomeNoTiny: c?.ok ? c.nomeNoTiny : '' }
+        }),
       )
       if (!r.ok) return setErro(r.erro)
       setGravados(r.dados.gravados)
@@ -185,7 +197,7 @@ export function ImportarSkus({ catalogo }: { catalogo: ProdutoDoCatalogo[] }) {
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                   {aguardando
                     ? 'O Tiny pediu uma pausa de um minuto; a conferência continua sozinha.'
-                    : `Conferindo no Tiny: ${progresso.feitos} de ${progresso.total}…`}
+                    : `Conferindo no Tiny: ${progresso.feitos} de ${progresso.total}${restante(progresso)}…`}
                 </span>
               ) : (
                 <span>

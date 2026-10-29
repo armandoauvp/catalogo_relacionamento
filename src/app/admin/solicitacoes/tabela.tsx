@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils'
 export type LinhaDaGestao = {
   id: string
   codigo: string
+  teste: boolean
   data: string
   consultor: string
   consultorId: string
@@ -184,6 +185,11 @@ export function TabelaDaGestao({
                     >
                       {l.codigo}
                     </Link>
+                    {l.teste ? (
+                      <Badge variant="warning" className="ml-2">
+                        teste
+                      </Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
                     {l.data}

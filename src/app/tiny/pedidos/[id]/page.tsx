@@ -10,6 +10,7 @@ import { formatarBRL, subtotal } from '@/lib/money'
 import { detalharPedido } from '@/lib/tiny/api'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { corDoMarcador, enderecoEmUmaLinha, type DetalheDoPedido } from '@/lib/tiny/leitura'
+import { rotuloDoServico } from '@/lib/tiny/rotulos'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import {
   Table,
@@ -181,7 +182,7 @@ function Detalhe({
           <Cartao titulo="Transporte">
             <dl className="grid gap-1">
               <Linha rotulo="Transportadora" valor={p.transportadora ?? '-'} />
-              <Linha rotulo="Serviço" valor={p.formaFrete ?? p.formaEnvio ?? '-'} />
+              <Linha rotulo="Serviço" valor={rotuloDoServico(p.formaFrete, p.formaEnvio)} />
               <Linha
                 rotulo="Rastreio"
                 valor={

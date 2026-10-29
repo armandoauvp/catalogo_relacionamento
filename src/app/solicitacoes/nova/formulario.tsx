@@ -341,6 +341,7 @@ export function FormularioDeSolicitacao({
       if (!r.ok) return setErro(r.erro)
       setCliente(r.dados)
       if (!r.dados) setNovoCliente((n) => ({ ...n, nome: '' }))
+      else preencherQuemRecebe(r.dados.nome)
       // O endereço padrão do cadastro adianta a entrega, sem passar por cima
       // do que a pessoa já digitou; a solicitação guarda a própria cópia.
       const encontrado = r.dados
@@ -384,10 +385,21 @@ export function FormularioDeSolicitacao({
   /** Null enquanto a consulta não voltou, ou quando é de outro cliente. */
   const jaEnviados = cliente && historico?.clienteId === cliente.id ? historico.lista : null
 
+  // Quase sempre quem recebe é o próprio cliente: o campo já vem com o nome,
+  // em vez de mostrar o nome só como dica num campo vazio. Ao trocar de
+  // cliente, o nome do anterior sai; o que a pessoa digitou à mão fica.
+  function preencherQuemRecebe(nome: string) {
+    setEntrega((e) => (e.destinatario.trim() ? e : { ...e, destinatario: nome }))
+  }
+  function esquecerQuemRecebe() {
+    setEntrega((e) => (cliente && e.destinatario === cliente.nome ? { ...e, destinatario: '' } : e))
+  }
+
   async function cadastrarCliente() {
     setErro(null)
     const r = await criarCliente({ ...novoCliente, cpf })
     if (!r.ok) return setErro(r.erro)
+    preencherQuemRecebe(novoCliente.nome)
 
     setCliente({
       id: r.dados.id,
@@ -673,6 +685,7 @@ export function FormularioDeSolicitacao({
                 jaEnviados={jaEnviados}
                 setCpf={(v) => {
                   setCpf(v)
+                  esquecerQuemRecebe()
                   setCliente(null)
                   setCpfBuscado(null)
                 }}
@@ -684,6 +697,7 @@ export function FormularioDeSolicitacao({
                 setNovo={setNovoCliente}
                 cadastrar={cadastrarCliente}
                 limpar={() => {
+                  esquecerQuemRecebe()
                   setCliente(null)
                   setCpfBuscado(null)
                 }}

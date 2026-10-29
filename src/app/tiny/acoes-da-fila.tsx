@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, RefreshCw, RotateCcw, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialogo } from '@/components/ui/dialogo'
 import {
   concluirExpedicao,
   fecharExpedicao,
@@ -196,20 +197,45 @@ type Passo = () => Promise<ResultadoDaAction<{ marcados: number; ignorados: numb
  * Botão de um passo da expedição (pauta de 22/10/2026). O passo vai ao Tiny
  * pela fila: o aviso diz quantos pedidos pegaram, e a tela mostra "a caminho".
  */
+/**
+ * Os passos da expedição mudam a situação no Tiny, onde o pedido só anda para
+ * a frente: um clique errado não tem volta. Por isso cada um pede confirmação,
+ * dizendo quantos pedidos e para onde vão.
+ */
 function BotaoDePasso({
   rotulo,
   executar,
+  confirmacao,
   variante = 'outline',
   tamanho,
 }: {
   rotulo: string
   executar: Passo
+  confirmacao: { titulo: string; texto: string }
   variante?: 'outline' | 'default' | 'ghost'
   tamanho?: 'sm'
 }) {
   const router = useRouter()
   const [enviando, iniciar] = useTransition()
   const [aviso, setAviso] = useAviso()
+  const [confirmando, setConfirmando] = useState(false)
+
+  function confirmar() {
+    setConfirmando(false)
+    iniciar(async () => {
+      const r = await executar()
+      if (!r.ok) setAviso({ texto: r.erro, erro: true })
+      else if (r.dados.marcados === 0)
+        setAviso({ texto: 'Nada a mudar: os pedidos já passaram deste ponto.', erro: false })
+      else
+        setAviso({
+          texto: `${plural(r.dados.marcados, 'pedido vai', 'pedidos vão')} ao Tiny.`,
+          erro: false,
+        })
+      router.refresh()
+    })
+  }
+
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Aviso aviso={aviso} />
@@ -217,24 +243,27 @@ function BotaoDePasso({
         variant={variante}
         size={tamanho}
         disabled={enviando}
-        onClick={() =>
-          iniciar(async () => {
-            const r = await executar()
-            if (!r.ok) setAviso({ texto: r.erro, erro: true })
-            else if (r.dados.marcados === 0)
-              setAviso({ texto: 'Nada a mudar: os pedidos já passaram deste ponto.', erro: false })
-            else
-              setAviso({
-                texto: `${plural(r.dados.marcados, 'pedido vai', 'pedidos vão')} ao Tiny.`,
-                erro: false,
-              })
-            router.refresh()
-          })
-        }
+        onClick={() => setConfirmando(true)}
       >
         {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
         {rotulo}
       </Button>
+      <Dialogo
+        aberto={confirmando}
+        aoFechar={() => setConfirmando(false)}
+        titulo={confirmacao.titulo}
+      >
+        <p className="text-sm leading-relaxed">{confirmacao.texto}</p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          No Tiny o pedido só anda para a frente: depois de confirmar, isto não se desfaz aqui.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setConfirmando(false)}>
+            Voltar
+          </Button>
+          <Button onClick={confirmar}>{rotulo}</Button>
+        </div>
+      </Dialogo>
     </span>
   )
 }
@@ -247,12 +276,26 @@ export function BotaoFecharExpedicao({ solicitacaoIds }: { solicitacaoIds: strin
       rotulo="Fechar expedição"
       variante="default"
       executar={() => fecharExpedicao(solicitacaoIds)}
+      confirmacao={{
+        titulo: 'Fechar a expedição?',
+        texto: `${plural(solicitacaoIds.length, 'pedido da lista vai', 'pedidos da lista vão')} a "Preparando envio" no Tiny.`,
+      }}
     />
   )
 }
 
 export function BotaoFecharLote({ loteId }: { loteId: string }) {
-  return <BotaoDePasso rotulo="Fechar expedição" executar={() => fecharExpedicaoDoLote(loteId)} />
+  return (
+    <BotaoDePasso
+      rotulo="Fechar expedição"
+      executar={() => fecharExpedicaoDoLote(loteId)}
+      confirmacao={{
+        titulo: 'Fechar a expedição do lote?',
+        texto:
+          'Os pedidos do lote que ainda não passaram deste ponto vão a "Preparando envio" no Tiny.',
+      }}
+    />
+  )
 }
 
 /** "Concluir" de um pedido: embalado e pronto, vai a "Pronto para envio". */
@@ -262,6 +305,10 @@ export function BotaoConcluir({ pedidoTinyId }: { pedidoTinyId: string }) {
       rotulo="Concluir"
       tamanho="sm"
       executar={() => concluirExpedicao([pedidoTinyId])}
+      confirmacao={{
+        titulo: 'Concluir este pedido?',
+        texto: 'O pacote está embalado e o pedido vai a "Pronto para envio" no Tiny.',
+      }}
     />
   )
 }

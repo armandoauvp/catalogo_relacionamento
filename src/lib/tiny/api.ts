@@ -13,7 +13,7 @@ import {
   lerPaginaDePedidos,
   lerPaginaDeProdutos,
   listaDe,
-  paginaNoTiny,
+  trechosDosMaisNovos,
   texto,
   type ContatoDoTiny,
   type CriterioDeBusca,
@@ -180,18 +180,38 @@ export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaD
 
 /**
  * A busca do Tiny devolve do mais antigo para o mais novo, e a primeira página
- * é a de meses atrás. Aqui a página 1 é a última de lá, invertida. Custa uma
- * chamada a mais, para saber quantas páginas há, quando a busca tem mais de uma.
+ * é a de meses atrás. Aqui a página 1 é a dos mais novos, sempre cheia: ela
+ * junta a última página de lá, que vem incompleta, com o fim da penúltima.
+ * Custa até quatro chamadas por página quando a busca tem várias.
  */
 export async function pesquisarPedidosRecentesPrimeiro(
   filtro: FiltroDePedidos,
 ): Promise<PaginaDePedidos> {
   const primeira = await pesquisarPedidos({ ...filtro, pagina: 1 })
-  const total = primeira.paginas
-  const exibida = Math.min(Math.max(1, filtro.pagina ?? 1), total)
-  const noTiny = paginaNoTiny(exibida, total)
-  const pagina = noTiny === 1 ? primeira : await pesquisarPedidos({ ...filtro, pagina: noTiny })
-  return { pedidos: [...pagina.pedidos].reverse(), pagina: exibida, paginas: total }
+  if (primeira.paginas <= 1) {
+    return { pedidos: [...primeira.pedidos].reverse(), pagina: 1, paginas: 1 }
+  }
+  // A primeira página de uma busca com várias vem cheia: é o tamanho de lá.
+  const porPagina = primeira.pedidos.length
+  const lidas = new Map<number, PaginaDePedidos>([[1, primeira]])
+  const ler = async (n: number) => {
+    if (!lidas.has(n)) lidas.set(n, await pesquisarPedidos({ ...filtro, pagina: n }))
+    return lidas.get(n)!
+  }
+  const ultima = await ler(primeira.paginas)
+  const { paginas, trechos } = trechosDosMaisNovos(
+    filtro.pagina ?? 1,
+    primeira.paginas,
+    porPagina,
+    ultima.pedidos.length,
+  )
+  const pedidos = []
+  for (const t of trechos) pedidos.push(...(await ler(t.paginaTiny)).pedidos.slice(t.de, t.ate))
+  return {
+    pedidos: pedidos.reverse(),
+    pagina: Math.min(Math.max(1, filtro.pagina ?? 1), paginas),
+    paginas,
+  }
 }
 
 export async function detalharPedido(id: string): Promise<DetalheDoPedido> {

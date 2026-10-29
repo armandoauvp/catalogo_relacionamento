@@ -68,13 +68,16 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
     const anterior = id
       ? await db.produto.findUnique({ where: { id }, select: { skuTiny: true } })
       : null
+    let nomeNoTiny: { nomeNoTiny: string | null } | null = null
     if (validado.data.skuTiny !== anterior?.skuTiny) {
       const conferencia = await conferirNoTiny(validado.data.skuTiny)
       if (!conferencia.ok) return { ok: false, erro: conferencia.erro, campo: 'skuTiny' }
+      nomeNoTiny = { nomeNoTiny: conferencia.nomeNoTiny || null }
     }
 
     const valores = {
       ...validado.data,
+      ...nomeNoTiny,
       fotoUrl: urlRelativa ?? validado.data.fotoUrl,
       // Nulo é "a área ainda não informou", e segue nulo até ela informar.
       valor: validado.data.valor === null ? null : new Prisma.Decimal(validado.data.valor),
@@ -142,18 +145,22 @@ export async function conferirSkuNoTiny(
  */
 export async function gravarSkus(
   tabela: string[][],
-  linhasConferidas: number[],
+  linhasConferidas: { linha: number; nomeNoTiny: string }[],
 ): Promise<ResultadoDaAction<{ gravados: number }>> {
   try {
     await autorizarAction('catalogo.gerenciar')
     const catalogo = await db.produto.findMany({ select: { id: true, nome: true, skuTiny: true } })
-    const conferidas = new Set(linhasConferidas)
+    // O nome vem da conferência que a tela fez no Tiny; só serve para exibir.
+    const conferidas = new Map(linhasConferidas.map((c) => [c.linha, c.nomeNoTiny]))
     const gravar = lerPlanilhaDeSkus(tabela, catalogo).linhas.filter(
       (l) => !l.erro && l.produtoId && conferidas.has(l.linha),
     )
     await db.$transaction(
       gravar.map((l) =>
-        db.produto.update({ where: { id: l.produtoId! }, data: { skuTiny: l.sku } }),
+        db.produto.update({
+          where: { id: l.produtoId! },
+          data: { skuTiny: l.sku, nomeNoTiny: conferidas.get(l.linha)?.slice(0, 200) || null },
+        }),
       ),
     )
     revalidarCatalogo()

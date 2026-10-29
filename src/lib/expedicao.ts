@@ -61,6 +61,40 @@ export type PedidoDeExpedicao = {
   /** Fase 2: preenchidos quando o pedido for criado no ERP. */
   rastreio: string | null
   transportadora: string | null
+  /** Quando entrou em "organizando envio": a base do "sem rastreio há N dias". */
+  naExpedicaoDesde: Date
+  /** Marcada pelo Admin: fica fora do saldo e aparece com o selo. */
+  teste: boolean
+}
+
+export type PendenciaDoEnvio = { texto: string; tom: 'warning' | 'error' }
+
+/** Sem rastreio depois disto, o pacote provavelmente ficou esquecido. */
+const DIAS_PARA_COBRAR_RASTREIO = 2
+
+/**
+ * O que ainda falta para o pacote sair, na própria tela da expedição, sem
+ * precisar abrir o Tiny para descobrir. O rastreio é o fim do trabalho dela:
+ * com ele, não há pendência.
+ */
+export function pendenciaDoEnvio(
+  pedido: Pick<PedidoDeExpedicao, 'status' | 'rastreio' | 'naExpedicaoDesde'>,
+  tiny: { envio: string; situacao: string | null } | null,
+  agora: Date = new Date(),
+): PendenciaDoEnvio | null {
+  if (pedido.status !== StatusSolicitacao.organizando_envio || pedido.rastreio) return null
+  if (tiny?.envio === 'falhou') {
+    return { texto: 'Não foi ao Tiny: corrija e reenvie na tela do Tiny.', tom: 'error' }
+  }
+  const dias = Math.floor((agora.getTime() - pedido.naExpedicaoDesde.getTime()) / 86_400_000)
+  const ha = dias >= 1 ? ` há ${dias} ${dias === 1 ? 'dia' : 'dias'}` : ''
+  if (tiny?.situacao === 'pronto_envio') {
+    return { texto: `Pronto para envio${ha}: falta postar e registrar o rastreio.`, tom: 'warning' }
+  }
+  if (dias >= DIAS_PARA_COBRAR_RASTREIO) {
+    return { texto: `Na expedição${ha}, ainda sem rastreio.`, tom: 'warning' }
+  }
+  return null
 }
 
 /** Status em que a solicitação está sob responsabilidade da expedição. */
@@ -102,6 +136,12 @@ export async function filaDeExpedicao(
             select: { nome: true, origem: true, controlaEstoque: true, estoque: true },
           },
         },
+      },
+      historico: {
+        where: { statusNovo: StatusSolicitacao.organizando_envio },
+        orderBy: { criadoEm: 'desc' },
+        take: 1,
+        select: { criadoEm: true },
       },
     },
     // Mais antigas primeiro: a expedição trabalha por ordem de chegada.
@@ -153,6 +193,8 @@ export async function filaDeExpedicao(
 
     rastreio: s.rastreio,
     transportadora: s.transportadora,
+    naExpedicaoDesde: s.historico[0]?.criadoEm ?? s.dataSolicitacao,
+    teste: s.teste,
   }))
 }
 

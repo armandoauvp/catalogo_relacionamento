@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { DetalheDaSolicitacao } from '@/components/detalhe-da-solicitacao'
-import { AlterarStatus } from './alterar-status'
+import { Badge } from '@/components/ui/badge'
+import { AlterarStatus, MarcarComoTeste } from './alterar-status'
 
 /** Detalhe da solicitação: itens, entrega, carta, rastreio e histórico completo. */
 export default async function DetalheSolicitacaoPage({
@@ -57,6 +58,12 @@ export default async function DetalheSolicitacaoPage({
     solicitacao.status === StatusSolicitacao.aguardando_aprovacao
       ? proximoDepoisDaAprovacao(solicitacao.itens)
       : undefined
+  // Pendente ou à espera de aprovação: o Admin aprova e encaminha num clique.
+  const aprovarPara =
+    solicitacao.status === StatusSolicitacao.pendente ||
+    solicitacao.status === StatusSolicitacao.aguardando_aprovacao
+      ? proximoDepoisDaAprovacao(solicitacao.itens)
+      : undefined
   const explicacaoDoAtalho =
     sugerido === StatusSolicitacao.organizando_envio
       ? 'Todos os itens estão em estoque, então não há o que o Financeiro compre: ao aprovar, você já libera para envio.'
@@ -76,7 +83,12 @@ export default async function DetalheSolicitacaoPage({
       <CabecalhoDaPagina
         sobrancelha={`${formatarData(solicitacao.dataSolicitacao)} · ${solicitacao.consultor.nome}`}
         titulo={solicitacao.codigo}
-        acoes={<StatusBadge status={solicitacao.status} />}
+        acoes={
+          <>
+            {solicitacao.teste ? <Badge variant="warning">teste</Badge> : null}
+            <StatusBadge status={solicitacao.status} />
+          </>
+        }
       />
 
       <DetalheDaSolicitacao
@@ -102,8 +114,12 @@ export default async function DetalheSolicitacaoPage({
                   opcoes={proximos}
                   sugerido={sugerido}
                   explicacaoDoAtalho={explicacaoDoAtalho}
+                  aprovarPara={aprovarPara}
                 />
               )}
+              {podeAlterar ? (
+                <MarcarComoTeste solicitacaoId={solicitacao.id} teste={solicitacao.teste} />
+              ) : null}
             </CardContent>
           </Card>
         }

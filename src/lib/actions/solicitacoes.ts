@@ -344,6 +344,37 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
   }
 }
 
+/**
+ * Marca ou desmarca a solicitação como teste. Teste fica fora do saldo do mês
+ * e da trilha da Logística; o resto (histórico, Tiny, expedição) segue igual,
+ * com o selo, para homologar sem gastar o limite de ninguém.
+ */
+export async function marcarComoTeste(
+  solicitacaoId: string,
+  teste: boolean,
+): Promise<ResultadoDaAction> {
+  try {
+    await autorizarAction('solicitacao.alterarStatus')
+    await db.$transaction(async (tx) => {
+      const { status } = await tx.solicitacao.update({
+        where: { id: solicitacaoId },
+        data: { teste },
+        select: { status: true },
+      })
+      // Arquiva a demanda do teste, ou a devolve à trilha ao desmarcar.
+      await sincronizarDemandaDoPresente(tx, solicitacaoId, status)
+    })
+    revalidatePath(`/admin/solicitacoes/${solicitacaoId}`)
+    revalidatePath('/admin/solicitacoes')
+    revalidatePath('/expedicao')
+    revalidatePath('/solicitacoes')
+    revalidatePath('/logistica')
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
 /** O que aconteceu com um lote, a tela precisa disso para dizer o que sobrou. */
 export type ResumoDoLote = {
   movidas: { codigo: string; para: string }[]

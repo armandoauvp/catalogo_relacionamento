@@ -39,6 +39,8 @@ export async function saldoDoMes(
         consultorId,
         dataSolicitacao: { gte: inicio, lt: fim },
         status: { notIn: [...STATUS_FORA_DO_SALDO] },
+        // Teste não é presente de verdade: não gasta o limite de ninguém.
+        teste: false,
       },
     }),
     db.usuario.findUnique({
@@ -75,6 +77,7 @@ export async function saldoDoMesPorConsultor(referencia: Date = new Date()) {
       where: {
         dataSolicitacao: { gte: inicio, lt: fim },
         status: { notIn: [...STATUS_FORA_DO_SALDO] },
+        teste: false,
       },
     }),
     db.usuario.findMany({

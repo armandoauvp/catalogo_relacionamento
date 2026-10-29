@@ -23,6 +23,23 @@ const ROTULO_SITUACAO: Record<string, string> = {
   cancelado: 'Cancelado',
 }
 
+/**
+ * O serviço de envio como a tela deve dizer. O Tiny devolve o nome do serviço
+ * (`forma_frete`, "PAC CONTRATO") e, à parte, a forma de envio em código de uma
+ * letra (`forma_envio`): sem serviço, o pedido 1353 mostrava só "S", que não diz
+ * nada a quem lê. Código não traduzido não vai cru para a tela.
+ */
+export function rotuloDoServico(
+  formaFrete: string | null | undefined,
+  formaEnvio: string | null | undefined,
+): string {
+  if (formaFrete?.trim()) return formaFrete.trim()
+  const codigo = formaEnvio?.trim()
+  // "S" é o pedido sem forma de envio: o que acontece quando ninguém a escolhe.
+  if (!codigo || codigo.toUpperCase() === 'S') return 'Não definido no Tiny'
+  return `Forma de envio "${codigo}" do Tiny, sem serviço`
+}
+
 export function rotuloDaSituacao(situacao: string | null | undefined): string | null {
   if (!situacao) return null
   return ROTULO_SITUACAO[codigoDaSituacao(situacao)] ?? situacao

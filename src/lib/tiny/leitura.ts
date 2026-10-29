@@ -135,10 +135,34 @@ export function lerResumoDoPedido(p: Bruto): ResumoDoPedido {
 
 export type PaginaDePedidos = { pedidos: ResumoDoPedido[]; pagina: number; paginas: number }
 
-/** A página exibida (1 é a dos mais novos) na numeração do Tiny, que começa nos mais antigos. */
-export function paginaNoTiny(exibida: number, total: number): number {
-  const paginas = Math.max(1, total)
-  return paginas - Math.min(Math.max(1, exibida), paginas) + 1
+export type TrechoDoTiny = { paginaTiny: number; de: number; ate: number }
+
+/**
+ * Que pedaços das páginas do Tiny formam a página exibida aqui, onde a 1 é a
+ * dos mais novos. O Tiny numera do mais antigo, e a última página dele vem
+ * incompleta: invertê-la sozinha deixava a primeira página daqui com um pedido
+ * só. Os trechos voltam do mais antigo para o mais novo; quem chama inverte.
+ */
+export function trechosDosMaisNovos(
+  exibida: number,
+  paginasNoTiny: number,
+  porPagina: number,
+  naUltima: number,
+): { paginas: number; trechos: TrechoDoTiny[] } {
+  const total = Math.max(0, (paginasNoTiny - 1) * porPagina + naUltima)
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
+  const p = Math.min(Math.max(1, exibida), paginas)
+  // Posições na lista inteira, do mais antigo (0) ao mais novo (total - 1).
+  const inicio = Math.max(0, total - p * porPagina)
+  const fim = total - (p - 1) * porPagina
+  const trechos: TrechoDoTiny[] = []
+  for (let g = inicio; g < fim;) {
+    const paginaTiny = Math.floor(g / porPagina) + 1
+    const ate = Math.min(fim - (paginaTiny - 1) * porPagina, porPagina)
+    trechos.push({ paginaTiny, de: g % porPagina, ate })
+    g = (paginaTiny - 1) * porPagina + ate
+  }
+  return { paginas, trechos }
 }
 
 export function lerPaginaDePedidos(r: Bruto & { vazio?: boolean }): PaginaDePedidos {

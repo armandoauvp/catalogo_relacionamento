@@ -117,6 +117,7 @@ export default async function AdminSolicitacoesPage({
   const linhas: LinhaDaGestao[] = solicitacoes.map((s) => ({
     id: s.id,
     codigo: s.codigo,
+    teste: s.teste,
     data: formatarData(s.dataSolicitacao),
     consultor: s.consultor.nome,
     consultorId: s.consultor.id,

@@ -84,7 +84,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
 - **Preço de item vem do banco na hora de gravar.** `criarSolicitacao` relê o
   produto; valor que chega do navegador não é usado.
 - **Tudo conta no saldo do mês**, cancelado e devolvido inclusive, a área
-  reenvia. `STATUS_FORA_DO_SALDO` está vazia de propósito.
+  reenvia. `STATUS_FORA_DO_SALDO` está vazia de propósito. A única exceção é
+  a solicitação marcada como **teste** pelo Admin (`Solicitacao.teste`), que
+  fica fora do saldo e da trilha da Logística e vai ao Tiny com "TESTE" na
+  observação.
 - **Quem decide a rota é `Produto.origem`**, não a quantidade em estoque. É a
   coluna "Estoque" da planilha da área: `estoque_interno` não passa pelo
   Financeiro, `mediante_pedido` passa. A contagem de peças é refinamento
