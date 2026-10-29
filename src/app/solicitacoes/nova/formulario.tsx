@@ -554,6 +554,29 @@ export function FormularioDeSolicitacao({
     }
   }
 
+  /**
+   * Vazado enquanto falta algo, cheio quando a etapa está pronta. O clique
+   * funciona nos dois casos: com etapa incompleta ele acende o que falta, que
+   * é mais do que um botão desligado faria. Aparece no fim da etapa e embaixo
+   * do resumo, que acompanha a rolagem: a lista de itens é longa.
+   */
+  function avancar(className?: string) {
+    return etapa < 4 ? (
+      <Button
+        onClick={tentarAvancar}
+        variant={podeAvancar ? 'default' : 'outline'}
+        className={className}
+      >
+        Continuar
+      </Button>
+    ) : (
+      <Button onClick={enviar} disabled={enviando || Boolean(bloqueio)} className={className}>
+        {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+        {enviando ? 'Enviando…' : 'Enviar solicitação'}
+      </Button>
+    )
+  }
+
   /** Atalho do aviso: volta para os itens já filtrado no que resolve a falta. */
   function escolherAcompanhamento(rotulo: string) {
     setBusca('')
@@ -771,23 +794,12 @@ export function FormularioDeSolicitacao({
             Voltar
           </Button>
 
-          {/* Vazado enquanto falta algo, cheio quando a etapa está pronta. O
-              clique funciona nos dois casos: com etapa incompleta ele acende o
-              que falta, que é mais do que um botão desligado faria. */}
-          {etapa < 4 ? (
-            <Button onClick={tentarAvancar} variant={podeAvancar ? 'default' : 'outline'}>
-              Continuar
-            </Button>
-          ) : (
-            <Button onClick={enviar} disabled={enviando || Boolean(bloqueio)}>
-              {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-              {enviando ? 'Enviando…' : 'Enviar solicitação'}
-            </Button>
-          )}
+          {avancar()}
         </div>
       </div>
 
       <Resumo
+        acao={avancar('w-full')}
         cliente={cliente}
         itens={itens}
         total={total}
@@ -1825,6 +1837,7 @@ function Bloco({
 
 /** Coluna lateral com o que já foi escolhido, visível em todas as etapas. */
 function Resumo({
+  acao,
   cliente,
   itens,
   total,
@@ -1833,6 +1846,7 @@ function Resumo({
   remover,
   mudarQuantidade,
 }: {
+  acao: React.ReactNode
   cliente: ClienteEncontrado | null
   itens: ItemEscolhido[]
   total: number
@@ -1921,6 +1935,10 @@ function Resumo({
           {saldo ? <BarraDeSaldo saldo={saldo} /> : null}
         </CardContent>
       </Card>
+
+      {/* No celular o resumo vem depois do botão do fim da etapa: repetir
+          seria o mesmo botão duas vezes, um embaixo do outro. */}
+      <div className="mt-4 hidden lg:block">{acao}</div>
     </aside>
   )
 }
