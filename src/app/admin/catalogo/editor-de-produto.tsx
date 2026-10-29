@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { OrigemProduto, TipoValor } from '@prisma/client'
-import { Loader2, Plus, Pencil } from 'lucide-react'
+import { Loader2, Plus, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialogo } from '@/components/ui/dialogo'
 import { Input } from '@/components/ui/input'
@@ -401,29 +401,79 @@ export function EditorDeProduto({
 }
 
 /**
- * Ativa e desativa.
+ * Remover do catálogo e devolver.
  *
- * É o que existe no lugar de excluir: produto some do catálogo do consultor e
- * continua nas solicitações que já o usaram.
+ * Remover é desativar, e não excluir: o presente some do catálogo do
+ * consultor e continua nas solicitações que já o usaram, com nome e foto. Por
+ * isso pode voltar a qualquer momento, e a confirmação diz isso, para ninguém
+ * hesitar em tirar um item que só está fora de linha.
  */
-export function BotaoAtivar({ id, ativo }: { id: string; ativo: boolean }) {
+export function BotaoAtivar({ id, ativo, nome }: { id: string; ativo: boolean; nome: string }) {
   const router = useRouter()
   const [salvando, iniciar] = useTransition()
+  const [confirmando, setConfirmando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  function alternar() {
+    setErro(null)
+    iniciar(async () => {
+      const r = await alternarProduto(id, !ativo)
+      if (!r.ok) return setErro(r.erro)
+      setConfirmando(false)
+      router.refresh()
+    })
+  }
+
+  if (!ativo) {
+    return (
+      <Button variant="ghost" size="sm" disabled={salvando} onClick={alternar}>
+        {salvando ? (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        ) : (
+          <RotateCcw aria-hidden="true" />
+        )}
+        Devolver ao catálogo
+      </Button>
+    )
+  }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      disabled={salvando}
-      onClick={() =>
-        iniciar(async () => {
-          await alternarProduto(id, !ativo)
-          router.refresh()
-        })
-      }
-    >
-      {salvando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-      {ativo ? 'Desativar' : 'Reativar'}
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={() => setConfirmando(true)}
+      >
+        <Trash2 aria-hidden="true" />
+        Remover do catálogo
+      </Button>
+      <Dialogo
+        aberto={confirmando}
+        aoFechar={() => setConfirmando(false)}
+        titulo="Remover do catálogo?"
+        descricao={nome}
+      >
+        <p className="text-sm leading-relaxed whitespace-normal">
+          O presente deixa de aparecer para os consultores. As solicitações que já o usaram
+          continuam mostrando o que foi enviado, e ele pode voltar quando quiser, em Devolver ao
+          catálogo.
+        </p>
+        {erro ? (
+          <p role="alert" className="text-destructive mt-3 text-sm">
+            {erro}
+          </p>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setConfirmando(false)}>
+            Voltar
+          </Button>
+          <Button variant="destructive" disabled={salvando} onClick={alternar}>
+            {salvando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            Remover do catálogo
+          </Button>
+        </div>
+      </Dialogo>
+    </>
   )
 }

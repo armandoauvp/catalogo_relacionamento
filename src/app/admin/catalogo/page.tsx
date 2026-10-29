@@ -74,7 +74,7 @@ export default async function AdminCatalogoPage({
     },
     filtro.situacao && {
       coluna: 'Situação',
-      valor: filtro.situacao,
+      valor: filtro.situacao === 'ativo' ? 'no catálogo' : 'fora do catálogo',
       semEle: hrefSemFiltro(caminho, params, 'situacao'),
     },
     filtro.sku && {
@@ -120,9 +120,9 @@ export default async function AdminCatalogoPage({
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat rotulo="Produtos ativos" valor={ativos} apoio="Visíveis para o consultor." />
         <Stat
-          rotulo="Desativados"
+          rotulo="Fora do catálogo"
           valor={produtos.length - ativos}
-          apoio="Somem do catálogo, permanecem no histórico."
+          apoio="Removidos: somem para o consultor, ficam no histórico."
         />
         <Stat
           rotulo="Sem SKU no Tiny"
@@ -225,10 +225,13 @@ export default async function AdminCatalogoPage({
                     <TableCell>
                       <FiltroDoGrupo
                         {...grupo('situacao', p.ativo ? 'ativo' : 'desativado')}
-                        rotulo={p.ativo ? 'produtos ativos' : 'produtos desativados'}
+                        rotulo={p.ativo ? 'produtos no catálogo' : 'produtos fora do catálogo'}
                       >
-                        <Badge variant={p.ativo ? 'outline' : 'muted'}>
-                          {p.ativo ? 'ativo' : 'desativado'}
+                        <Badge
+                          variant={p.ativo ? 'outline' : 'muted'}
+                          className="whitespace-nowrap"
+                        >
+                          {p.ativo ? 'no catálogo' : 'fora do catálogo'}
                         </Badge>
                       </FiltroDoGrupo>
                     </TableCell>
@@ -255,7 +258,7 @@ export default async function AdminCatalogoPage({
                           skuTiny: p.skuTiny,
                         }}
                       />
-                      <BotaoAtivar id={p.id} ativo={p.ativo} />
+                      <BotaoAtivar id={p.id} ativo={p.ativo} nome={p.nome} />
                     </TableCell>
                   </TableRow>
                 ))}
