@@ -34,34 +34,34 @@ export function primeiroNome(nomeCompleto: string): string {
 /**
  * Modelos por motivo.
  *
- * São ponto de partida, não texto final: o consultor escolhe e edita. Ficam
- * aqui, e não na tela, porque a área vai querer ajustar as frases sem que
- * ninguém precise caçar em qual componente elas estavam.
- *
- * O `{nome}` é substituído pelo primeiro nome do cliente na hora de aplicar.
+ * São ponto de partida, não texto final: o consultor escolhe e edita. Moram
+ * no banco (`ModeloCarta`) e a área os ajusta em Administração → Modelos de
+ * carta, sem deploy. O `{nome}` é substituído pelo primeiro nome do cliente
+ * na hora de aplicar.
  */
-export const MODELOS_DE_CARTA: Record<MotivoEnvio, readonly string[]> = {
-  aniversario: [
-    'Feliz aniversário, {nome}! Que este novo ano venha com saúde, conquistas e boas decisões. Obrigado por caminhar com a gente.',
-    'Parabéns, {nome}! Um brinde a mais um ano e a tudo o que você vem construindo.',
-  ],
-  casamento: [
-    'Parabéns pelo casamento, {nome}! Que a vida a dois seja tão bem planejada quanto os sonhos de vocês.',
-    'Felicidades, {nome}! Que este novo capítulo venha cheio de planos e de realizações conjuntas.',
-  ],
-  nascimento: [
-    'Parabéns pela chegada do bebê, {nome}! Que venha muita saúde e um futuro bem preparado.',
-    'Seja bem-vindo ao mundo! Parabéns, {nome}, por esse novo começo.',
-  ],
-  reforco_relacionamento: [
-    'Oi, {nome}! Passando para agradecer pela confiança. Seguimos juntos e à disposição sempre que precisar.',
-    '{nome}, obrigado por fazer parte da nossa história. Este presente é um lembrete de que estamos por perto.',
-  ],
-  primeiro_milhao: [
-    'Parabéns pelo primeiro milhão, {nome}! É o resultado de consistência e de boas escolhas, e foi uma alegria acompanhar de perto.',
-    '{nome}, o primeiro milhão é um marco que poucos alcançam. Que venham os próximos.',
-  ],
-  outro: ['Oi, {nome}! Este presente é um jeito de dizer que a gente lembra de você.'],
+export type ModeloDeCarta = { id: string; motivo: MotivoEnvio; texto: string }
+
+/**
+ * O que impede gravar um modelo, ou nulo se ele pode ir.
+ *
+ * O marcador errado é o erro que mais escapa: "{Nome}" ou "{cliente}" não são
+ * trocados por nada e chegariam assim na folha impressa. Por isso qualquer
+ * chave que não seja exatamente `{nome}` é recusada aqui, antes de virar
+ * sugestão para todo mundo.
+ */
+export function problemaDoModelo(texto: string): string | null {
+  const limpo = texto.trim()
+  if (!limpo) return 'Escreva o texto do modelo.'
+  if (limpo.length > LIMITE_DA_MENSAGEM) {
+    return `O modelo passa de ${LIMITE_DA_MENSAGEM} caracteres, o que cabe numa carta.`
+  }
+
+  // Tirados os `{nome}`, qualquer chave que sobre está errada.
+  const errado = limpo.replaceAll('{nome}', '').match(/\{[^}]*\}?|\}/u)?.[0]
+  if (errado) {
+    return `"${errado}" não é trocado por nada. Para o primeiro nome do cliente, use {nome}.`
+  }
+  return null
 }
 
 /** Troca o `{nome}` do modelo pelo primeiro nome de quem recebe. */

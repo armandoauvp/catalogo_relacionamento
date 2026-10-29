@@ -22,6 +22,7 @@ describe('consultor', () => {
   it('não altera status, não gerencia catálogo e não exporta', () => {
     expect(pode(Perfil.consultor, 'solicitacao.alterarStatus')).toBe(false)
     expect(pode(Perfil.consultor, 'catalogo.gerenciar')).toBe(false)
+    expect(pode(Perfil.consultor, 'carta.gerenciarModelos')).toBe(false)
     expect(pode(Perfil.consultor, 'usuario.gerenciar')).toBe(false)
     expect(pode(Perfil.consultor, 'exportar')).toBe(false)
   })
@@ -35,6 +36,7 @@ describe('admin', () => {
   it('pode tudo', () => {
     for (const acao of [
       'catalogo.gerenciar',
+      'carta.gerenciarModelos',
       'solicitacao.alterarStatus',
       'solicitacao.editar',
       'usuario.gerenciar',
@@ -146,5 +148,14 @@ describe('perfil livre, fase de testes', () => {
   it('escolha que não é perfil é ignorada', () => {
     expect(perfilEmVigor(Perfil.financeiro, 'root', true)).toBe(Perfil.financeiro)
     expect(perfilEmVigor(Perfil.financeiro, undefined, true)).toBe(Perfil.financeiro)
+  })
+})
+
+describe('modelos de carta', () => {
+  it('só o Admin muda as sugestões, que valem para todos os consultores', () => {
+    expect(pode(Perfil.admin, 'carta.gerenciarModelos')).toBe(true)
+    expect(pode(Perfil.consultor, 'carta.gerenciarModelos')).toBe(false)
+    expect(pode(Perfil.financeiro, 'carta.gerenciarModelos')).toBe(false)
+    expect(pode(Perfil.logistica, 'carta.gerenciarModelos')).toBe(false)
   })
 })

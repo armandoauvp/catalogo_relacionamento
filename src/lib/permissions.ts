@@ -33,6 +33,7 @@ import { Perfil } from '@prisma/client'
 export const ACOES = [
   'catalogo.ver',
   'catalogo.gerenciar',
+  'carta.gerenciarModelos',
   'compras.verFila',
   'expedicao.verFila',
   'expedicao.registrarRastreio',
@@ -86,6 +87,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
   [Perfil.consultor]: {
     'catalogo.ver': true,
     'catalogo.gerenciar': false,
+    'carta.gerenciarModelos': false,
     'compras.verFila': false,
     'expedicao.verFila': false,
     'expedicao.registrarRastreio': false,
@@ -108,6 +110,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
   [Perfil.admin]: {
     'catalogo.ver': true,
     'catalogo.gerenciar': true,
+    'carta.gerenciarModelos': true,
     'compras.verFila': true,
     'expedicao.verFila': true,
     'expedicao.registrarRastreio': true,
@@ -130,6 +133,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
   [Perfil.financeiro]: {
     'catalogo.ver': true,
     'catalogo.gerenciar': false,
+    'carta.gerenciarModelos': false,
     'compras.verFila': true,
     'expedicao.verFila': true,
     'expedicao.registrarRastreio': true,
@@ -153,6 +157,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
   [Perfil.logistica]: {
     'catalogo.ver': true,
     'catalogo.gerenciar': false,
+    'carta.gerenciarModelos': false,
     'compras.verFila': false,
     // Quem separa e posta é o time, então a fila e o rastreio são dele.
     'expedicao.verFila': true,

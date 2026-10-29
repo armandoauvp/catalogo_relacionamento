@@ -1,4 +1,5 @@
 import { exigirPermissao } from '@/lib/auth-guards'
+import { db } from '@/lib/db'
 import { catalogoProvider } from '@/lib/providers'
 import { saldoDoMes } from '@/lib/saldo'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -20,9 +21,14 @@ import { FormularioDeSolicitacao, type ProdutoDoCatalogo } from './formulario'
 export default async function NovaSolicitacaoPage() {
   const usuario = await exigirPermissao('solicitacao.criar')
 
-  const [pagina, saldo] = await Promise.all([
+  const [pagina, saldo, modelosDeCarta] = await Promise.all([
     catalogoProvider.listar({ apenasAtivos: true, porPagina: 500 }),
     saldoDoMes(usuario.id),
+    db.modeloCarta.findMany({
+      where: { ativo: true },
+      orderBy: [{ ordem: 'asc' }, { criadoEm: 'asc' }],
+      select: { id: true, motivo: true, texto: true },
+    }),
   ])
 
   const produtos: ProdutoDoCatalogo[] = pagina.itens.map((p) => ({
@@ -53,6 +59,7 @@ export default async function NovaSolicitacaoPage() {
         consultor={usuario.nome}
         gastoNoMes={saldo.gasto.toNumber()}
         limiteMensal={saldo.limite ? saldo.limite.toNumber() : null}
+        modelosDeCarta={modelosDeCarta}
       />
     </>
   )

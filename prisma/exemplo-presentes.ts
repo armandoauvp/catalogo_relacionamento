@@ -6,7 +6,7 @@ import type {
   StatusSolicitacao,
 } from '@prisma/client'
 import { acompanhamentosFaltando } from '../src/lib/acompanhamentos'
-import { aplicarModelo, MODELOS_DE_CARTA } from '../src/lib/carta'
+import { aplicarModelo } from '../src/lib/carta'
 import { formatarCodigo } from '../src/lib/codigo'
 import { cpfValido } from '../src/lib/cpf'
 import { anoCorrente, instanteLocal, intervaloDoMes, partesLocais } from '../src/lib/datas'
@@ -640,6 +640,15 @@ export async function semearPresentes(
     .filter((r) => r.inicio < new Date(agora.getTime() - 9 * DIA))
     .slice(0, 3)
     .forEach((r) => (r.excecao = 'extravio'))
+  // As cartas saem dos modelos que a migration grava, na ordem da tela.
+  const modelos = new Map<MotivoEnvio, string[]>()
+  for (const m of await db.modeloCarta.findMany({
+    where: { ativo: true },
+    orderBy: [{ ordem: 'asc' }, { criadoEm: 'asc' }],
+  })) {
+    modelos.set(m.motivo, [...(modelos.get(m.motivo) ?? []), m.texto])
+  }
+
   const anos = [...new Set(rascunhos.map((r) => anoCorrente(r.inicio)))]
   const contadores = await db.contadorCodigo.findMany({ where: { ano: { in: anos } } })
   const sequencia = new Map(contadores.map((c) => [c.ano, c.valor]))
@@ -651,6 +660,7 @@ export async function semearPresentes(
       r,
       formatarCodigo(ano, numero),
       { usuarios, produtos },
+      modelos,
       aleatorio,
       agora,
     )
@@ -676,6 +686,7 @@ function montarSolicitacao(
   r: Rascunho,
   codigo: string,
   { usuarios, produtos }: { usuarios: Map<string, string>; produtos: Map<string, { id: string }> },
+  modelos: Map<MotivoEnvio, string[]>,
   aleatorio: () => number,
   agora: Date,
 ): Prisma.SolicitacaoCreateInput {
@@ -721,7 +732,7 @@ function montarSolicitacao(
       : r.cliente.endereco
 
   const motivoOutro = r.motivo === 'outro' ? escolher(MOTIVOS_OUTRO, aleatorio) : null
-  const modelo = escolher(MODELOS_DE_CARTA[r.motivo], aleatorio)
+  const modelo = escolher(modelos.get(r.motivo) ?? [''], aleatorio)
   const observacoes = aleatorio() < 0.12 ? escolher(OBSERVACOES, aleatorio) : null
 
   return {

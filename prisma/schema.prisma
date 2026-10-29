@@ -134,6 +134,22 @@ model Categoria {
   @@map("categorias")
 }
 
+/// Sugestão de texto para a carta, por motivo. O consultor escolhe e edita;
+/// a solicitação guarda o texto como ficou, então mudar o modelo não reescreve
+/// carta nenhuma. Desativado em vez de apagado, como o resto.
+model ModeloCarta {
+  id           String      @id @default(cuid())
+  motivo       MotivoEnvio
+  texto        String
+  ordem        Int         @default(0)
+  ativo        Boolean     @default(true)
+  criadoEm     DateTime    @default(now()) @map("criado_em")
+  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+
+  @@index([motivo, ativo, ordem])
+  @@map("modelos_carta")
+}
+
 model Produto {
   id                      String        @id @default(cuid())
   nome                    String

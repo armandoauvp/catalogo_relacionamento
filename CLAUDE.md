@@ -188,7 +188,9 @@ tempo dele: validação por campo (o "Continuar" acende o que falta e leva o
 cursor até lá, em vez de ficar desligado sem explicar), histórico do que já foi
 mandado para aquele cliente, limite do mês contado com o pedido atual dentro,
 prévia da carta ao lado do campo e na revisão, e a rota que o pedido segue
-depois da aprovação.
+depois da aprovação. As sugestões de texto da carta moram no banco
+(`ModeloCarta`) e o Admin as edita em Administração → Modelos de carta; a
+validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`.
 
 O caminho do Admin é por pilha: a gestão encaminha em lote, e a expedição
 devolve o rastreio que o consultor lê na própria solicitação.

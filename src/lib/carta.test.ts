@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { MotivoEnvio } from '@prisma/client'
 import {
   LIMITE_DA_MENSAGEM,
-  MODELOS_DE_CARTA,
   aplicarModelo,
   espacoRestante,
   ocasiaoDaCarta,
   previaDaCarta,
   primeiroNome,
+  problemaDoModelo,
 } from './carta'
 
 describe('primeiro nome', () => {
@@ -29,10 +29,24 @@ describe('primeiro nome', () => {
 })
 
 describe('modelos de carta', () => {
-  it('tem ao menos um modelo para cada motivo', () => {
-    for (const motivo of Object.values(MotivoEnvio)) {
-      expect(MODELOS_DE_CARTA[motivo].length).toBeGreaterThan(0)
-    }
+  it('aceita o modelo com {nome}, e o sem marcador nenhum', () => {
+    expect(problemaDoModelo('Feliz aniversário, {nome}! Um brinde.')).toBeNull()
+    expect(problemaDoModelo('Um brinde a mais um ano.')).toBeNull()
+  })
+
+  it('recusa modelo vazio, que viraria uma sugestão em branco', () => {
+    expect(problemaDoModelo('   ')).toMatch(/Escreva/)
+  })
+
+  it('recusa modelo maior do que cabe na carta', () => {
+    expect(problemaDoModelo('a'.repeat(LIMITE_DA_MENSAGEM + 1))).toMatch(/passa de 600/)
+  })
+
+  it('aponta o marcador escrito errado, que chegaria cru na folha', () => {
+    expect(problemaDoModelo('Oi, {Nome}!')).toMatch(/"\{Nome\}"/)
+    expect(problemaDoModelo('Oi, {nome}! Parabéns, {cliente}.')).toMatch(/"\{cliente\}"/)
+    expect(problemaDoModelo('Oi, {nome!')).toMatch(/"\{nome!"/)
+    expect(problemaDoModelo('Oi, nome}!')).toMatch(/"\}"/)
   })
 
   it('troca o nome do cliente no modelo', () => {

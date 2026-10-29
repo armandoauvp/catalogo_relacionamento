@@ -11,6 +11,7 @@ import {
   Gift,
   ListChecks,
   LogOut,
+  MailOpen,
   Package,
   Send,
   Settings2,
@@ -129,6 +130,14 @@ const ADMINISTRACAO: readonly ItemDeMenu[] = [
     descricao: 'Cadastro, edição e ativação do catálogo',
     icone: Package,
     acao: 'catalogo.gerenciar',
+  },
+  {
+    id: 'cartas',
+    href: '/admin/cartas' as Route,
+    rotulo: 'Modelos de carta',
+    descricao: 'Sugestões de texto por motivo',
+    icone: MailOpen,
+    acao: 'carta.gerenciarModelos',
   },
   {
     id: 'clientes',

@@ -22,8 +22,8 @@ import { formatarData } from '@/lib/datas'
 import { precisaDeCompra } from '@/lib/status'
 import {
   LIMITE_DA_MENSAGEM,
-  MODELOS_DE_CARTA,
   aplicarModelo,
+  type ModeloDeCarta,
   espacoRestante,
   previaDaCarta,
 } from '@/lib/carta'
@@ -158,12 +158,15 @@ export function FormularioDeSolicitacao({
   consultor,
   gastoNoMes,
   limiteMensal,
+  modelosDeCarta,
 }: {
   produtos: ProdutoDoCatalogo[]
   /** Quem assina a carta. */
   consultor: string
   gastoNoMes: number
   limiteMensal: number | null
+  /** Só os ativos, na ordem da tela de modelos. */
+  modelosDeCarta: ModeloDeCarta[]
 }) {
   const router = useRouter()
   const [enviando, iniciarEnvio] = useTransition()
@@ -766,6 +769,7 @@ export function FormularioDeSolicitacao({
                 erros={erros}
                 destinatario={entrega.destinatario || cliente?.nome || ''}
                 consultor={consultor}
+                modelos={modelosDeCarta.filter((m) => m.motivo === carta.motivo)}
               />
             ) : null}
 
@@ -1517,14 +1521,15 @@ function EtapaCarta({
   erros,
   destinatario,
   consultor,
+  modelos,
 }: {
   carta: Carta
   setCarta: React.Dispatch<React.SetStateAction<Carta>>
   erros: Record<string, string>
   destinatario: string
   consultor: string
+  modelos: ModeloDeCarta[]
 }) {
-  const modelos = MODELOS_DE_CARTA[carta.motivo]
   const { restam, excedeu } = espacoRestante(carta.mensagem)
   const previa = previaDaCarta({
     destinatario,
@@ -1599,26 +1604,34 @@ function EtapaCarta({
             <ErroDoCampo mensagem={erros['mensagem']} />
 
             {/* Ponto de partida, não texto final: o consultor escolhe e edita.
-                As frases moram em src/lib/carta.ts. */}
-            <div className="space-y-1.5">
-              <p className="text-muted-foreground text-xs">
-                {carta.mensagem.trim() ? 'Trocar por um modelo:' : 'Começar de um modelo:'}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {modelos.map((modelo, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() =>
-                      setCarta((c) => ({ ...c, mensagem: aplicarModelo(modelo, destinatario) }))
-                    }
-                    className="ease-apple hover:border-primary/40 max-w-full rounded-lg border px-3 py-2 text-left text-xs leading-snug transition-colors duration-200 hover:shadow-sm"
-                  >
-                    <span className="line-clamp-2">{aplicarModelo(modelo, destinatario)}</span>
-                  </button>
-                ))}
+                As frases a área ajusta em Administração → Modelos de carta;
+                motivo sem modelo ativo fica sem a linha. */}
+            {modelos.length ? (
+              <div className="space-y-1.5">
+                <p className="text-muted-foreground text-xs">
+                  {carta.mensagem.trim() ? 'Trocar por um modelo:' : 'Começar de um modelo:'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {modelos.map((modelo) => (
+                    <button
+                      key={modelo.id}
+                      type="button"
+                      onClick={() =>
+                        setCarta((c) => ({
+                          ...c,
+                          mensagem: aplicarModelo(modelo.texto, destinatario),
+                        }))
+                      }
+                      className="ease-apple hover:border-primary/40 max-w-full rounded-lg border px-3 py-2 text-left text-xs leading-snug transition-colors duration-200 hover:shadow-sm"
+                    >
+                      <span className="line-clamp-2">
+                        {aplicarModelo(modelo.texto, destinatario)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
