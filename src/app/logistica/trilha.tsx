@@ -10,9 +10,11 @@ import {
 } from 'lucide-react'
 import { formatarData } from '@/lib/datas'
 import {
+  ORDENS_DA_TRILHA,
   ROTULO_COMPLEXIDADE,
   ROTULO_PERIODICIDADE,
   ROTULO_PRIORIDADE,
+  type OrdemDaTrilha,
 } from '@/lib/logistica/demandas'
 import type { DemandaNaTrilha, sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { Badge } from '@/components/ui/badge'
@@ -21,7 +23,14 @@ import { cn } from '@/lib/utils'
 import { EditorDeDemanda } from './editor-de-demanda'
 import { Dica, FaseBadge, TituloDoBloco } from './pecas'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
-import { hrefDoGrupo, valorDoFiltro, type ParametrosDaUrl } from '@/lib/filtro-por-grupo'
+import {
+  hrefDoGrupo,
+  hrefSemFiltro,
+  valorDoFiltro,
+  type ParametrosDaUrl,
+} from '@/lib/filtro-por-grupo'
+import { EnviosDaDemanda } from './envios-da-demanda'
+import { SeletorDeOrdem } from './ordem-da-trilha'
 import { ROTULO_FASE } from '@/lib/logistica/demandas'
 
 export type Sugestoes = Awaited<ReturnType<typeof sugestoesDoCadastro>>
@@ -51,6 +60,7 @@ export function Trilha({
   sugestoes,
   filtroDaUrl,
   filtrosAtivos,
+  ordem,
 }: {
   demandas: DemandaNaTrilha[]
   total: number
@@ -62,11 +72,19 @@ export function Trilha({
   /** A query da tela: os grupos da linha viram recorte da trilha. */
   filtroDaUrl: ParametrosDaUrl
   filtrosAtivos: readonly FiltroAtivo[]
+  ordem: OrdemDaTrilha
 }) {
   const grupo: Grupo = (chave, valor) => ({
     href: hrefDoGrupo('/logistica', filtroDaUrl, chave, valor),
     ativo: valorDoFiltro(filtroDaUrl, chave) === valor,
   })
+  const semOrdem = hrefSemFiltro('/logistica', filtroDaUrl, 'ordem')
+  const hrefsDaOrdem = Object.fromEntries(
+    ORDENS_DA_TRILHA.map((o) => [
+      o,
+      o === 'prioridade' ? semOrdem : `${semOrdem}${semOrdem.includes('?') ? '&' : '?'}ordem=${o}`,
+    ]),
+  ) as Record<OrdemDaTrilha, string>
   const abertas = demandas.filter((d) => d.fase !== 'concluido')
   const prioritarias = abertas.filter((d) => d.prioritaria).length
   const atrasadas = abertas.filter((d) => d.atrasada).length
@@ -79,6 +97,7 @@ export function Trilha({
           apoio={`${total} ${total === 1 ? 'demanda' : 'demandas'} em andamento no período · ${prioritarias} ${prioritarias === 1 ? 'prioritária' : 'prioritárias'} · ${atrasadas} ${atrasadas === 1 ? 'atrasada' : 'atrasadas'}`}
           acoes={
             <>
+              <SeletorDeOrdem atual={ordem} hrefs={hrefsDaOrdem} />
               {sugestoes ? <EditorDeDemanda sugestoes={sugestoes} /> : null}
               <Button variant="outline" size="sm" asChild>
                 <a href={`/api/logistica/export?${exportar}&formato=csv`} download>
@@ -119,7 +138,7 @@ export function Trilha({
 
       {total > demandas.length ? (
         <p className="text-muted-foreground border-t px-5 py-3 text-xs">
-          Mostrando as {demandas.length} primeiras de {total}, na ordem da trilha. A exportação leva
+          Mostrando as {demandas.length} primeiras de {total}, na ordem escolhida. A exportação leva
           todas.
         </p>
       ) : null}
@@ -185,7 +204,8 @@ function LinhaDaTrilha({
             <FiltroDoGrupo {...grupo('recorrente', 'sim')} rotulo="demandas recorrentes">
               <Badge variant="outline" className="gap-1">
                 <Repeat className="size-3" aria-hidden="true" />
-                {d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Recorrente'}
+                Recorrente
+                {d.periodicidade ? ` · ${ROTULO_PERIODICIDADE[d.periodicidade]}` : ''}
               </Badge>
             </FiltroDoGrupo>
           ) : null}
@@ -247,21 +267,47 @@ function LinhaDaTrilha({
               d.enviado.rotulo
             )}
           </span>
-          {d.departamento ? (
+          {d.subsidiaria || d.departamento ? (
             <span>
               ·{' '}
-              <FiltroDoGrupo
-                {...grupo('departamento', d.departamento)}
-                rotulo={`departamento ${d.departamento}`}
-                texto
-              >
-                {d.departamento}
-              </FiltroDoGrupo>
+              {d.subsidiaria ? (
+                <FiltroDoGrupo
+                  {...grupo('subsidiaria', d.subsidiaria)}
+                  rotulo={`subsidiária ${d.subsidiaria}`}
+                  texto
+                >
+                  {d.subsidiaria}
+                </FiltroDoGrupo>
+              ) : null}
+              {d.subsidiaria && d.departamento ? ' › ' : null}
+              {d.departamento ? (
+                <FiltroDoGrupo
+                  {...grupo('departamento', d.departamento)}
+                  rotulo={`departamento ${d.departamento}`}
+                  texto
+                >
+                  {d.departamento}
+                </FiltroDoGrupo>
+              ) : null}
             </span>
           ) : null}
           {contexto.map((t) => (
             <span key={t}>· {t}</span>
           ))}
+          {d.envios.total > 0 ? (
+            <span className="text-foreground">
+              ·{' '}
+              <span className="font-medium tabular-nums">
+                {d.envios.total.toLocaleString('pt-BR')}
+              </span>{' '}
+              {d.envios.total === 1 ? 'despachado' : 'despachados'}
+              {d.envios.ultimo ? (
+                <span className="text-muted-foreground">
+                  , último em {formatarData(d.envios.ultimo)}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
         </p>
       </div>
 
@@ -273,7 +319,14 @@ function LinhaDaTrilha({
 
       <Previsao demanda={d} />
 
-      <div className="md:justify-self-end">
+      <div className="flex flex-wrap gap-1 md:justify-self-end">
+        <EnviosDaDemanda
+          demandaId={d.id}
+          titulo={d.titulo}
+          total={d.envios.total}
+          historico={d.envios.historico}
+          podeLancar={Boolean(sugestoes) && !concluida}
+        />
         {sugestoes ? <EditorDeDemanda demanda={d} sugestoes={sugestoes} /> : null}
       </div>
     </li>
@@ -281,20 +334,23 @@ function LinhaDaTrilha({
 }
 
 function Previsao({ demanda: d }: { demanda: DemandaNaTrilha }) {
+  // O pedido e o início ficam sempre à vista (relatório de 29/10): sumir com
+  // o início quando a demanda começava deixava a linha sem dizer quando foi.
+  const inicio = (
+    <span className="text-muted-foreground block text-xs font-normal tabular-nums">
+      Pedida {formatarData(d.solicitadaEm)}
+      {d.previsaoInicio ? ` · Início ${formatarData(d.previsaoInicio)}` : ''}
+    </span>
+  )
+
   if (d.fase === 'concluido') {
     return (
       <p className="text-sm md:text-right">
+        {inicio}
         Concluída {d.concluidaEm ? `em ${formatarData(d.concluidaEm)}` : ''}
       </p>
     )
   }
-
-  const inicio =
-    d.mostrarInicio && d.previsaoInicio ? (
-      <span className="text-muted-foreground block text-xs">
-        Começa {formatarData(d.previsaoInicio)}
-      </span>
-    ) : null
 
   if (!d.previsaoConclusao) {
     return (
@@ -312,6 +368,7 @@ function Previsao({ demanda: d }: { demanda: DemandaNaTrilha }) {
   if (d.atrasada) {
     return (
       <p className="text-error text-sm font-medium md:text-right">
+        {inicio}
         <span className="inline-flex items-center gap-1.5">
           <AlertTriangle className="size-4" aria-hidden="true" />
           Atrasada desde {formatarData(d.previsaoConclusao)}

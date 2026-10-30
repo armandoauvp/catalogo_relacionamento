@@ -3,17 +3,21 @@ import type { FaseOperacional, PrioridadeDemanda } from '@prisma/client'
 import { lerPeriodo, fatiasDoPeriodo } from '@/lib/periodo'
 import {
   compararNaTrilha,
+  compararPorOrdem,
   concluidaEmParaFase,
   contarRecorrentes,
   estavaAberta,
   estavaAtrasada,
-  mostraPrevisaoDeInicio,
   oQueEstaSendoEnviado,
+  problemaDoEnvio,
   proximaOcorrencia,
   SEM_DEPARTAMENTO,
+  somaDosEnvios,
+  ultimoEnvio,
   variacao,
   volumePorDepartamento,
   volumePorFatia,
+  type OrdemDaTrilha,
 } from './demandas'
 
 const AGORA = new Date('2026-08-19T15:00:00Z')
@@ -205,12 +209,109 @@ describe('recorrentes e previsão de início', () => {
       pontuais: 1,
     })
   })
+})
 
-  it('a previsão de início só aparece antes de a demanda começar', () => {
-    expect(mostraPrevisaoDeInicio('recebido')).toBe(true)
-    expect(mostraPrevisaoDeInicio('em_analise')).toBe(true)
-    expect(mostraPrevisaoDeInicio('em_execucao')).toBe(false)
-    expect(mostraPrevisaoDeInicio('concluido')).toBe(false)
+describe('ordem por data', () => {
+  type D = {
+    id: string
+    prioridade: PrioridadeDemanda
+    fase: FaseOperacional
+    solicitadaEm: Date
+    previsaoInicio: Date | null
+    previsaoConclusao: Date | null
+    concluidaEm: Date | null
+  }
+  const d = (id: string, resto: Partial<D>): D => ({
+    id,
+    prioridade: 'normal',
+    fase: 'em_execucao',
+    solicitadaEm: dia('2026-08-10'),
+    previsaoInicio: null,
+    previsaoConclusao: null,
+    concluidaEm: null,
+    ...resto,
+  })
+  const lista = () => [
+    d('velha', { solicitadaEm: dia('2026-08-01'), previsaoInicio: dia('2026-08-20') }),
+    d('nova', { solicitadaEm: dia('2026-08-15'), previsaoConclusao: dia('2026-08-30') }),
+    d('meio', {
+      solicitadaEm: dia('2026-08-08'),
+      previsaoInicio: dia('2026-08-12'),
+      previsaoConclusao: dia('2026-08-22'),
+      fase: 'concluido',
+      concluidaEm: dia('2026-08-18'),
+    }),
+  ]
+  const ordenar = (ordem: OrdemDaTrilha) =>
+    lista()
+      .sort(compararPorOrdem<D>(ordem, AGORA))
+      .map((x) => x.id)
+
+  it('pelo pedido, o mais recente primeiro, concluída no meio do calendário', () => {
+    expect(ordenar('pedido')).toEqual(['nova', 'meio', 'velha'])
+  })
+
+  it('pelo início e pela previsão, o mais próximo primeiro, sem data no fim', () => {
+    expect(ordenar('inicio')).toEqual(['meio', 'velha', 'nova'])
+    expect(ordenar('previsao')).toEqual(['meio', 'nova', 'velha'])
+  })
+
+  it('a padrão continua a da prioridade', () => {
+    expect(ordenar('prioridade')).toEqual(
+      lista()
+        .sort(compararNaTrilha<D>(AGORA))
+        .map((x) => x.id),
+    )
+  })
+})
+
+describe('envios lançados na tarefa', () => {
+  const envio = (quantidade: number, quando: string, anulado = false) => ({
+    quantidade,
+    enviadoEm: dia(quando),
+    anuladoEm: anulado ? dia(quando) : null,
+  })
+  const envios = [
+    envio(500, '2026-08-03'),
+    envio(300, '2026-08-12'),
+    envio(5000, '2026-08-13', true),
+    envio(200, '2026-08-17'),
+  ]
+
+  it('soma o que saiu, sem os anulados', () => {
+    expect(somaDosEnvios(envios)).toBe(1000)
+  })
+
+  it('no período, conta pela data do envio', () => {
+    expect(somaDosEnvios(envios, { inicio: dia('2026-08-10'), fim: dia('2026-08-17') })).toBe(300)
+  })
+
+  it('o último envio ignora o anulado', () => {
+    expect(ultimoEnvio(envios)).toEqual(dia('2026-08-17'))
+    expect(ultimoEnvio([envio(10, '2026-08-20', true)])).toBeNull()
+  })
+
+  it('recusa quantidade que não é envio, número fora da escala e data futura', () => {
+    const hoje = dia('2026-08-19')
+    expect(problemaDoEnvio({ quantidade: 500, enviadoEm: hoje }, hoje)).toBeNull()
+    expect(problemaDoEnvio({ quantidade: 0, enviadoEm: hoje }, hoje)).toMatch(/maior que zero/)
+    expect(problemaDoEnvio({ quantidade: 2.5, enviadoEm: hoje }, hoje)).toMatch(/inteiro/)
+    expect(problemaDoEnvio({ quantidade: 500_000, enviadoEm: hoje }, hoje)).toMatch(/Confira/)
+    expect(problemaDoEnvio({ quantidade: 5, enviadoEm: dia('2026-08-20') }, hoje)).toMatch(
+      /ainda não aconteceu/,
+    )
+  })
+
+  it('no gráfico por departamento, cada lançamento pesa a quantidade', () => {
+    const linhas = volumePorDepartamento([
+      { subsidiaria: 'AUVP Consultoria', departamento: 'Relacionamento', quantidade: 500 },
+      { subsidiaria: 'AUVP Consultoria', departamento: 'Relacionamento', quantidade: 300 },
+      { subsidiaria: 'AUVP Escola', departamento: 'Produto', quantidade: 200 },
+    ])
+    expect(linhas.map((l) => [l.departamento, l.quantidade, l.percentual])).toEqual([
+      ['Relacionamento', 800, 80],
+      ['Produto', 200, 20],
+    ])
   })
 })
 

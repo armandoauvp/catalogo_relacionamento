@@ -229,7 +229,10 @@ export function EditorDeDemanda({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo rotulo="Previsão de início" dica="Opcional. Some da trilha quando começa.">
+            <Campo
+              rotulo="Previsão de início"
+              dica="Opcional. Aparece na trilha junto da data do pedido."
+            >
               <Input
                 type="date"
                 name="previsaoInicio"

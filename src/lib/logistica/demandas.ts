@@ -142,6 +142,95 @@ export function compararNaTrilha<
   }
 }
 
+/** As ordens que a trilha oferece além da padrão (relatório de 29/10, item 2). */
+export const ORDENS_DA_TRILHA = ['prioridade', 'pedido', 'inicio', 'previsao'] as const
+export type OrdemDaTrilha = (typeof ORDENS_DA_TRILHA)[number]
+
+export const ROTULO_DA_ORDEM: Record<OrdemDaTrilha, string> = {
+  prioridade: 'Prioridade',
+  pedido: 'Data do pedido',
+  inicio: 'Início',
+  previsao: 'Previsão de conclusão',
+}
+
+/**
+ * A trilha na ordem escolhida.
+ *
+ * Fora a padrão, é ordem de calendário pura, sem separar abertas de
+ * concluídas: quem pede "por data" quer ler a linha do tempo. O pedido vem do
+ * mais recente, que é o que se procura; início e previsão, do mais próximo,
+ * com quem não tem a data no fim. Empate cai na data do pedido.
+ */
+export function compararPorOrdem<
+  T extends Datas & {
+    prioridade: PrioridadeDemanda
+    fase: FaseOperacional
+    previsaoInicio: Date | null
+  },
+>(ordem: OrdemDaTrilha, agora: Date) {
+  if (ordem === 'prioridade') return compararNaTrilha<T>(agora)
+
+  const chave = (d: T): number => {
+    if (ordem === 'pedido') return -d.solicitadaEm.getTime()
+    const data = ordem === 'inicio' ? d.previsaoInicio : d.previsaoConclusao
+    return data?.getTime() ?? Infinity
+  }
+  return (a: T, b: T): number =>
+    chave(a) - chave(b) || a.solicitadaEm.getTime() - b.solicitadaEm.getTime()
+}
+
+// ---------------------------------------------------------------------------
+// Envios lançados na tarefa (relatório de 29/10, item 1)
+// ---------------------------------------------------------------------------
+
+export type EnvioLancado = { quantidade: number; enviadoEm: Date; anuladoEm: Date | null }
+
+/**
+ * Quanto foi despachado. O anulado não conta: é o lançamento feito por
+ * engano, que fica no histórico só para mostrar o que aconteceu. Com
+ * intervalo, só o que saiu dentro dele, pela data do envio e não pela data em
+ * que alguém lançou.
+ */
+export function somaDosEnvios(
+  envios: readonly EnvioLancado[],
+  intervalo?: { inicio: Date; fim: Date },
+): number {
+  return envios
+    .filter((e) => e.anuladoEm === null)
+    .filter((e) => !intervalo || (e.enviadoEm >= intervalo.inicio && e.enviadoEm < intervalo.fim))
+    .reduce((soma, e) => soma + e.quantidade, 0)
+}
+
+/** O envio mais recente que vale, para a linha dizer "último em 29/10". */
+export function ultimoEnvio(envios: readonly EnvioLancado[]): Date | null {
+  const validos = envios.filter((e) => e.anuladoEm === null).map((e) => e.enviadoEm.getTime())
+  return validos.length ? new Date(Math.max(...validos)) : null
+}
+
+/** Um lote despachado é grande, mas não sem fim: um zero a mais vira o mês inteiro. */
+export const TETO_DO_ENVIO = 100_000
+
+/**
+ * O que impede lançar um envio, ou nulo se ele pode ir.
+ *
+ * A data é o fim do dia escolhido, como as previsões; por isso "hoje" vale
+ * até o fim do dia, e amanhã não: envio é registro do que já saiu.
+ */
+export function problemaDoEnvio(
+  envio: { quantidade: number; enviadoEm: Date },
+  fimDeHoje: Date,
+): string | null {
+  if (!Number.isInteger(envio.quantidade) || envio.quantidade < 1) {
+    return 'Informe quantos itens saíram, um número inteiro maior que zero.'
+  }
+  if (envio.quantidade > TETO_DO_ENVIO) {
+    return `Mais de ${TETO_DO_ENVIO.toLocaleString('pt-BR')} num lançamento só? Confira o número.`
+  }
+  if (envio.enviadoEm > fimDeHoje)
+    return 'O envio ainda não aconteceu: use a data de hoje ou antes.'
+  return null
+}
+
 // ---------------------------------------------------------------------------
 // Agregações do painel
 // ---------------------------------------------------------------------------
@@ -161,9 +250,16 @@ export const SEM_SUBSIDIARIA = 'Sem subsidiária'
  * "Volume de Pedidos por Departamento" (relatório, item 2), na hierarquia
  * subsidiária e departamento. Ordem decrescente pela quantidade, empate pelo
  * nome para a ordem não mudar entre recargas.
+ *
+ * Cada linha conta 1, a não ser que traga `quantidade`: é assim que os
+ * envios lançados somam as peças despachadas, e não quantos lançamentos houve.
  */
 export function volumePorDepartamento(
-  demandas: readonly { subsidiaria: string | null; departamento: string | null }[],
+  demandas: readonly {
+    subsidiaria: string | null
+    departamento: string | null
+    quantidade?: number
+  }[],
 ): LinhaDeVolume[] {
   const grupos = new Map<
     string,
@@ -174,11 +270,11 @@ export function volumePorDepartamento(
     const departamento = d.departamento?.trim() || SEM_DEPARTAMENTO
     const chave = `${subsidiaria}\u0000${departamento}`
     const grupo = grupos.get(chave) ?? { subsidiaria, departamento, quantidade: 0 }
-    grupo.quantidade++
+    grupo.quantidade += d.quantidade ?? 1
     grupos.set(chave, grupo)
   }
 
-  const total = demandas.length
+  const total = demandas.reduce((soma, d) => soma + (d.quantidade ?? 1), 0)
   return [...grupos.values()]
     .map((g) => ({
       subsidiaria: g.subsidiaria,
@@ -268,15 +364,6 @@ export function contarRecorrentes(demandas: readonly { recorrente: boolean }[]):
 } {
   const recorrentes = demandas.filter((d) => d.recorrente).length
   return { recorrentes, pontuais: demandas.length - recorrentes }
-}
-
-/**
- * A previsão de início só aparece enquanto a demanda não começou. Depois, a
- * data que interessa é a de finalização, e mostrar as duas seria o
- * "redundante" que a Logística temia.
- */
-export function mostraPrevisaoDeInicio(fase: FaseOperacional): boolean {
-  return fase === 'recebido' || fase === 'em_analise'
 }
 
 /** Quantas demandas foram pedidas em cada fatia do gráfico de evolução. */

@@ -23,11 +23,11 @@ const demanda: DemandaNaTrilha = {
   solicitadaEm: new Date('2026-08-17T15:00:00Z'),
   previsaoInicio: null,
   previsaoConclusao: new Date('2026-08-21T15:00:00Z'),
-  mostrarInicio: false,
   concluidaEm: null,
   recorrente: true,
   periodicidade: 'semanal',
   itens: ['Camiseta', 'Caneca'],
+  envios: { total: 1250, noPeriodo: 500, ultimo: null, historico: [] },
 }
 
 describe('exportação da trilha', () => {
@@ -41,7 +41,9 @@ describe('exportação da trilha', () => {
       previsaoConclusao: '2026-08-21',
       previsaoInicio: null,
       origem: 'Manual',
-      recorrencia: 'Semanal',
+      recorrencia: 'Recorrente · Semanal',
+      despachadosNoPeriodo: 500,
+      despachadosNoTotal: 1250,
     })
   })
 

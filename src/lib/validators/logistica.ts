@@ -118,3 +118,21 @@ export const demandaSchema = z
     message: 'O início previsto vem depois da conclusão.',
     path: ['previsaoInicio'],
   })
+
+/**
+ * Envio lançado numa demanda que segue aberta (relatório de 29/10). A
+ * quantidade aceita o ponto de milhar que a pessoa digita ("1.250"); o resto
+ * das regras, inclusive a data no futuro, mora em `problemaDoEnvio`.
+ */
+export const envioSchema = z.object({
+  demandaId: z.string().min(1),
+  quantidade: z.preprocess(
+    (v) => (typeof v === 'string' ? Number(v.replace(/[.\s]/g, '')) : v),
+    z.number({ message: 'Informe quantos itens saíram.' }),
+  ),
+  enviadoEm: diaObrigatorio('Informe o dia do envio.'),
+  observacao: z.preprocess(
+    vazioViraNulo,
+    z.string().trim().max(200, 'Use até 200 caracteres.').nullable(),
+  ),
+})

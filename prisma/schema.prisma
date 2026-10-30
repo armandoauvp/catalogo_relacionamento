@@ -113,6 +113,8 @@ model Usuario {
   pedidosTiny     PedidoTiny[]
   contatosTiny    ContatoTiny[]
   eventosTiny     EventoTiny[]
+  enviosDemanda   EnvioDaDemanda[]          @relation("EnviosRegistrados")
+  enviosAnulados  EnvioDaDemanda[]          @relation("EnviosAnulados")
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -450,6 +452,31 @@ enum Periodicidade {
 /// Departamento, subsidiária e produto ficam como texto, com sugestão dos
 /// valores já usados: uma tabela de cadastro aqui seria um segundo lugar para
 /// manter uma lista que a área ainda está definindo.
+/// Quanto saiu, e quando, numa tarefa que segue aberta (relatório de 29/10):
+/// a Logística soma o despachado da semana à mesma demanda, em vez de criar
+/// uma nova. Lançamento errado é anulado, não apagado: o histórico mostra o
+/// que foi registrado e por quem.
+model EnvioDaDemanda {
+  id            String    @id @default(cuid())
+  demandaId     String    @map("demanda_id")
+  quantidade    Int
+  /// O dia do envio, como o fim daquele dia em São Paulo, igual às previsões.
+  enviadoEm     DateTime  @map("enviado_em")
+  observacao    String?
+  registradoPor String    @map("registrado_por")
+  anuladoEm     DateTime? @map("anulado_em")
+  anuladoPor    String?   @map("anulado_por")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  demanda     DemandaLogistica @relation(fields: [demandaId], references: [id], onDelete: Restrict)
+  registrante Usuario          @relation("EnviosRegistrados", fields: [registradoPor], references: [id], onDelete: Restrict)
+  anulador    Usuario?         @relation("EnviosAnulados", fields: [anuladoPor], references: [id], onDelete: Restrict)
+
+  @@index([demandaId])
+  @@index([enviadoEm])
+  @@map("envios_demanda")
+}
+
 model DemandaLogistica {
   id                   String               @id @default(cuid())
   origem               OrigemDemanda        @default(manual)
@@ -500,6 +527,7 @@ model DemandaLogistica {
   solicitacao        Solicitacao?      @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
   /// O lote de envio que esta demanda representa na trilha.
   loteTiny           LoteTiny?
+  envios             EnvioDaDemanda[]
 
   @@index([solicitadaEm])
   @@index([concluidaEm])

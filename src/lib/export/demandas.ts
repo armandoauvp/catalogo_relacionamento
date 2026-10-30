@@ -34,6 +34,10 @@ const COLUNAS_BASE = [
   { chave: 'previsaoInicio', titulo: 'Previsão de início', largura: 16, tipo: 'data' },
   { chave: 'previsaoConclusao', titulo: 'Previsão de conclusão', largura: 18, tipo: 'data' },
   { chave: 'concluidaEm', titulo: 'Concluída em', largura: 14, tipo: 'data' },
+  // Os envios lançados na tarefa (relatório de 29/10): o do período fecha o
+  // mês por subsidiária e departamento, o total acompanha a tarefa inteira.
+  { chave: 'despachadosNoPeriodo', titulo: 'Despachados no período', largura: 14, tipo: 'numero' },
+  { chave: 'despachadosNoTotal', titulo: 'Despachados no total', largura: 14, tipo: 'numero' },
   { chave: 'clickup', titulo: 'Link do ClickUp', largura: 40, tipo: 'texto' },
   { chave: 'formulario', titulo: 'Link do formulário', largura: 40, tipo: 'texto' },
 ] as const satisfies readonly ColunaExport[]
@@ -69,13 +73,16 @@ export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTri
     produto: d.produto,
     complexidade: d.complexidade ? ROTULO_COMPLEXIDADE[d.complexidade] : null,
     origem: ROTULO_ORIGEM[d.origem],
-    recorrencia:
-      d.recorrente && d.periodicidade ? ROTULO_PERIODICIDADE[d.periodicidade] : 'Pontual',
+    recorrencia: d.recorrente
+      ? `Recorrente${d.periodicidade ? ` · ${ROTULO_PERIODICIDADE[d.periodicidade]}` : ''}`
+      : 'Pontual',
     responsavel: d.responsavel,
     solicitadaEm: data(d.solicitadaEm),
     previsaoInicio: data(d.previsaoInicio),
     previsaoConclusao: data(d.previsaoConclusao),
     concluidaEm: data(d.concluidaEm),
+    despachadosNoPeriodo: d.envios.noPeriodo,
+    despachadosNoTotal: d.envios.total,
     clickup: d.clickupUrl,
     formulario: d.linkFormulario,
     observacoes: d.observacoes,

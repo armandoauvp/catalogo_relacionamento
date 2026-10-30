@@ -5,9 +5,11 @@ import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fotoDoFormulario } from '@/lib/arquivos'
 import { Prisma } from '@prisma/client'
-import { concluidaEmParaFase, proximaOcorrencia } from '@/lib/logistica/demandas'
+import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
+import { concluidaEmParaFase, problemaDoEnvio, proximaOcorrencia } from '@/lib/logistica/demandas'
 import {
   demandaSchema,
+  envioSchema,
   membroSchema,
   perguntaSchema,
   statusDaSemanaSchema,
@@ -246,6 +248,68 @@ export async function arquivarDemanda(id: string, arquivar: boolean): Promise<Re
   try {
     await autorizarAction('logistica.gerenciar')
     await db.demandaLogistica.update({ where: { id }, data: { ativa: !arquivar } })
+    revalidarLogistica()
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Lança o que saiu numa demanda (relatório de 29/10): a semana de 500 cartas
+ * entra na tarefa que já existe, em vez de virar uma demanda nova.
+ *
+ * Demanda arquivada não recebe envio: ela saiu do painel, e o lançamento
+ * sumiria junto sem ninguém ver.
+ */
+export async function registrarEnvio(dados: FormData): Promise<ResultadoDaAction> {
+  try {
+    const usuario = await autorizarAction('logistica.gerenciar')
+
+    const validado = envioSchema.safeParse({
+      demandaId: dados.get('demandaId'),
+      quantidade: dados.get('quantidade'),
+      enviadoEm: dados.get('enviadoEm'),
+      observacao: dados.get('observacao'),
+    })
+    if (!validado.success) return primeiroErro(validado.error)
+    const { demandaId, quantidade, enviadoEm, observacao } = validado.data
+
+    const problema = problemaDoEnvio(
+      { quantidade, enviadoEm },
+      fimDoDiaLocal(formatarISO(new Date()))!,
+    )
+    if (problema) return { ok: false, erro: problema }
+
+    const demanda = await db.demandaLogistica.findUnique({
+      where: { id: demandaId },
+      select: { ativa: true },
+    })
+    if (!demanda) return { ok: false, erro: 'Demanda não encontrada.' }
+    if (!demanda.ativa) return { ok: false, erro: 'Demanda arquivada não recebe envio.' }
+
+    await db.envioDaDemanda.create({
+      data: { demandaId, quantidade, enviadoEm, observacao, registradoPor: usuario.id },
+    })
+    revalidarLogistica()
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Anula um lançamento feito por engano. Não apaga: ele continua no histórico,
+ * riscado, com quem anulou, e sai da soma.
+ */
+export async function anularEnvio(id: string): Promise<ResultadoDaAction> {
+  try {
+    const usuario = await autorizarAction('logistica.gerenciar')
+    const { count } = await db.envioDaDemanda.updateMany({
+      where: { id, anuladoEm: null },
+      data: { anuladoEm: new Date(), anuladoPor: usuario.id },
+    })
+    if (count === 0) return { ok: false, erro: 'Este lançamento já foi anulado.' }
     revalidarLogistica()
     return { ok: true, dados: undefined }
   } catch (e) {

@@ -17,12 +17,13 @@ import {
   type SemanaIso,
 } from '@/lib/periodo'
 import {
-  compararNaTrilha,
+  compararPorOrdem,
   ehPrioritaria,
   estavaAtrasada,
   contarRecorrentes,
-  mostraPrevisaoDeInicio,
   oQueEstaSendoEnviado,
+  somaDosEnvios,
+  ultimoEnvio,
   variacao,
   volumePorDepartamento,
   volumePorFatia,
@@ -74,12 +75,29 @@ export type DemandaNaTrilha = {
   solicitadaEm: Date
   previsaoInicio: Date | null
   previsaoConclusao: Date | null
-  /** Só antes de a demanda começar; depois, a data que vale é a de finalização. */
-  mostrarInicio: boolean
   concluidaEm: Date | null
   recorrente: boolean
   periodicidade: Periodicidade | null
   itens: string[]
+  /** O que a Logística lançou de despachado nesta demanda (relatório de 29/10). */
+  envios: {
+    total: number
+    noPeriodo: number
+    ultimo: Date | null
+    /** Do mais recente ao mais antigo, anulados inclusive. */
+    historico: LancamentoDeEnvio[]
+  }
+}
+
+export type LancamentoDeEnvio = {
+  id: string
+  quantidade: number
+  enviadoEm: Date
+  observacao: string | null
+  registradoPor: string
+  criadoEm: Date
+  anuladoEm: Date | null
+  anuladoPor: string | null
 }
 
 /**
@@ -108,9 +126,18 @@ export async function trilhaDoPeriodo(
   const agora = opcoes.agora ?? new Date()
   const linhas = await db.demandaLogistica.findMany({
     where: { AND: [whereDaTrilha(periodo), whereDoRecorte(opcoes.recorte ?? {})] },
+    include: {
+      envios: {
+        orderBy: [{ enviadoEm: 'desc' }, { criadoEm: 'desc' }],
+        include: {
+          registrante: { select: { nome: true } },
+          anulador: { select: { nome: true } },
+        },
+      },
+    },
   })
 
-  const ordenadas = linhas.sort(compararNaTrilha(agora))
+  const ordenadas = linhas.sort(compararPorOrdem(opcoes.recorte?.ordem ?? 'prioridade', agora))
   const visiveis = opcoes.limite ? ordenadas.slice(0, opcoes.limite) : ordenadas
 
   return {
@@ -136,11 +163,25 @@ export async function trilhaDoPeriodo(
       solicitadaEm: d.solicitadaEm,
       previsaoInicio: d.previsaoInicio,
       previsaoConclusao: d.previsaoConclusao,
-      mostrarInicio: mostraPrevisaoDeInicio(d.fase) && d.previsaoInicio !== null,
       concluidaEm: d.concluidaEm,
       recorrente: d.recorrente,
       periodicidade: d.periodicidade,
       itens: d.itens,
+      envios: {
+        total: somaDosEnvios(d.envios),
+        noPeriodo: somaDosEnvios(d.envios, periodo),
+        ultimo: ultimoEnvio(d.envios),
+        historico: d.envios.map((e) => ({
+          id: e.id,
+          quantidade: e.quantidade,
+          enviadoEm: e.enviadoEm,
+          observacao: e.observacao,
+          registradoPor: e.registrante.nome,
+          criadoEm: e.criadoEm,
+          anuladoEm: e.anuladoEm,
+          anuladoPor: e.anulador?.nome ?? null,
+        })),
+      },
     })),
   }
 }
@@ -218,6 +259,14 @@ export type PainelLogistico = {
     recorrentes: number
     pontuais: number
   }
+  /**
+   * Itens despachados no período, pela data de cada lançamento: é o
+   * fechamento do mês que a gestão pediu, por subsidiária e departamento.
+   */
+  despachados: {
+    total: number
+    porDepartamento: LinhaDeVolume[]
+  }
   evolucao: { rotulo: string; rotuloLongo: string; quantidade: number }[]
   trilha: { demandas: DemandaNaTrilha[]; total: number }
 }
@@ -231,21 +280,35 @@ export async function painelLogistico(
   const fatias = fatiasDoPeriodo(periodo)
   const semana = semanaDeReferencia(periodo, agora)
 
-  const [doPeriodo, totalAnterior, daEvolucao, trilha, status] = await Promise.all([
-    db.demandaLogistica.findMany({
-      where: { ...ATIVAS, solicitadaEm: { gte: periodo.inicio, lt: periodo.fim } },
-      select: { subsidiaria: true, departamento: true, recorrente: true },
-    }),
-    db.demandaLogistica.count({
-      where: { ...ATIVAS, solicitadaEm: { gte: anterior.inicio, lt: anterior.fim } },
-    }),
-    db.demandaLogistica.findMany({
-      where: { ...ATIVAS, solicitadaEm: { gte: fatias[0]!.inicio, lt: fatias.at(-1)!.fim } },
-      select: { solicitadaEm: true },
-    }),
-    trilhaDoPeriodo(periodo, { ...opcoes, agora, limite: LIMITE_DA_TRILHA_NA_TELA }),
-    statusDe(semana, agora),
-  ])
+  const [doPeriodo, totalAnterior, daEvolucao, trilha, status, enviosDoPeriodo] = await Promise.all(
+    [
+      db.demandaLogistica.findMany({
+        where: { ...ATIVAS, solicitadaEm: { gte: periodo.inicio, lt: periodo.fim } },
+        select: { subsidiaria: true, departamento: true, recorrente: true },
+      }),
+      db.demandaLogistica.count({
+        where: { ...ATIVAS, solicitadaEm: { gte: anterior.inicio, lt: anterior.fim } },
+      }),
+      db.demandaLogistica.findMany({
+        where: { ...ATIVAS, solicitadaEm: { gte: fatias[0]!.inicio, lt: fatias.at(-1)!.fim } },
+        select: { solicitadaEm: true },
+      }),
+      trilhaDoPeriodo(periodo, { ...opcoes, agora, limite: LIMITE_DA_TRILHA_NA_TELA }),
+      statusDe(semana, agora),
+      // O envio conta no período em que saiu, mesmo de demanda pedida antes.
+      db.envioDaDemanda.findMany({
+        where: {
+          anuladoEm: null,
+          enviadoEm: { gte: periodo.inicio, lt: periodo.fim },
+          demanda: ATIVAS,
+        },
+        select: {
+          quantidade: true,
+          demanda: { select: { subsidiaria: true, departamento: true } },
+        },
+      }),
+    ],
+  )
 
   const contagens = volumePorFatia(daEvolucao, fatias)
 
@@ -262,6 +325,12 @@ export async function painelLogistico(
       variacao: variacao(doPeriodo.length, totalAnterior),
       porDepartamento: volumePorDepartamento(doPeriodo),
       ...contarRecorrentes(doPeriodo),
+    },
+    despachados: {
+      total: enviosDoPeriodo.reduce((soma, e) => soma + e.quantidade, 0),
+      porDepartamento: volumePorDepartamento(
+        enviosDoPeriodo.map((e) => ({ ...e.demanda, quantidade: e.quantidade })),
+      ),
     },
     evolucao: fatias.map((f, i) => ({
       rotulo: f.rotulo,

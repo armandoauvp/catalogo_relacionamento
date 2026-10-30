@@ -31,4 +31,18 @@ describe('recorte da trilha', () => {
       'prioridade=urgente&origem=solicitacao',
     )
   })
+
+  it('a subsidiária recorta como o departamento', () => {
+    expect(whereDoRecorte(filtro({ subsidiaria: 'AUVP Consultoria' }))).toEqual({
+      subsidiaria: 'AUVP Consultoria',
+    })
+  })
+
+  it('a ordem viaja para a exportação, mas não conta como filtro', () => {
+    const f = filtro({ ordem: 'pedido' })
+    expect(temRecorte(f)).toBe(false)
+    expect(whereDoRecorte(f)).toEqual({})
+    expect(queryDoRecorte(f)).toBe('ordem=pedido')
+    expect(filtro({ ordem: 'alfabetica' }).ordem).toBeUndefined()
+  })
 })

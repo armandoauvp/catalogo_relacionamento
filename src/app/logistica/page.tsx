@@ -10,7 +10,7 @@ import { CabecalhoDaPagina } from '@/components/pagina'
 import { Stat } from '@/components/stat'
 import { SeletorDePeriodo } from './seletor-de-periodo'
 import { StatusDaSemana } from './status-da-semana'
-import { VolumePorDepartamento } from './volume-por-departamento'
+import { VolumePorDepartamento, type VistaDoVolume } from './volume-por-departamento'
 import { Evolucao } from './evolucao'
 import { Trilha } from './trilha'
 import { filtroDaTrilhaSchema, queryDoRecorte, temRecorte } from '@/lib/logistica/filtro-da-trilha'
@@ -78,9 +78,14 @@ export default async function LogisticaPage({
   // O clique nos grupos da trilha recorta só a trilha e a exportação dela; os
   // números e gráficos acima continuam do período inteiro.
   const recorte = filtroDaTrilhaSchema.parse(params)
-  const trilha = temRecorte(recorte)
-    ? await trilhaDoPeriodo(periodo, { verObservacoes, limite: LIMITE_DA_TRILHA_NA_TELA, recorte })
-    : painel.trilha
+  const trilha =
+    temRecorte(recorte) || recorte.ordem
+      ? await trilhaDoPeriodo(periodo, {
+          verObservacoes,
+          limite: LIMITE_DA_TRILHA_NA_TELA,
+          recorte,
+        })
+      : painel.trilha
   const caminho = '/logistica'
   const filtrosDaTrilha: FiltroAtivo[] = [
     recorte.fase && {
@@ -92,6 +97,11 @@ export default async function LogisticaPage({
       coluna: 'Prioridade',
       valor: ROTULO_PRIORIDADE[recorte.prioridade],
       semEle: hrefSemFiltro(caminho, params, 'prioridade'),
+    },
+    recorte.subsidiaria && {
+      coluna: 'Subsidiária',
+      valor: recorte.subsidiaria,
+      semEle: hrefSemFiltro(caminho, params, 'subsidiaria'),
     },
     recorte.departamento && {
       coluna: 'Departamento',
@@ -110,6 +120,15 @@ export default async function LogisticaPage({
     },
   ].filter((f): f is FiltroAtivo => Boolean(f))
 
+  // O cartão por departamento conta pedidos ou itens despachados; a escolha
+  // mora na URL, junto do período, para o fechamento ir por link.
+  const vista: VistaDoVolume = params.volume === 'despachados' ? 'despachados' : 'pedidos'
+  const semVista = hrefSemFiltro(caminho, params, 'volume')
+  const hrefsDoVolume = {
+    pedidos: semVista,
+    despachados: `${semVista}${semVista.includes('?') ? '&' : '?'}volume=despachados`,
+  }
+
   return (
     <>
       <CabecalhoDaPagina
@@ -127,7 +146,7 @@ export default async function LogisticaPage({
 
       <StatusDaSemana status={painel.status} podeDefinir={podeGerenciar} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Stat
           destaque
           rotulo="Pedidos no período"
@@ -152,10 +171,24 @@ export default async function LogisticaPage({
           valor={abertas.length}
           apoio={`${plural(atrasadas, 'atrasada', 'atrasadas')} · ${semPrevisao} sem previsão`}
         />
+        <Stat
+          rotulo="Itens despachados"
+          valor={painel.despachados.total.toLocaleString('pt-BR')}
+          apoio="Lançados nas tarefas, pela data do envio."
+        />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <VolumePorDepartamento linhas={volume.porDepartamento} total={volume.total} />
+        <VolumePorDepartamento
+          vista={vista}
+          hrefs={hrefsDoVolume}
+          {...(vista === 'pedidos'
+            ? { linhas: volume.porDepartamento, total: volume.total }
+            : {
+                linhas: painel.despachados.porDepartamento,
+                total: painel.despachados.total,
+              })}
+        />
         <Evolucao pontos={painel.evolucao} apoio={APOIO_DA_EVOLUCAO[periodo.tipo]} />
       </div>
 
@@ -166,6 +199,7 @@ export default async function LogisticaPage({
           exportar={[queryDoFiltro, queryDoRecorte(recorte)].filter(Boolean).join('&')}
           filtroDaUrl={params}
           filtrosAtivos={filtrosDaTrilha}
+          ordem={recorte.ordem ?? 'prioridade'}
           verObservacoes={verObservacoes}
           sugestoes={sugestoes}
         />

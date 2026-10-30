@@ -1,5 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { EsqueletoDeCabecalho } from '@/components/esqueletos'
+import { cn } from '@/lib/utils'
 
 /**
  * Esqueleto do Dashboard Logístico, nas medidas do conteúdo real, medidas no
@@ -12,9 +13,13 @@ export default function Carregando() {
       <EsqueletoDeCabecalho />
       <Skeleton className="mb-6 h-[202px] rounded-lg sm:h-[66px]" />
       <Skeleton className="mb-6 h-[238px] rounded-lg sm:h-[122px]" />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-[154px] rounded-lg sm:h-[162px]" />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* No celular só o primeiro tem duas linhas de apoio. */}
+        {[154, 130, 130].map((altura, i) => (
+          <Skeleton
+            key={i}
+            className={cn('rounded-lg sm:h-[162px]', altura === 154 ? 'h-[154px]' : 'h-[130px]')}
+          />
         ))}
       </div>
       <div className="mb-6 grid gap-6 lg:grid-cols-2">

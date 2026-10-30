@@ -66,14 +66,34 @@ parte em `painel.ts`:
   semana inclui o que vem aberto de semanas anteriores. Ordem: abertas antes
   de concluídas; dentro das abertas, prioritárias (urgente e alta), atrasadas
   antes; depois pela previsão mais próxima, com a demanda sem previsão no fim
-  do seu grupo. A tela mostra até 200; a exportação leva todas.
+  do seu grupo. A tela mostra até 200; a exportação leva todas. Desde
+  30/10/2026 a trilha também se ordena por data do pedido (mais recente
+  antes), início ou previsão de conclusão (mais próximos antes, sem data no
+  fim), em ordem de calendário pura; a escolha fica na URL (`?ordem=pedido`)
+  e a exportação segue a mesma ordem (`compararPorOrdem`).
 - **Atrasada** é a demanda aberta com a previsão de conclusão vencida.
   **Sem previsão** aparece como aviso na trilha, porque a área considera a
   previsão obrigatória.
 - **"Kit"**: mais de um item na demanda. A lista completa abre no hover.
-- **Previsão de início** é opcional e só aparece na trilha enquanto a demanda
-  não começou (Recebido e Em análise); depois, a data que vale é a de
-  finalização. É a resposta a "não fica redundante?", da Logística.
+- **Datas na linha**: a data do pedido e, quando houver, a previsão de início
+  aparecem sempre, junto da previsão ou da conclusão. Até 29/10/2026 o início
+  sumia quando a demanda começava, e a área pediu de volta no relatório de
+  29/10.
+- **Subsidiária e departamento** aparecem juntos na linha
+  ("AUVP Consultoria › Relacionamento"), e os dois recortam a trilha ao clique.
+- **Envios lançados na tarefa** (relatório de 29/10): a tarefa que dura
+  semanas recebe o que saiu em cada uma ("500 cartas, dia 29"), em vez de
+  virar uma demanda nova. Cada lançamento tem quantidade, dia do envio, quem
+  lançou e uma observação opcional (`EnvioDaDemanda`). A linha mostra o
+  acumulado e o último envio; o botão "Envios" abre o lançamento e o
+  histórico. Lançamento errado é **anulado**, não apagado: fica riscado no
+  histórico, com quem anulou, e sai da soma. Só tarefa aberta e não arquivada
+  recebe envio, e o dia não pode ser futuro (`problemaDoEnvio`).
+- **Itens despachados** somam os lançamentos pela data do envio, e não pela
+  data do pedido: o número do topo e a vista "Despachados" do cartão por
+  departamento (`?volume=despachados`) fecham o período por subsidiária e
+  departamento. A exportação leva o despachado no período e no total de cada
+  demanda.
 - **Concluir** grava a data de conclusão; voltar de "Concluído" apaga.
 - **Recorrente** tem periodicidade (semanal, quinzenal, mensal). Ao concluir,
   a próxima ocorrência nasce sozinha, com as previsões um período adiante, ou
@@ -168,8 +188,8 @@ Regras, todas em `src/lib/periodo.ts` e cobertas por teste:
 
 ## Recorte da trilha
 
-Clicar num grupo de uma linha da trilha (fase, prioridade, departamento, o selo
-"Presente" ou o de recorrência) recorta **só a trilha e a exportação dela**,
+Clicar num grupo de uma linha da trilha (fase, prioridade, subsidiária,
+departamento, o selo "Presente" ou o de recorrência) recorta **só a trilha e a exportação dela**,
 somando-se ao período: `?fase=em_execucao&departamento=RH`. Os números e os
 gráficos de cima continuam do período inteiro (decisão de 26/10/2026). Um
 valor por coluna; clicar de novo, ou no "×" da linha "Filtrando por", tira o
