@@ -287,3 +287,96 @@ export function caminhoDeEncaminhamento(
     erro: `Não é possível ir de "${ROTULO_STATUS[atual]}" para "${ROTULO_STATUS[alvo]}".`,
   }
 }
+
+/**
+ * O que está esperando o OK do Admin. Os dois status dizem a mesma coisa para
+ * quem usa, e toda solicitação nasce em `pendente`; aprovar anda pelos dois.
+ */
+export const STATUS_PARA_APROVAR: readonly StatusSolicitacao[] = [
+  StatusSolicitacao.pendente,
+  StatusSolicitacao.aguardando_aprovacao,
+] as const
+
+export type ProximoPasso = {
+  destino: StatusSolicitacao
+  /** O texto do botão: diz o que aconteceu, e não o nome do status. */
+  rotulo: string
+  explicacao: string
+  /** Aprovar anda um ou dois status de uma vez, pelo caminho do lote. */
+  aprovacao: boolean
+}
+
+/**
+ * O passo natural de quem opera a solicitação, para virar um botão em vez de
+ * uma escolha numa lista de status. Fora do fluxo feliz não há passo natural:
+ * "deu problema" e os finais pedem decisão, e seguem na lista.
+ */
+export function proximoPasso(
+  status: StatusSolicitacao,
+  itens: readonly ItemParaDecisao[],
+): ProximoPasso | null {
+  switch (status) {
+    case StatusSolicitacao.pendente:
+    case StatusSolicitacao.aguardando_aprovacao: {
+      const destino = proximoDepoisDaAprovacao(itens)
+      return {
+        destino,
+        rotulo: `Aprovar e mandar para ${ROTULO_STATUS[destino]}`,
+        explicacao:
+          destino === StatusSolicitacao.organizando_envio
+            ? 'Tudo em estoque: vai direto para a expedição, sem passar pelo Financeiro.'
+            : 'Há o que comprar: vai para a fila do Financeiro antes da expedição.',
+        aprovacao: true,
+      }
+    }
+    case StatusSolicitacao.aguardando_compra:
+      return {
+        destino: StatusSolicitacao.comprado,
+        rotulo: 'Marcar como comprado',
+        explicacao: 'Todos os itens desta solicitação foram comprados.',
+        aprovacao: false,
+      }
+    case StatusSolicitacao.comprado:
+      return {
+        destino: StatusSolicitacao.organizando_envio,
+        rotulo: 'Liberar para envio',
+        explicacao: 'Vai para a fila da expedição e vira pedido no Tiny.',
+        aprovacao: false,
+      }
+    case StatusSolicitacao.organizando_envio:
+      return {
+        destino: StatusSolicitacao.entregue,
+        rotulo: 'Marcar como entregue',
+        explicacao: 'O rastreio não muda o status: entregue é decisão de quem acompanha.',
+        aprovacao: false,
+      }
+    case StatusSolicitacao.entregue:
+      return {
+        destino: StatusSolicitacao.cliente_confirmou,
+        rotulo: 'Cliente confirmou o recebimento',
+        explicacao: 'Encerra a solicitação.',
+        aprovacao: false,
+      }
+    default:
+      return null
+  }
+}
+
+/** A frase de cada status para quem pediu: quem age agora, e o que vem depois. */
+const O_QUE_ACONTECE_AGORA: Record<StatusSolicitacao, string> = {
+  pendente: 'Aguardando a aprovação do Admin. Nada foi comprado nem enviado ainda.',
+  aguardando_aprovacao: 'Aguardando a aprovação do Admin. Nada foi comprado nem enviado ainda.',
+  aguardando_compra: 'Aprovada. Agora o Financeiro compra os itens.',
+  comprado: 'Itens comprados. Falta liberar para a expedição.',
+  organizando_envio:
+    'Na expedição: a Logística separa e posta. O rastreio aparece aqui quando sair.',
+  entregue: 'Entregue. Falta confirmar o recebimento com o cliente.',
+  cliente_confirmou: 'Concluída: o cliente confirmou o recebimento.',
+  deu_problema: 'Deu problema no caminho. O motivo está no histórico, e o Admin decide como segue.',
+  devolvido: 'Devolvida. O motivo está no histórico.',
+  cancelado: 'Cancelada. O motivo está no histórico.',
+}
+
+export function oQueAconteceAgora(status: StatusSolicitacao): string {
+  return O_QUE_ACONTECE_AGORA[status]
+}

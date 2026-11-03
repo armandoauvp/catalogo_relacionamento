@@ -8,7 +8,7 @@ import { filtroDeSolicitacoes, pode, type Acao } from '@/lib/permissions'
 import { saldoDoMes, saldoDoMesDoTime } from '@/lib/saldo'
 import { formatarBRL } from '@/lib/money'
 import { formatarData, intervaloDoMes } from '@/lib/datas'
-import { STATUS_FORA_DO_SALDO } from '@/lib/status'
+import { STATUS_FORA_DO_SALDO, STATUS_PARA_APROVAR } from '@/lib/status'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -23,6 +23,7 @@ import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
 import { ROTULO_STATUS } from '@/lib/status'
 import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina } from '@/components/pagina'
+import { CartaoParaAprovar } from '@/components/cartao-para-aprovar'
 import { cn } from '@/lib/utils'
 
 type Atalho = {
@@ -100,7 +101,9 @@ export default async function Home() {
   // seria sempre zero. Para esses perfis o número que interessa é o do time.
   const veTudo = pode(usuario.perfil, 'saldo.verTodos')
 
-  const [saldoProprio, saldoTime, noMes, emAndamento, recentes] = await Promise.all([
+  const aprova = pode(usuario.perfil, 'solicitacao.aprovar')
+
+  const [saldoProprio, saldoTime, noMes, emAndamento, recentes, paraAprovar] = await Promise.all([
     pode(usuario.perfil, 'saldo.verProprio') ? saldoDoMes(usuario.id) : null,
     veTudo ? saldoDoMesDoTime() : null,
     db.solicitacao.count({ where: { ...escopo, dataSolicitacao: { gte: inicio, lt: fim } } }),
@@ -116,6 +119,7 @@ export default async function Home() {
       orderBy: { dataSolicitacao: 'desc' },
       take: 5,
     }),
+    aprova ? db.solicitacao.count({ where: { status: { in: [...STATUS_PARA_APROVAR] } } }) : 0,
   ])
 
   const mes = new Intl.DateTimeFormat('pt-BR', {
@@ -210,11 +214,16 @@ export default async function Home() {
           valor={noMes}
           apoio={noMes === 0 ? 'Nenhuma ainda neste mês.' : 'Criadas no mês corrente.'}
         />
-        <Stat
-          rotulo="Em andamento"
-          valor={emAndamento}
-          apoio="Ainda não confirmadas pelo cliente."
-        />
+        {/* Para quem aprova, a pergunta da tela é "tem algo me esperando?". */}
+        {aprova ? (
+          <CartaoParaAprovar quantidade={paraAprovar} />
+        ) : (
+          <Stat
+            rotulo="Em andamento"
+            valor={emAndamento}
+            apoio="Ainda não confirmadas pelo cliente."
+          />
+        )}
       </div>
 
       {/* Bloco, e não grade: item de grade cresce até a largura mínima da

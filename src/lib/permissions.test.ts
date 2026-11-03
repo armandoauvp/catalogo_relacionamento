@@ -151,6 +151,15 @@ describe('perfil livre, fase de testes', () => {
   })
 })
 
+describe('fila de aprovação', () => {
+  it('é do Admin: o Financeiro compra o que já foi aprovado', () => {
+    expect(pode(Perfil.admin, 'solicitacao.aprovar')).toBe(true)
+    expect(pode(Perfil.financeiro, 'solicitacao.aprovar')).toBe(false)
+    expect(pode(Perfil.consultor, 'solicitacao.aprovar')).toBe(false)
+    expect(pode(Perfil.logistica, 'solicitacao.aprovar')).toBe(false)
+  })
+})
+
 describe('modelos de carta', () => {
   it('só o Admin muda as sugestões, que valem para todos os consultores', () => {
     expect(pode(Perfil.admin, 'carta.gerenciarModelos')).toBe(true)

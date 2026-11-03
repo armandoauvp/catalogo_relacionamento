@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ROTULO_STATUS, exigeMotivo } from '@/lib/status'
+import { ROTULO_STATUS, exigeMotivo, type ProximoPasso } from '@/lib/status'
 import { alterarStatus, encaminharEmLote, marcarComoTeste } from '@/lib/actions/solicitacoes'
 
 /**
@@ -18,27 +18,23 @@ import { alterarStatus, encaminharEmLote, marcarComoTeste } from '@/lib/actions/
  * de novo com a mesma função: o que a tela oferece e o que o servidor aceita
  * não podem divergir.
  *
- * `sugerido` é o próximo passo natural calculado a partir dos itens, quando
- * está tudo em estoque, a solicitação pula o Financeiro e vai para a expedição.
- * É só uma pré-seleção; quem decide é o Admin.
+ * `proximo` é o passo natural, em um botão, para ninguém precisar decifrar a
+ * lista de status: aprovar, marcar como comprado, liberar para envio. A lista
+ * continua abaixo para o que foge do caminho, como cancelar.
  */
 export function AlterarStatus({
   solicitacaoId,
   opcoes,
-  sugerido,
-  explicacaoDoAtalho,
-  aprovarPara,
+  proximo,
 }: {
   solicitacaoId: string
   opcoes: StatusSolicitacao[]
-  sugerido?: StatusSolicitacao
-  explicacaoDoAtalho?: string
-  /** Para onde a aprovação leva, quando ainda falta aprovar. */
-  aprovarPara?: StatusSolicitacao
+  proximo: ProximoPasso | null
 }) {
   const router = useRouter()
   const [salvando, iniciar] = useTransition()
 
+  const sugerido = proximo?.destino
   const padrao = sugerido && opcoes.includes(sugerido) ? sugerido : opcoes[0]
 
   // A escolha é guardada como "o que a pessoa clicou", não como o status em si.
@@ -54,15 +50,20 @@ export function AlterarStatus({
 
   if (!status) return null
 
-  // O mesmo caminho da gestão em lote: a aprovação vira uma linha do histórico
-  // e o pedido segue para onde os itens mandam, num clique só.
-  function aprovar() {
+  // Aprovar vai pelo mesmo caminho da gestão em lote: a aprovação vira uma linha
+  // do histórico e o pedido segue para onde os itens mandam, num clique só.
+  function avancar(passo: ProximoPasso) {
     setErro(null)
     iniciar(async () => {
-      const r = await encaminharEmLote([solicitacaoId], 'automatico')
-      if (!r.ok) return setErro(r.erro)
-      const ignorada = r.dados.ignoradas[0]
-      if (ignorada) return setErro(ignorada.motivo)
+      if (passo.aprovacao) {
+        const r = await encaminharEmLote([solicitacaoId], 'automatico')
+        if (!r.ok) return setErro(r.erro)
+        const ignorada = r.dados.ignoradas[0]
+        if (ignorada) return setErro(ignorada.motivo)
+      } else {
+        const r = await alterarStatus({ solicitacaoId, statusNovo: passo.destino })
+        if (!r.ok) return setErro(r.erro)
+      }
       setEscolhido(null)
       router.refresh()
     })
@@ -90,29 +91,20 @@ export function AlterarStatus({
 
   return (
     <div className="space-y-4">
-      {aprovarPara ? (
-        <div className="space-y-2 border-b pb-4">
+      {proximo ? (
+        <div className="space-y-2 border-b pb-4" data-tour="proximo-passo">
           <Button
-            onClick={aprovar}
+            onClick={() => avancar(proximo)}
             disabled={salvando}
             className="h-auto w-full py-2.5 leading-snug whitespace-normal"
           >
             {salvando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-            {`Aprovar e mandar para ${ROTULO_STATUS[aprovarPara]}`}
+            {proximo.rotulo}
           </Button>
           <p className="text-muted-foreground text-xs leading-relaxed">
-            {aprovarPara === StatusSolicitacao.organizando_envio
-              ? 'Tudo em estoque: vai direto para a expedição, sem passar pelo Financeiro.'
-              : 'Há o que comprar: vai para a fila do Financeiro antes da expedição.'}{' '}
-            Ou escolha outro status abaixo.
+            {proximo.explicacao} Ou escolha outro status abaixo.
           </p>
         </div>
-      ) : null}
-
-      {explicacaoDoAtalho ? (
-        <p className="bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed">
-          {explicacaoDoAtalho}
-        </p>
       ) : null}
 
       <div className="space-y-1.5">
@@ -155,7 +147,7 @@ export function AlterarStatus({
 
       <Button
         onClick={enviar}
-        variant={aprovarPara ? 'outline' : 'default'}
+        variant={proximo ? 'outline' : 'default'}
         disabled={salvando || (precisaDeMotivo && !motivo.trim())}
         // Alguns rótulos são longos ("Entregue / rastreio finalizado") e o
         // botão do DS não quebra linha: sem isto o texto vaza do cartão.

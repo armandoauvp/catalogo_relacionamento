@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { StatusSolicitacao } from '@prisma/client'
+import { STATUS_PARA_APROVAR } from '@/lib/status'
 
 /**
  * Filtros do painel de gestão.
@@ -19,6 +20,8 @@ export const filtroSolicitacoesSchema = z.object({
     (v) => (v === undefined || v === '' ? undefined : [v].flat()),
     z.array(z.nativeEnum(StatusSolicitacao)).optional(),
   ),
+  /** O que espera o OK do Admin. Um parâmetro só, porque a exportação lê texto. */
+  fila: z.enum(['aprovar']).optional().catch(undefined),
   /** Só para pendente e aguardando aprovação: tem o que comprar, ou sai do estoque. */
   rota: z.enum(['compra', 'estoque']).optional().catch(undefined),
   busca: z.string().trim().optional(),
@@ -42,6 +45,7 @@ export function whereDeSolicitacoes(filtro: FiltroSolicitacoes) {
   if (filtro.consultorId) where.consultorId = filtro.consultorId
   if (filtro.clienteId) where.clienteId = filtro.clienteId
   if (filtro.status?.length) where.status = { in: filtro.status }
+  if (filtro.fila === 'aprovar') where.status = { in: [...STATUS_PARA_APROVAR] }
 
   // Filtrar por produto significa "solicitações que contêm este produto".
   if (filtro.produtoId) {

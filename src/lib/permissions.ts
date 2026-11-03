@@ -42,6 +42,7 @@ export const ACOES = [
   'solicitacao.verTodas',
   'solicitacao.editar',
   'solicitacao.alterarStatus',
+  'solicitacao.aprovar',
   'cliente.verDadosSensiveis',
   'cliente.gerenciar',
   'usuario.gerenciar',
@@ -96,6 +97,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': false,
     'solicitacao.editar': false,
     'solicitacao.alterarStatus': false,
+    'solicitacao.aprovar': false,
     'cliente.verDadosSensiveis': true, // limitado pelo escopo `proprias`
     'cliente.gerenciar': false,
     'usuario.gerenciar': false,
@@ -119,6 +121,8 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': true,
     'solicitacao.editar': true,
     'solicitacao.alterarStatus': true,
+    // O OK que libera a compra ou o envio é do Admin: é para ele a fila de aprovação.
+    'solicitacao.aprovar': true,
     'cliente.verDadosSensiveis': true,
     'cliente.gerenciar': true,
     'usuario.gerenciar': true,
@@ -143,6 +147,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.editar': false,
     // Definido pela área: o Financeiro altera o status do pedido.
     'solicitacao.alterarStatus': true,
+    'solicitacao.aprovar': false,
     'cliente.verDadosSensiveis': PENDENTE_CONFIRMACAO.financeiroVeDadosSensiveis,
     'cliente.gerenciar': false,
     'usuario.gerenciar': false,
@@ -167,6 +172,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': false,
     'solicitacao.editar': false,
     'solicitacao.alterarStatus': false,
+    'solicitacao.aprovar': false,
     // O endereço de envio está na fila da expedição, e sem ele não há envio.
     'cliente.verDadosSensiveis': true,
     'cliente.gerenciar': false,

@@ -1,9 +1,10 @@
+import Link from 'next/link'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { filaDeCompras, totalDaFila, STATUS_DA_FILA_DE_COMPRAS } from '@/lib/compras'
 import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
-import { ROTULO_STATUS } from '@/lib/status'
+import { ROTULO_STATUS, proximoPasso } from '@/lib/status'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -19,6 +20,7 @@ import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
+import { PassoDaFila } from './passo-da-fila'
 
 /**
  * Fila de compras: tela do perfil Financeiro.
@@ -43,6 +45,12 @@ export default async function FilaDeComprasPage({
   const aguardando = itens.filter((i) => i.status === 'aguardando_compra')
   // Os números de cima são da fila inteira; o clique no status recorta a lista.
   const listados = status ? itens.filter((i) => i.status === status) : itens
+  // A fila é por item, mas o status é da solicitação inteira: o botão precisa
+  // avisar quando marca mais de uma linha.
+  const itensPorPedido = new Map<string, number>()
+  for (const i of itens) {
+    itensPorPedido.set(i.solicitacaoId, (itensPorPedido.get(i.solicitacaoId) ?? 0) + 1)
+  }
   const grupo = (chave: string, valor: string) => ({
     href: hrefDoGrupo(caminho, params, chave, valor),
     ativo: valorDoFiltro(params, chave) === valor,
@@ -98,6 +106,7 @@ export default async function FilaDeComprasPage({
                   <TableHead className="text-right">Qtd.</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Próximo passo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -107,15 +116,20 @@ export default async function FilaDeComprasPage({
                       {formatarData(item.data)}
                     </TableCell>
                     <TableCell className="font-medium whitespace-nowrap tabular-nums">
-                      {item.codigo}
+                      <Link
+                        href={`/admin/solicitacoes/${item.solicitacaoId}`}
+                        className="hover:text-primary-emphasis underline-offset-4 hover:underline"
+                      >
+                        {item.codigo}
+                      </Link>
                     </TableCell>
-                    <TableCell className="min-w-56">
+                    <TableCell className="min-w-44">
                       <div className="font-medium">{item.produto}</div>
                       <div className="text-muted-foreground mt-0.5 text-xs">
                         {item.consultorNome} · para {item.clienteNome}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-64">
+                    <TableCell className="max-w-44">
                       <SiteDeCompra
                         site={item.site}
                         nota={item.notaDeCompra}
@@ -134,6 +148,14 @@ export default async function FilaDeComprasPage({
                         <StatusBadge status={item.status} />
                       </FiltroDoGrupo>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <PassoDaFila
+                        solicitacaoId={item.solicitacaoId}
+                        codigo={item.codigo}
+                        itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
+                        passo={proximoPasso(item.status, [])}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -144,8 +166,8 @@ export default async function FilaDeComprasPage({
 
       <p className="text-muted-foreground mt-4 text-xs">
         A fila mostra as solicitações em{' '}
-        {STATUS_DA_FILA_DE_COMPRAS.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. A
-        alteração de status é feita no detalhe da solicitação.
+        {STATUS_DA_FILA_DE_COMPRAS.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. Para
+        cancelar ou registrar um problema, abra a solicitação pelo código.
       </p>
     </>
   )

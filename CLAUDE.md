@@ -193,7 +193,11 @@ depois da aprovação. As sugestões de texto da carta moram no banco
 validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`.
 
 O caminho do Admin é por pilha: a gestão encaminha em lote, e a expedição
-devolve o rastreio que o consultor lê na própria solicitação.
+devolve o rastreio que o consultor lê na própria solicitação. O cartão "Para
+aprovar" (`?fila=aprovar`) abre esse caminho na tela inicial e na gestão. O
+passo seguinte de cada status vira um botão, no detalhe e na fila de compras, e
+uma frase para quem pediu; os dois moram em `src/lib/status.ts` (`proximoPasso`
+e `oQueAconteceAgora`).
 
 O Tiny está integrado ([docs/13-tiny.md](docs/13-tiny.md)): o presente que
 chega a "Organizando envio" vira pedido lá pela fila, a importação em lote do

@@ -7,6 +7,8 @@ export default function Carregando() {
       {/* Altura do link "voltar", que fica acima do cabeçalho. */}
       <Skeleton className="mb-4 h-5 w-56" />
       <EsqueletoDeCabecalho comAcoes comSobrancelha />
+      {/* A frase de quem age agora. */}
+      <Skeleton className="mb-6 h-[46px] rounded-lg" />
       <EsqueletoDeDetalhe />
     </>
   )

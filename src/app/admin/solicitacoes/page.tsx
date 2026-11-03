@@ -7,13 +7,20 @@ import { filtroSolicitacoesSchema } from '@/lib/validators/filtros'
 import { whereDaGestao } from '@/lib/solicitacoes-filtradas'
 import { hrefSemFiltro } from '@/lib/filtro-por-grupo'
 import { FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
-import { ROTULO_STATUS, STATUS_FORA_DO_SALDO, precisaDeCompra } from '@/lib/status'
+import {
+  ROTULO_STATUS,
+  STATUS_FORA_DO_SALDO,
+  STATUS_PARA_APROVAR,
+  precisaDeCompra,
+} from '@/lib/status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Stat } from '@/components/stat'
 import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
+import { CartaoParaAprovar } from '@/components/cartao-para-aprovar'
+import { cn } from '@/lib/utils'
 import { TabelaDaGestao, type LinhaDaGestao } from './tabela'
 
 /**
@@ -33,7 +40,9 @@ export default async function AdminSolicitacoesPage({
   const filtro = filtroSolicitacoesSchema.parse(params)
   const where = await whereDaGestao(filtro)
 
-  const [solicitacoes, total, consultores, comProblema, soma] = await Promise.all([
+  const aprova = pode(usuario.perfil, 'solicitacao.aprovar')
+
+  const [solicitacoes, total, consultores, comProblema, paraAprovar, soma] = await Promise.all([
     db.solicitacao.findMany({
       where,
       include: {
@@ -61,6 +70,8 @@ export default async function AdminSolicitacoesPage({
       orderBy: { nome: 'asc' },
     }),
     db.solicitacao.count({ where: { ...where, status: 'deu_problema' } }),
+    // A fila inteira, e não o recorte: é o aviso de que há algo esperando.
+    db.solicitacao.count({ where: { status: { in: [...STATUS_PARA_APROVAR] } } }),
     db.solicitacao.aggregate({
       where: { ...where, status: { notIn: [...STATUS_FORA_DO_SALDO] } },
       _sum: { valorTotal: true },
@@ -81,6 +92,7 @@ export default async function AdminSolicitacoesPage({
     params.consultorId ||
     params.clienteId ||
     params.status ||
+    params.fila ||
     params.rota,
   )
 
@@ -90,6 +102,11 @@ export default async function AdminSolicitacoesPage({
     ? await db.cliente.findUnique({ where: { id: filtro.clienteId }, select: { nome: true } })
     : null
   const filtrosAtivos: FiltroAtivo[] = [
+    filtro.fila === 'aprovar' && {
+      coluna: 'Fila',
+      valor: 'para aprovar',
+      semEle: hrefSemFiltro(caminho, params, 'fila'),
+    },
     filtro.status?.length === 1 && {
       coluna: 'Status',
       valor: ROTULO_STATUS[filtro.status[0]!],
@@ -137,7 +154,7 @@ export default async function AdminSolicitacoesPage({
     <>
       <CabecalhoDaPagina
         titulo="Solicitações"
-        descricao="Acompanhe o fluxo inteiro, corrija dados e exporte o resultado filtrado."
+        descricao="Aprove o que chegou, acompanhe o fluxo inteiro e exporte o resultado filtrado. Para aprovar, abra a solicitação ou marque várias na lista."
         acoes={
           pode(usuario.perfil, 'exportar') ? (
             <>
@@ -152,7 +169,13 @@ export default async function AdminSolicitacoesPage({
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div
+        className={cn(
+          'mb-6 grid gap-4',
+          aprova ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3',
+        )}
+      >
+        {aprova ? <CartaoParaAprovar quantidade={paraAprovar} /> : null}
         <Stat rotulo="Solicitações no filtro" valor={total} />
         <Stat
           rotulo="Valor somado"
@@ -229,11 +252,15 @@ export default async function AdminSolicitacoesPage({
 
       {solicitacoes.length === 0 ? (
         <EstadoVazio
-          titulo="Nenhuma solicitação encontrada"
+          titulo={
+            filtro.fila === 'aprovar' ? 'Nada para aprovar' : 'Nenhuma solicitação encontrada'
+          }
           descricao={
-            filtrando
-              ? 'Nenhuma solicitação bate com os filtros aplicados. Ajuste o período ou limpe os filtros.'
-              : 'Assim que os consultores começarem a solicitar presentes, eles aparecem aqui.'
+            filtro.fila === 'aprovar'
+              ? 'Quando um consultor pedir um presente, ele aparece aqui esperando o seu OK.'
+              : filtrando
+                ? 'Nenhuma solicitação bate com os filtros aplicados. Ajuste o período ou limpe os filtros.'
+                : 'Assim que os consultores começarem a solicitar presentes, eles aparecem aqui.'
           }
           acao={
             filtrando ? (

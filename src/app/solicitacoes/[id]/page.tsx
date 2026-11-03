@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { exigirUsuario } from '@/lib/auth-guards'
 import { filtroDeSolicitacoes, pode } from '@/lib/permissions'
 import { formatarData } from '@/lib/datas'
+import { oQueAconteceAgora } from '@/lib/status'
 import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { DetalheDaSolicitacao } from '@/components/detalhe-da-solicitacao'
@@ -59,6 +60,15 @@ export default async function MinhaSolicitacaoPage({
         titulo={solicitacao.codigo}
         acoes={<StatusBadge status={solicitacao.status} />}
       />
+
+      {/* "Pendente" sozinho não diz nada a quem pediu: esta frase é a resposta
+          ao "e agora, o que falta?". */}
+      <p
+        className="bg-muted/40 mb-6 rounded-lg border px-4 py-3 text-sm"
+        data-tour="o-que-acontece"
+      >
+        {oQueAconteceAgora(solicitacao.status)}
+      </p>
 
       <DetalheDaSolicitacao
         solicitacao={solicitacao}

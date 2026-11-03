@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { OrigemProduto, StatusSolicitacao } from '@prisma/client'
 import {
   FLUXO_LINEAR,
+  STATUS_PARA_APROVAR,
   caminhoDeEncaminhamento,
   contaNoSaldo,
   ehTerminal,
+  oQueAconteceAgora,
   precisaDeCompra,
   proximoDepoisDaAprovacao,
+  proximoPasso,
   transicaoPermitida,
   transicoesPermitidas,
   validarMudancaDeStatus,
@@ -299,5 +302,73 @@ describe('encaminhamento em lote', () => {
         noCatalogo,
       ),
     ).toEqual({ ok: false, erro: 'Já está em "Organizando envio".' })
+  })
+})
+
+describe('próximo passo', () => {
+  const emEstoque = [
+    {
+      produtoId: 'p1',
+      quantidade: 1,
+      produto: { origem: OrigemProduto.estoque_interno, controlaEstoque: false, estoque: null },
+    },
+  ]
+  const sobPedido = [
+    {
+      produtoId: 'p2',
+      quantidade: 1,
+      produto: { origem: OrigemProduto.mediante_pedido, controlaEstoque: false, estoque: null },
+    },
+  ]
+
+  it('aprovar manda para onde os itens pedem, nos dois status de espera', () => {
+    for (const status of STATUS_PARA_APROVAR) {
+      expect(proximoPasso(status, sobPedido)).toMatchObject({
+        destino: StatusSolicitacao.aguardando_compra,
+        rotulo: 'Aprovar e mandar para Aguardando compra',
+        aprovacao: true,
+      })
+      expect(proximoPasso(status, emEstoque)?.destino).toBe(StatusSolicitacao.organizando_envio)
+    }
+  })
+
+  it('todo passo é uma transição que o servidor aceita', () => {
+    for (const status of Object.values(StatusSolicitacao)) {
+      const passo = proximoPasso(status, sobPedido)
+      if (!passo) continue
+      // Aprovar de `pendente` anda dois status, pelo caminho do lote.
+      const caminho = caminhoDeEncaminhamento(status, passo.destino, sobPedido)
+      expect(caminho.ok, status).toBe(true)
+    }
+  })
+
+  it('segue o fluxo depois da aprovação', () => {
+    expect(proximoPasso(StatusSolicitacao.aguardando_compra, [])?.rotulo).toBe(
+      'Marcar como comprado',
+    )
+    expect(proximoPasso(StatusSolicitacao.comprado, [])?.rotulo).toBe('Liberar para envio')
+    expect(proximoPasso(StatusSolicitacao.organizando_envio, [])?.destino).toBe(
+      StatusSolicitacao.entregue,
+    )
+    expect(proximoPasso(StatusSolicitacao.entregue, [])?.destino).toBe(
+      StatusSolicitacao.cliente_confirmou,
+    )
+  })
+
+  it('fora do fluxo feliz não sugere nada: é decisão de quem opera', () => {
+    for (const status of [
+      StatusSolicitacao.deu_problema,
+      StatusSolicitacao.cancelado,
+      StatusSolicitacao.devolvido,
+      StatusSolicitacao.cliente_confirmou,
+    ]) {
+      expect(proximoPasso(status, [])).toBeNull()
+    }
+  })
+
+  it('todo status tem a frase para quem pediu', () => {
+    for (const status of Object.values(StatusSolicitacao)) {
+      expect(oQueAconteceAgora(status).length).toBeGreaterThan(10)
+    }
   })
 })
