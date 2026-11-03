@@ -349,6 +349,17 @@ reservada, o código não a lê.
 **Assumido:** não devolve. O primeiro login cria o usuário como `consultor` e o
 Admin promove. `BOOTSTRAP_ADMIN_EMAILS` resolve o problema do primeiro Admin.
 
+### O que cada admin de área pode?
+
+A área pediu um admin de Relacionamento, que gerencia os consultores, e um de
+Logística, que também gerencia usuários, mas só transforma alguém em Consultor ou
+Logística. A matriz está em [perfis e permissões](02-perfis-e-permissoes.md).
+
+**Assumido, a confirmar:** o Admin geral continua existindo, porque alguém precisa
+promover admins. O limite mensal é só do Relacionamento, mesmo o Admin de Logística
+alcançando os consultores. A aprovação não é do Admin de Logística. Mudar qualquer
+um deles é uma linha em `src/lib/permissions.ts`.
+
 ### Onde ficam as fotos de produto?
 
 **Assumido:** no próprio Postgres, tabela `arquivos`, servidas por

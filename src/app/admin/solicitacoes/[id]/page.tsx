@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import type { StatusSolicitacao } from '@prisma/client'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { formatarData } from '@/lib/datas'
-import { ROTULO_STATUS, transicoesPermitidas, proximoPasso } from '@/lib/status'
+import { ROTULO_STATUS, ehPassoDeCompra, transicoesPermitidas, proximoPasso } from '@/lib/status'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -42,10 +43,14 @@ export default async function DetalheSolicitacaoPage({
 
   if (!solicitacao) notFound()
 
-  const proximos = transicoesPermitidas(solicitacao.status)
+  // O passo da compra é de quem compra: os outros perfis nem recebem a opção.
+  const cabe = (destino: StatusSolicitacao) =>
+    pode(usuario.perfil, 'compras.operar') || !ehPassoDeCompra(solicitacao.status, destino)
+  const proximos = transicoesPermitidas(solicitacao.status).filter(cabe)
   const podeAlterar = pode(usuario.perfil, 'solicitacao.alterarStatus')
 
-  const proximo = proximoPasso(solicitacao.status, solicitacao.itens)
+  const passo = proximoPasso(solicitacao.status, solicitacao.itens)
+  const proximo = passo && cabe(passo.destino) ? passo : null
 
   return (
     <>

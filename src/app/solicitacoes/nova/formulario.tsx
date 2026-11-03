@@ -1214,7 +1214,7 @@ function EtapaItens({
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
             Com este pedido, o mês fecha em {brl(saldo.depois)}, acima do limite de{' '}
-            {brl(saldo.limite)}. Dá para seguir assim, mas o Admin vai ver o estouro.
+            {brl(saldo.limite)}. Dá para seguir assim, mas o Relacionamento vai ver o estouro.
           </span>
         </p>
       ) : null}
@@ -1859,14 +1859,14 @@ function EtapaRevisao({
 
       {/*
         Mesma decisão que `proximoDepoisDaAprovacao` toma em src/lib/status.ts.
-        Nada sai daqui sem o OK do Admin: o que muda é o que vem logo depois.
+        Nada sai daqui sem o OK do Relacionamento: o que muda é o que vem logo depois.
       */}
       <div className="bg-muted/40 rounded-lg p-4 text-sm">
         <p className="font-ui text-muted-foreground mb-1.5 text-xs font-semibold tracking-[0.1em] uppercase">
           O que acontece ao enviar
         </p>
         <p>
-          O pedido entra como <strong>pendente</strong> e espera a aprovação do Admin.{' '}
+          O pedido entra como <strong>pendente</strong> e espera a aprovação do Relacionamento.{' '}
           {passaPeloFinanceiro
             ? 'Depois dela, passa pelo Financeiro, porque há item que precisa ser comprado.'
             : 'Depois dela, vai direto para a expedição separar: está tudo em estoque.'}

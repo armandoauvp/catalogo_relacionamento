@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { exigirPermissao } from '@/lib/auth-guards'
+import { pode } from '@/lib/permissions'
 import { filaDeCompras, totalDaFila, STATUS_DA_FILA_DE_COMPRAS } from '@/lib/compras'
 import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
@@ -35,7 +36,8 @@ export default async function FilaDeComprasPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await exigirPermissao('compras.verFila')
+  const usuario = await exigirPermissao('compras.verFila')
+  const operaCompra = pode(usuario.perfil, 'compras.operar')
   const params = await searchParams
   const caminho = '/financeiro/compras'
   const status = STATUS_DA_FILA_DE_COMPRAS.find((s) => s === params.status)
@@ -90,7 +92,7 @@ export default async function FilaDeComprasPage({
       {itens.length === 0 ? (
         <EstadoVazio
           titulo="Nada para comprar agora"
-          descricao="As solicitações aparecem aqui assim que o Admin as move para aguardando compra."
+          descricao="As solicitações aparecem aqui assim que o Relacionamento as aprova."
         />
       ) : (
         <>
@@ -153,7 +155,7 @@ export default async function FilaDeComprasPage({
                         solicitacaoId={item.solicitacaoId}
                         codigo={item.codigo}
                         itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
-                        passo={proximoPasso(item.status, [])}
+                        passo={operaCompra ? proximoPasso(item.status, []) : null}
                       />
                     </TableCell>
                   </TableRow>

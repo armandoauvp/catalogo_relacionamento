@@ -237,7 +237,7 @@ export default async function ExpedicaoPage({
       {pedidos.length === 0 ? (
         <EstadoVazio
           titulo="Nada para separar agora"
-          descricao="Os pedidos aparecem aqui quando o Admin move a solicitação para organizando envio, seja depois da compra, seja direto da aprovação quando já há estoque."
+          descricao="Os pedidos aparecem aqui quando a solicitação vai para organizando envio, seja depois da compra, seja direto da aprovação quando já há estoque."
         />
       ) : listados.length === 0 ? (
         <EstadoVazio

@@ -153,7 +153,7 @@ const ADMINISTRACAO: readonly ItemDeMenu[] = [
     id: 'usuarios',
     href: '/admin/usuarios',
     rotulo: 'Usuários',
-    descricao: 'Perfil de acesso e limite mensal',
+    descricao: 'Quem faz o quê e quem está ativo',
     icone: Users,
     acao: 'usuario.gerenciar',
   },
@@ -230,7 +230,14 @@ const ItemDeLista = forwardRef<
   )
 })
 
-const PERFIS: Perfil[] = ['admin', 'consultor', 'financeiro', 'logistica']
+const PERFIS: Perfil[] = [
+  'admin',
+  'admin_relacionamento',
+  'admin_logistica',
+  'consultor',
+  'financeiro',
+  'logistica',
+]
 
 export function Nav({
   perfil,

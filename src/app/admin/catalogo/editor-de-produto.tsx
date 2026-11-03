@@ -222,7 +222,7 @@ export function EditorDeProduto({
               </Select>
               <p className="text-muted-foreground text-xs">
                 {origem === OrigemProduto.estoque_interno
-                  ? 'Não passa pelo Financeiro: ao aprovar, o Admin já libera para envio.'
+                  ? 'Não passa pelo Financeiro: ao aprovar, o Relacionamento já libera para envio.'
                   : 'Passa pelo Financeiro, que compra antes de a expedição separar.'}
               </p>
             </div>

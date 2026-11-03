@@ -17,7 +17,8 @@ import { salvarUsuario } from '@/lib/actions/usuarios'
  *
  * Não há "criar": o usuário entra sozinho no primeiro login pelo SSO, como
  * consultor. O que se faz aqui é promover, definir teto de gasto e desativar
- * quem saiu do time.
+ * quem saiu do time. A tela oferece o que `perfisAoAlcance` deixa; quem confere é
+ * `salvarUsuario`.
  */
 
 export type UsuarioEditavel = {
@@ -29,7 +30,16 @@ export type UsuarioEditavel = {
   ativo: boolean
 }
 
-export function EditorDeUsuario({ usuario }: { usuario: UsuarioEditavel }) {
+export function EditorDeUsuario({
+  usuario,
+  perfis,
+  defineLimite,
+}: {
+  usuario: UsuarioEditavel
+  /** Os perfis que quem edita pode atribuir. Com um só, não há o que escolher. */
+  perfis: readonly Perfil[]
+  defineLimite: boolean
+}) {
   const router = useRouter()
   const [aberto, setAberto] = useState(false)
   const [salvando, iniciar] = useTransition()
@@ -74,42 +84,47 @@ export function EditorDeUsuario({ usuario }: { usuario: UsuarioEditavel }) {
         <form onSubmit={enviar} className="space-y-5">
           <input type="hidden" name="id" value={usuario.id} />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="usuario-perfil">Perfil</Label>
-            <Select
-              id="usuario-perfil"
-              name="perfil"
-              value={perfil}
-              onChange={(e) => setPerfil(e.target.value as Perfil)}
-            >
-              {Object.values(Perfil).map((p) => (
-                <option key={p} value={p}>
-                  {ROTULO_PERFIL[p]}
-                </option>
-              ))}
-            </Select>
-          </div>
+          {perfis.length > 1 ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="usuario-perfil">Perfil</Label>
+              <Select
+                id="usuario-perfil"
+                name="perfil"
+                value={perfil}
+                onChange={(e) => setPerfil(e.target.value as Perfil)}
+              >
+                {perfis.map((p) => (
+                  <option key={p} value={p}>
+                    {ROTULO_PERFIL[p]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : (
+            <input type="hidden" name="perfil" value={perfil} />
+          )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="usuario-limite">Limite mensal</Label>
-            <Input
-              id="usuario-limite"
-              name="limiteMensal"
-              inputMode="decimal"
-              placeholder="Sem limite"
-              defaultValue={usuario.limiteMensal ?? ''}
-              className="max-w-48"
-            />
-            <p className="text-muted-foreground text-xs">
-              Em branco = sem teto. Estourar o limite sinaliza no painel, não bloqueia a solicitação
-              : é o que a spec define para o V1.
-            </p>
-          </div>
+          {defineLimite ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="usuario-limite">Limite mensal</Label>
+              <Input
+                id="usuario-limite"
+                name="limiteMensal"
+                inputMode="decimal"
+                placeholder="Sem limite"
+                defaultValue={usuario.limiteMensal ?? ''}
+                className="max-w-48"
+              />
+              <p className="text-muted-foreground text-xs">
+                Em branco = sem teto. Estourar o limite sinaliza no painel, não bloqueia a
+                solicitação : é o que a spec define para o V1.
+              </p>
+            </div>
+          ) : null}
 
-          {perfil !== Perfil.consultor ? (
+          {defineLimite && perfil !== Perfil.consultor ? (
             <p className="bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed">
-              Admin, Financeiro e Logística não criam solicitação, então o limite mensal não se
-              aplica a eles.
+              O limite mensal vale para quem pede presentes no dia a dia, os consultores.
             </p>
           ) : null}
 

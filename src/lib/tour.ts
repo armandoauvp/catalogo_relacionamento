@@ -31,53 +31,132 @@ const CONTA: PassoDoTour = {
   acao: 'catalogo.ver',
 }
 
+/** O caminho do presente: é o mesmo para o Admin geral e o de Relacionamento. */
+const GESTAO_DOS_PRESENTES: readonly PassoDoTour[] = [
+  {
+    rota: '/',
+    alvo: 'para-aprovar',
+    titulo: 'O que espera o seu OK',
+    texto:
+      'Toda solicitação nova chega aqui. Nada é comprado nem enviado sem a sua aprovação. No dia a dia, é só clicar neste cartão para abrir a lista.',
+    acao: 'solicitacao.aprovar',
+  },
+  {
+    rota: '/admin/solicitacoes',
+    alvo: 'lista-gestao',
+    titulo: 'Aprovar um ou vários',
+    texto:
+      'Clique no código para abrir e use o botão "Aprovar". Para vários, marque as caixinhas e use "Aprovar e encaminhar". A coluna Rota diz se vai para compra ou sai do estoque.',
+    acao: 'solicitacao.alterarStatus',
+  },
+  {
+    rota: '/admin/solicitacoes',
+    alvo: 'filtros-gestao',
+    titulo: 'Encontrar e exportar',
+    texto: 'Filtre por período, consultor ou status. A exportação leva o mesmo recorte da tela.',
+    acao: 'exportar',
+  },
+  {
+    rota: '/admin/catalogo',
+    alvo: 'lista-produtos',
+    titulo: 'Presentes e preços',
+    texto:
+      'Cadastre, edite preço e foto, ou tire um presente do catálogo. As solicitações já feitas não mudam.',
+    acao: 'catalogo.gerenciar',
+  },
+  {
+    rota: '/admin/cartas',
+    alvo: 'modelos-carta',
+    titulo: 'Guia e sugestões para a carta',
+    texto:
+      'O guia de escrita, logo acima, e os textos que o consultor vê ao escrever a carta, por motivo. Edite sem pedir a ninguém.',
+    acao: 'carta.gerenciarModelos',
+  },
+]
+
+/** A operação: é a mesma para o time e para o Admin de Logística. */
+const OPERACAO_DA_LOGISTICA: readonly PassoDoTour[] = [
+  {
+    rota: '/logistica',
+    alvo: 'status-semana',
+    titulo: 'Como está a operação',
+    texto: 'A situação da semana, sugerida pelos números. Vocês podem definir à mão, com o motivo.',
+    acao: 'logistica.gerenciar',
+  },
+  {
+    rota: '/logistica',
+    alvo: 'trilha',
+    titulo: 'A trilha de demandas',
+    texto:
+      'Tudo em andamento no período. Cadastre em "Nova demanda"; o presente aprovado entra sozinho. Dá para ordenar por data e filtrar clicando nos selos.',
+    acao: 'logistica.gerenciar',
+  },
+  {
+    rota: '/logistica',
+    alvo: 'envios-demanda',
+    titulo: 'Lançar o que saiu',
+    texto:
+      'Tarefa longa recebe os envios de cada semana aqui, sem criar outra demanda. O total alimenta o fechamento do mês.',
+    acao: 'logistica.gerenciar',
+  },
+  {
+    rota: '/expedicao',
+    alvo: 'lista-expedicao',
+    titulo: 'Separar e postar',
+    texto:
+      'Os pedidos liberados, com itens e endereço. Registre o rastreio aqui: o consultor lê na solicitação dele.',
+    acao: 'expedicao.registrarRastreio',
+  },
+  {
+    rota: '/tiny',
+    alvo: 'painel-tiny',
+    titulo: 'O Tiny',
+    texto: 'O que está indo para o Tiny e o que falhou. Situação e rastreio voltam sozinhos de lá.',
+    acao: 'tiny.operar',
+  },
+]
+
 const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
   admin: [
-    {
-      rota: '/',
-      alvo: 'para-aprovar',
-      titulo: 'O que espera o seu OK',
-      texto:
-        'Toda solicitação nova chega aqui. Nada é comprado nem enviado sem a sua aprovação. No dia a dia, é só clicar neste cartão para abrir a lista.',
-      acao: 'solicitacao.aprovar',
-    },
-    {
-      rota: '/admin/solicitacoes',
-      alvo: 'lista-gestao',
-      titulo: 'Aprovar um ou vários',
-      texto:
-        'Clique no código para abrir e use o botão "Aprovar". Para vários, marque as caixinhas e use "Aprovar e encaminhar". A coluna Rota diz se vai para compra ou sai do estoque.',
-      acao: 'solicitacao.alterarStatus',
-    },
-    {
-      rota: '/admin/solicitacoes',
-      alvo: 'filtros-gestao',
-      titulo: 'Encontrar e exportar',
-      texto: 'Filtre por período, consultor ou status. A exportação leva o mesmo recorte da tela.',
-      acao: 'exportar',
-    },
-    {
-      rota: '/admin/catalogo',
-      alvo: 'lista-produtos',
-      titulo: 'Presentes e preços',
-      texto:
-        'Cadastre, edite preço e foto, ou tire um presente do catálogo. As solicitações já feitas não mudam.',
-      acao: 'catalogo.gerenciar',
-    },
-    {
-      rota: '/admin/cartas',
-      alvo: 'modelos-carta',
-      titulo: 'Guia e sugestões para a carta',
-      texto:
-        'O guia de escrita, logo acima, e os textos que o consultor vê ao escrever a carta, por motivo. Edite sem pedir a ninguém.',
-      acao: 'carta.gerenciarModelos',
-    },
+    ...GESTAO_DOS_PRESENTES,
     {
       rota: '/admin/usuarios',
       alvo: 'lista-usuarios',
       titulo: 'Quem faz o quê',
       texto:
         'Quem entra pela primeira vez vira Consultor. Aqui você define o perfil e o limite mensal de cada um.',
+      acao: 'usuario.gerenciar',
+    },
+    CONTA,
+  ],
+  admin_relacionamento: [
+    ...GESTAO_DOS_PRESENTES,
+    {
+      rota: '/admin/usuarios',
+      alvo: 'lista-usuarios',
+      titulo: 'Os seus consultores',
+      texto:
+        'Quem entra pela primeira vez já aparece aqui como Consultor. Defina o limite mensal e desative quem saiu do time.',
+      acao: 'usuario.definirLimite',
+    },
+    CONTA,
+  ],
+  admin_logistica: [
+    ...OPERACAO_DA_LOGISTICA,
+    {
+      rota: '/admin/solicitacoes',
+      alvo: 'lista-gestao',
+      titulo: 'As solicitações, para consulta',
+      texto:
+        'Todas as solicitações, para responder sobre um envio. A aprovação e o status ficam com o Relacionamento e o Financeiro.',
+      acao: 'solicitacao.verTodas',
+    },
+    {
+      rota: '/admin/usuarios',
+      alvo: 'lista-usuarios',
+      titulo: 'O seu time',
+      texto:
+        'Quem entra pela primeira vez vira Consultor. Aqui você põe a pessoa na Logística, devolve a Consultor e desativa quem saiu.',
       acao: 'usuario.gerenciar',
     },
     CONTA,
@@ -128,7 +207,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       rota: '/',
       alvo: 'nav-compras',
       titulo: 'A sua fila',
-      texto: 'O que o Admin aprovou e precisa ser comprado aparece na Fila de compras.',
+      texto: 'O que o Relacionamento aprovou e precisa ser comprado aparece na Fila de compras.',
       acao: 'compras.verFila',
     },
     {
@@ -144,7 +223,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       titulo: 'Comprou? Marque aqui',
       texto:
         'Primeiro "Marcar como comprado", depois "Liberar para envio", que manda para a expedição e gera o pedido no Tiny.',
-      acao: 'solicitacao.alterarStatus',
+      acao: 'compras.operar',
     },
     {
       rota: '/admin/solicitacoes',
@@ -156,49 +235,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
     },
     CONTA,
   ],
-  logistica: [
-    {
-      rota: '/logistica',
-      alvo: 'status-semana',
-      titulo: 'Como está a operação',
-      texto:
-        'A situação da semana, sugerida pelos números. Vocês podem definir à mão, com o motivo.',
-      acao: 'logistica.gerenciar',
-    },
-    {
-      rota: '/logistica',
-      alvo: 'trilha',
-      titulo: 'A trilha de demandas',
-      texto:
-        'Tudo em andamento no período. Cadastre em "Nova demanda"; o presente aprovado entra sozinho. Dá para ordenar por data e filtrar clicando nos selos.',
-      acao: 'logistica.gerenciar',
-    },
-    {
-      rota: '/logistica',
-      alvo: 'envios-demanda',
-      titulo: 'Lançar o que saiu',
-      texto:
-        'Tarefa longa recebe os envios de cada semana aqui, sem criar outra demanda. O total alimenta o fechamento do mês.',
-      acao: 'logistica.gerenciar',
-    },
-    {
-      rota: '/expedicao',
-      alvo: 'lista-expedicao',
-      titulo: 'Separar e postar',
-      texto:
-        'Os pedidos liberados, com itens e endereço. Registre o rastreio aqui: o consultor lê na solicitação dele.',
-      acao: 'expedicao.registrarRastreio',
-    },
-    {
-      rota: '/tiny',
-      alvo: 'painel-tiny',
-      titulo: 'O Tiny',
-      texto:
-        'O que está indo para o Tiny e o que falhou. Situação e rastreio voltam sozinhos de lá.',
-      acao: 'tiny.operar',
-    },
-    CONTA,
-  ],
+  logistica: [...OPERACAO_DA_LOGISTICA, CONTA],
 }
 
 /** Os passos do perfil, só os que ele pode de fato usar. */

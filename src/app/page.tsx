@@ -4,7 +4,7 @@ import type { Route } from 'next'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { exigirUsuario } from '@/lib/auth-guards'
-import { filtroDeSolicitacoes, pode, type Acao } from '@/lib/permissions'
+import { comecaNaLogistica, filtroDeSolicitacoes, pode, type Acao } from '@/lib/permissions'
 import { saldoDoMes, saldoDoMesDoTime } from '@/lib/saldo'
 import { formatarBRL } from '@/lib/money'
 import { formatarData, intervaloDoMes } from '@/lib/datas'
@@ -94,9 +94,10 @@ export default async function Home() {
 
   // O escopo vem da matriz de permissões: o consultor conta só as próprias.
   // Nulo é "nenhuma", e não "todas": quem não acompanha solicitação, o time de
-  // Logística, começa pelo painel dele em vez de um resumo que não lhe cabe.
+  // Logística, começa pelo painel dele em vez de um resumo que não lhe cabe. O
+  // Admin de Logística lê as solicitações, mas o dia dele também começa no painel.
   const escopo = filtroDeSolicitacoes(usuario.perfil, usuario.id)
-  if (!escopo) redirect('/logistica')
+  if (!escopo || comecaNaLogistica(usuario.perfil)) redirect('/logistica')
 
   // Admin e Financeiro não criam solicitações, então o gasto pessoal deles
   // seria sempre zero. Para esses perfis o número que interessa é o do time.

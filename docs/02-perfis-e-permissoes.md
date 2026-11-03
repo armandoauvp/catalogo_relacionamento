@@ -29,6 +29,42 @@ botão e bloquear a ação nunca divirjam.
 ² Suposição: as observações vêm do ClickUp em texto livre e é ali que aparecem
 nome e endereço de quem recebe. Isolado em `PENDENTE_CONFIRMACAO`.
 
+## Um admin por área
+
+A coluna Admin acima é o **Admin geral**, o único que promove alguém a admin. Ao
+lado dele há um admin para cada área:
+
+| Ação                                  | Admin Relacionamento |    Admin Logística    |
+| ------------------------------------- | :------------------: | :-------------------: |
+| Aprovar e mudar status de solicitação |          ✓           |           -           |
+| Criar solicitação                     |          ✓           |           -           |
+| Ver todas as solicitações             |          ✓           |      só leitura       |
+| Catálogo, modelos e guia da carta     |          ✓           |           -           |
+| Clientes                              |          ✓           |           -           |
+| Ver o saldo de todos e exportar       |          ✓           |           -           |
+| Fila de compras                       |      só leitura      |           -           |
+| Fila da expedição                     |      só leitura      |   ✓, anota rastreio   |
+| Dashboard Logístico                   |      só leitura      |      ✓, gerencia      |
+| Tiny                                  |          -           |           ✓           |
+| Em Usuários, alcança quem é           |      Consultor       | Consultor e Logística |
+| Trocar perfil de quem alcança         |          -           | Consultor ↔ Logística |
+| Definir o limite mensal               |          ✓           |           -           |
+| Ativar e desativar quem alcança       |          ✓           |           ✓           |
+
+O alcance vale nos dois sentidos (`perfisAoAlcance`): o admin só mexe em quem
+está num dos perfis dele e só atribui um deles. É isso que impede o Admin de
+Logística de rebaixar outro admin ou tirar alguém do Financeiro. `salvarUsuario`
+confere contra o perfil gravado, e a consulta da tela nem traz os demais.
+
+Marcar como comprado e liberar o que foi comprado pedem `compras.operar`
+(`ehPassoDeCompra`), do Financeiro e do Admin geral. O Admin de Relacionamento
+continua podendo aprovar, cancelar e registrar problema.
+
+`BOOTSTRAP_ADMIN_EMAILS` só promove quem ainda é Consultor: quem recebeu um perfil
+de área na tela de Usuários não volta a Admin geral no login seguinte. Com
+`PERFIL_LIVRE` ligado, qualquer pessoa ainda escolhe qualquer perfil no menu da
+conta, então a separação só vale de verdade com a variável desligada.
+
 ## Perfil Financeiro
 
 A spec deixou esse perfil "a definir". A área definiu depois:

@@ -30,6 +30,18 @@ export const USUARIOS_DA_DEMONSTRACAO: readonly UsuarioDaDemonstracao[] = [
     oQueVe: 'Tudo: gestão, aprovação, cadastros e o dashboard.',
   },
   {
+    nome: 'Lia Relacionamento',
+    email: 'admin.relacionamento@auvp.com.br',
+    perfil: Perfil.admin_relacionamento,
+    oQueVe: 'Aprova, cuida do catálogo e gerencia os consultores.',
+  },
+  {
+    nome: 'Léo Logística',
+    email: 'admin.logistica@auvp.com.br',
+    perfil: Perfil.admin_logistica,
+    oQueVe: 'Opera a Logística e move pessoas entre Consultor e Logística.',
+  },
+  {
     nome: 'Carlos Consultor',
     email: 'carlos@auvp.com.br',
     perfil: Perfil.consultor,

@@ -295,7 +295,7 @@ export function EditorDeDemanda({
             </Campo>
           </div>
 
-          <Campo rotulo="Observações (opcional)" dica="Só Logística e Admin leem.">
+          <Campo rotulo="Observações (opcional)" dica="Só a Logística e o Admin geral leem.">
             <Textarea
               name="observacoes"
               defaultValue={demanda?.observacoes ?? ''}

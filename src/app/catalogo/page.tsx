@@ -137,7 +137,7 @@ export default async function CatalogoPage({
           descricao={
             filtrando
               ? 'Nenhum produto ativo bate com esses filtros. Tente outra busca ou volte para “Todos”.'
-              : 'O catálogo ainda não tem produtos ativos. O Admin cadastra em Catálogo (admin).'
+              : 'O catálogo ainda não tem produtos ativos. O Relacionamento cadastra em Administração → Produtos.'
           }
           acao={
             filtrando ? (

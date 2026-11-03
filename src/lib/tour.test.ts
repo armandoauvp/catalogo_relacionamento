@@ -18,7 +18,14 @@ describe('tour guiado', () => {
     // Se a matriz mudar, o passo sai sozinho do tour; este teste avisa para
     // rever o texto, porque "Aprovar um ou vários" sem o passo anterior não lê bem.
     const contagem = Object.fromEntries(PERFIS.map((p) => [p, passosDoTour(p).length]))
-    expect(contagem).toEqual({ admin: 7, consultor: 6, financeiro: 5, logistica: 6 })
+    expect(contagem).toEqual({
+      admin: 7,
+      admin_relacionamento: 7,
+      admin_logistica: 8,
+      consultor: 6,
+      financeiro: 5,
+      logistica: 6,
+    })
     for (const perfil of PERFIS) {
       for (const passo of passosDoTour(perfil)) {
         expect(pode(perfil, passo.acao), `${perfil}: ${passo.alvo}`).toBe(true)
@@ -30,8 +37,10 @@ describe('tour guiado', () => {
     expect(passosDoTour(Perfil.admin)[0]?.rota).toBe('/')
     expect(passosDoTour(Perfil.consultor)[0]?.rota).toBe('/')
     expect(passosDoTour(Perfil.financeiro)[0]?.rota).toBe('/')
+    expect(passosDoTour(Perfil.admin_relacionamento)[0]?.rota).toBe('/')
     // A Logística não tem resumo: a tela inicial a manda direto para o painel.
     expect(passosDoTour(Perfil.logistica)[0]?.rota).toBe('/logistica')
+    expect(passosDoTour(Perfil.admin_logistica)[0]?.rota).toBe('/logistica')
   })
 
   it('o Financeiro não recebe o passo de aprovar, que é do Admin', () => {

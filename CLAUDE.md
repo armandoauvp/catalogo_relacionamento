@@ -120,6 +120,11 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   o perfil no menu da conta; a escolha mora no token, nunca na coluna
   `perfil`, para que apagar a variável devolva a delimitação sem migrar nada.
   O domínio continua conferido.
+- **Admin por área não sai do próprio alcance.** Só o Admin geral promove a
+  admin. O de Relacionamento gerencia consultores sem trocar perfil; o de
+  Logística só transforma em Consultor ou Logística, e nenhum mexe em quem está
+  fora de `perfisAoAlcance`, conferido no servidor contra o perfil gravado. Ver
+  `docs/02-perfis-e-permissoes.md`.
 - **Foto é reduzida no navegador** (`src/lib/arquivos-no-navegador.ts`) antes
   de subir: a Vercel recusa requisição acima de 4,5 MB, e o teto da aplicação
   é 4 MB.

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { Perfil } from '@prisma/client'
 import {
+  comecaNaLogistica,
   escopoDeDadosSensiveis,
   escopoDeSolicitacoes,
   filtroDeSolicitacoes,
   perfilEmVigor,
+  perfisAoAlcance,
   pode,
+  problemaAoMudarPerfil,
 } from './permissions'
 
 describe('consultor', () => {
@@ -133,6 +136,149 @@ describe('logística: dashboard e expedição', () => {
     expect(pode(Perfil.logistica, 'cliente.gerenciar')).toBe(false)
     expect(pode(Perfil.logistica, 'usuario.gerenciar')).toBe(false)
     expect(pode(Perfil.logistica, 'solicitacao.alterarStatus')).toBe(false)
+  })
+})
+
+describe('admin de Relacionamento', () => {
+  const perfil = Perfil.admin_relacionamento
+
+  it('aprova e cuida do que é da área', () => {
+    for (const acao of [
+      'solicitacao.aprovar',
+      'solicitacao.alterarStatus',
+      'catalogo.gerenciar',
+      'carta.gerenciarModelos',
+      'cliente.gerenciar',
+      'saldo.verTodos',
+      'exportar',
+    ] as const) {
+      expect(pode(perfil, acao), acao).toBe(true)
+    }
+  })
+
+  it('acompanha a compra e a expedição, sem marcar por quem compra e posta', () => {
+    expect(pode(perfil, 'compras.verFila')).toBe(true)
+    expect(pode(perfil, 'compras.operar')).toBe(false)
+    expect(pode(perfil, 'expedicao.verFila')).toBe(true)
+    expect(pode(perfil, 'expedicao.registrarRastreio')).toBe(false)
+  })
+
+  it('lê o painel da Logística, sem operar nem ler as observações', () => {
+    expect(pode(perfil, 'logistica.ver')).toBe(true)
+    expect(pode(perfil, 'logistica.gerenciar')).toBe(false)
+    expect(pode(perfil, 'logistica.verObservacoes')).toBe(false)
+    expect(pode(perfil, 'tiny.operar')).toBe(false)
+  })
+})
+
+describe('admin de Logística', () => {
+  const perfil = Perfil.admin_logistica
+
+  it('opera como o time', () => {
+    for (const acao of [
+      'logistica.gerenciar',
+      'logistica.verObservacoes',
+      'expedicao.registrarRastreio',
+      'tiny.operar',
+    ] as const) {
+      expect(pode(perfil, acao), acao).toBe(true)
+    }
+  })
+
+  it('lê as solicitações, sem aprovar nem mudar status', () => {
+    expect(escopoDeSolicitacoes(perfil)).toBe('todas')
+    expect(pode(perfil, 'solicitacao.aprovar')).toBe(false)
+    expect(pode(perfil, 'solicitacao.alterarStatus')).toBe(false)
+    expect(pode(perfil, 'solicitacao.criar')).toBe(false)
+  })
+
+  it('não mexe no catálogo, nos clientes nem no saldo', () => {
+    expect(pode(perfil, 'catalogo.gerenciar')).toBe(false)
+    expect(pode(perfil, 'cliente.gerenciar')).toBe(false)
+    expect(pode(perfil, 'saldo.verTodos')).toBe(false)
+  })
+})
+
+describe('tela inicial', () => {
+  it('quem opera a Logística e não pede presente começa pelo painel', () => {
+    expect(comecaNaLogistica(Perfil.logistica)).toBe(true)
+    expect(comecaNaLogistica(Perfil.admin_logistica)).toBe(true)
+  })
+
+  it('os demais começam pelo resumo', () => {
+    for (const perfil of [
+      Perfil.admin,
+      Perfil.admin_relacionamento,
+      Perfil.consultor,
+      Perfil.financeiro,
+    ]) {
+      expect(comecaNaLogistica(perfil), perfil).toBe(false)
+    }
+  })
+})
+
+describe('quem cada admin alcança em Usuários', () => {
+  it('só os admins gerenciam usuários, e cada perfil que gerencia tem alcance', () => {
+    for (const perfil of Object.values(Perfil)) {
+      expect(perfisAoAlcance(perfil).length > 0, perfil).toBe(pode(perfil, 'usuario.gerenciar'))
+    }
+  })
+
+  it('o Admin geral alcança todos', () => {
+    expect(perfisAoAlcance(Perfil.admin)).toEqual(Object.values(Perfil))
+    expect(problemaAoMudarPerfil(Perfil.admin, Perfil.consultor, Perfil.admin)).toBeNull()
+    expect(problemaAoMudarPerfil(Perfil.admin, Perfil.admin, Perfil.financeiro)).toBeNull()
+  })
+
+  it('o de Relacionamento gerencia consultores, sem trocar o perfil deles', () => {
+    expect(perfisAoAlcance(Perfil.admin_relacionamento)).toEqual([Perfil.consultor])
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.consultor, Perfil.consultor),
+    ).toBeNull()
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.consultor, Perfil.logistica),
+    ).not.toBeNull()
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.logistica, Perfil.logistica),
+    ).not.toBeNull()
+  })
+
+  it('o de Logística só transforma em Consultor ou Logística', () => {
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_logistica, Perfil.consultor, Perfil.logistica),
+    ).toBeNull()
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_logistica, Perfil.logistica, Perfil.consultor),
+    ).toBeNull()
+    for (const novo of [
+      Perfil.admin,
+      Perfil.admin_relacionamento,
+      Perfil.admin_logistica,
+      Perfil.financeiro,
+    ]) {
+      expect(problemaAoMudarPerfil(Perfil.admin_logistica, Perfil.consultor, novo), novo).toMatch(
+        /transformar/,
+      )
+    }
+  })
+
+  it('o de Logística não rebaixa admin nem tira ninguém do Financeiro', () => {
+    for (const atual of [
+      Perfil.admin,
+      Perfil.admin_relacionamento,
+      Perfil.admin_logistica,
+      Perfil.financeiro,
+    ]) {
+      expect(problemaAoMudarPerfil(Perfil.admin_logistica, atual, Perfil.consultor), atual).toMatch(
+        /não gerencia/,
+      )
+    }
+  })
+
+  it('o limite mensal fica com o Admin geral e o de Relacionamento', () => {
+    expect(pode(Perfil.admin, 'usuario.definirLimite')).toBe(true)
+    expect(pode(Perfil.admin_relacionamento, 'usuario.definirLimite')).toBe(true)
+    expect(pode(Perfil.admin_logistica, 'usuario.definirLimite')).toBe(false)
   })
 })
 

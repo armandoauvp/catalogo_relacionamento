@@ -5,7 +5,7 @@ import { after } from 'next/server'
 import { Prisma, StatusSolicitacao } from '@prisma/client'
 import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
-import { filtroDeSolicitacoes } from '@/lib/permissions'
+import { filtroDeSolicitacoes, pode } from '@/lib/permissions'
 import { proximoCodigo } from '@/lib/codigo'
 import { totalDosItens } from '@/lib/money'
 import { normalizarCpf } from '@/lib/cpf'
@@ -14,6 +14,7 @@ import { acompanhamentosFaltando, mensagemDePendencia } from '@/lib/acompanhamen
 import {
   ROTULO_STATUS,
   caminhoDeEncaminhamento,
+  ehPassoDeCompra,
   validarMudancaDeStatus,
   type Encaminhamento,
 } from '@/lib/status'
@@ -308,6 +309,8 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
     const checagem = validarMudancaDeStatus(solicitacao.status, statusNovo, motivo)
     if (!checagem.ok) return { ok: false, erro: checagem.erro }
 
+    if (ehPassoDeCompra(solicitacao.status, statusNovo)) await autorizarAction('compras.operar')
+
     const foiParaOTiny = await db.$transaction(async (tx) => {
       await tx.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } })
       await tx.solicitacaoHistorico.create({
@@ -403,6 +406,7 @@ export async function encaminharEmLote(
 ): Promise<ResultadoDaAction<ResumoDoLote>> {
   try {
     const usuario = await autorizarAction('solicitacao.alterarStatus')
+    const operaCompra = pode(usuario.perfil, 'compras.operar')
 
     if (ids.length === 0) {
       return { ok: false, erro: 'Selecione pelo menos uma solicitação.' }
@@ -433,6 +437,19 @@ export async function encaminharEmLote(
 
       if (!caminho.ok) {
         resumo.ignoradas.push({ codigo: solicitacao.codigo, motivo: caminho.erro })
+        continue
+      }
+
+      if (
+        !operaCompra &&
+        caminho.passos.some((passo, i) =>
+          ehPassoDeCompra(caminho.passos[i - 1] ?? solicitacao.status, passo),
+        )
+      ) {
+        resumo.ignoradas.push({
+          codigo: solicitacao.codigo,
+          motivo: 'Marcar a compra e liberar o que foi comprado é do Financeiro.',
+        })
         continue
       }
 

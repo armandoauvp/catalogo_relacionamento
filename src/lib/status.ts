@@ -143,6 +143,18 @@ export function transicaoPermitida(atual: StatusSolicitacao, novo: StatusSolicit
   return transicoesPermitidas(atual).includes(novo)
 }
 
+/**
+ * Os dois passos de quem compra, que pedem `compras.operar`: marcar como comprado
+ * e liberar o que foi comprado para envio. A saída direta da aprovação para a
+ * expedição não está aqui, porque o que está em estoque não passa pela compra.
+ */
+export function ehPassoDeCompra(atual: StatusSolicitacao, novo: StatusSolicitacao): boolean {
+  return (
+    (atual === StatusSolicitacao.aguardando_compra && novo === StatusSolicitacao.comprado) ||
+    (atual === StatusSolicitacao.comprado && novo === StatusSolicitacao.organizando_envio)
+  )
+}
+
 export type ResultadoValidacao = { ok: true } | { ok: false; erro: string }
 
 /**
@@ -364,15 +376,17 @@ export function proximoPasso(
 
 /** A frase de cada status para quem pediu: quem age agora, e o que vem depois. */
 const O_QUE_ACONTECE_AGORA: Record<StatusSolicitacao, string> = {
-  pendente: 'Aguardando a aprovação do Admin. Nada foi comprado nem enviado ainda.',
-  aguardando_aprovacao: 'Aguardando a aprovação do Admin. Nada foi comprado nem enviado ainda.',
+  pendente: 'Aguardando a aprovação do Relacionamento. Nada foi comprado nem enviado ainda.',
+  aguardando_aprovacao:
+    'Aguardando a aprovação do Relacionamento. Nada foi comprado nem enviado ainda.',
   aguardando_compra: 'Aprovada. Agora o Financeiro compra os itens.',
   comprado: 'Itens comprados. Falta liberar para a expedição.',
   organizando_envio:
     'Na expedição: a Logística separa e posta. O rastreio aparece aqui quando sair.',
   entregue: 'Entregue. Falta confirmar o recebimento com o cliente.',
   cliente_confirmou: 'Concluída: o cliente confirmou o recebimento.',
-  deu_problema: 'Deu problema no caminho. O motivo está no histórico, e o Admin decide como segue.',
+  deu_problema:
+    'Deu problema no caminho. O motivo está no histórico, e o Relacionamento decide como segue.',
   devolvido: 'Devolvida. O motivo está no histórico.',
   cancelado: 'Cancelada. O motivo está no histórico.',
 }

@@ -122,7 +122,9 @@ function montarProviders(): Provider[] {
  *
  * O primeiro login cria com perfil `consultor`. A exceção é
  * `BOOTSTRAP_ADMIN_EMAILS`: sem ela o primeiro usuário do ambiente entraria
- * como consultor e não haveria ninguém com poder de promover ninguém.
+ * como consultor e não haveria ninguém com poder de promover ninguém. Só promove
+ * quem ainda é consultor: quem já recebeu outro perfil na tela de Usuários não
+ * pode voltar a Admin geral no login seguinte.
  */
 export async function sincronizarUsuario(dados: {
   email: string
@@ -133,6 +135,9 @@ export async function sincronizarUsuario(dados: {
 }) {
   const email = dados.email.trim().toLowerCase()
   const ehBootstrapAdmin = env.BOOTSTRAP_ADMIN_EMAILS.includes(email)
+  const existente = ehBootstrapAdmin
+    ? await db.usuario.findUnique({ where: { email }, select: { perfil: true } })
+    : null
 
   return db.usuario.upsert({
     where: { email },
@@ -147,7 +152,7 @@ export async function sincronizarUsuario(dados: {
       // são geridos pelo Admin dentro da ferramenta.
       nome: dados.nome || undefined,
       ssoSubject: dados.ssoSubject ?? undefined,
-      ...(ehBootstrapAdmin ? { perfil: Perfil.admin } : {}),
+      ...(existente?.perfil === Perfil.consultor ? { perfil: Perfil.admin } : {}),
     },
     select: { id: true, perfil: true, ativo: true, nome: true, email: true },
   })

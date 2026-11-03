@@ -29,6 +29,12 @@ enum Perfil {
   /// Time de Logística: opera a expedição e mantém o Dashboard Logístico.
   /// Não cria nem acompanha solicitação de presente. Ver ADR 0008.
   logistica
+  /// Admin da área de Relacionamento: aprova, cuida do catálogo e gerencia os
+  /// consultores, sem trocar o perfil de ninguém.
+  admin_relacionamento
+  /// Admin da Logística: opera como o time e move pessoas entre Consultor e
+  /// Logística.
+  admin_logistica
 }
 
 /// De onde o presente sai quando alguém pede.

@@ -5,6 +5,7 @@ import {
   STATUS_PARA_APROVAR,
   caminhoDeEncaminhamento,
   contaNoSaldo,
+  ehPassoDeCompra,
   ehTerminal,
   oQueAconteceAgora,
   precisaDeCompra,
@@ -370,5 +371,26 @@ describe('próximo passo', () => {
     for (const status of Object.values(StatusSolicitacao)) {
       expect(oQueAconteceAgora(status).length).toBeGreaterThan(10)
     }
+  })
+})
+
+describe('passo de compra', () => {
+  it('são os dois passos de quem compra', () => {
+    expect(ehPassoDeCompra('aguardando_compra', 'comprado')).toBe(true)
+    expect(ehPassoDeCompra('comprado', 'organizando_envio')).toBe(true)
+  })
+
+  it('a aprovação não é passo de compra, nem quando já sai para a expedição', () => {
+    expect(ehPassoDeCompra('aguardando_aprovacao', 'aguardando_compra')).toBe(false)
+    expect(ehPassoDeCompra('aguardando_aprovacao', 'organizando_envio')).toBe(false)
+  })
+
+  it('cancelar e registrar problema seguem fora, em qualquer etapa da compra', () => {
+    expect(ehPassoDeCompra('aguardando_compra', 'cancelado')).toBe(false)
+    expect(ehPassoDeCompra('comprado', 'deu_problema')).toBe(false)
+  })
+
+  it('voltar de um problema para a expedição não é passo de compra', () => {
+    expect(ehPassoDeCompra('deu_problema', 'organizando_envio')).toBe(false)
   })
 })
