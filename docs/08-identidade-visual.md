@@ -32,10 +32,12 @@ idênticos, então um componente copiado de lá funciona sem reescrita.
 Duas escolhas merecem explicação:
 
 **Fontes por `next/font`.** As três famílias são as mesmas (Anek Latin nos
-títulos, Roboto no corpo, Sora nos botões), mas são baixadas no build e
-servidas pelo próprio domínio. Elimina a requisição a terceiro no carregamento
-e o pulo de layout na troca da fonte de fallback pela definitiva. A vitrine, que
-não passa pelo Next, continua carregando do Google Fonts como a Central.
+títulos, Roboto no corpo, Sora nos botões), mas os arquivos moram em
+`src/fontes/` e são servidos pelo próprio domínio. Elimina a requisição a
+terceiro no carregamento e o pulo de layout na troca da fonte de fallback pela
+definitiva. Até 03/11/2026 elas vinham de `next/font/google`, baixadas a cada
+build, e o deploy caía quando o Google respondia fora do esperado. A vitrine,
+que não passa pelo Next, continua carregando do Google Fonts como a Central.
 
 **Só o tema Capital.** A Central carrega também a identidade dourada da AUVP
 Escola. Esta é uma ferramenta interna da Capital; o tema Escola entraria como
