@@ -816,7 +816,7 @@ function novaFolhaDaCarta() {
 function novaEtapaCarta(erros) {
   const nome = novaPrimeiroNome(novaEntrega.destinatario || novaCliente?.nome || '')
   const modelos = MODELOS_DEMO[novaCarta.motivo] ?? []
-  const restam = 600 - novaCarta.mensagem.length
+  const restam = 1150 - novaCarta.mensagem.length
 
   return `
     <p class="font-display text-lg font-semibold">A carta que vai junto</p>

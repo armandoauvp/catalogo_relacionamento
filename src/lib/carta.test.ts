@@ -39,7 +39,7 @@ describe('modelos de carta', () => {
   })
 
   it('recusa modelo maior do que cabe na carta', () => {
-    expect(problemaDoModelo('a'.repeat(LIMITE_DA_MENSAGEM + 1))).toMatch(/passa de 600/)
+    expect(problemaDoModelo('a'.repeat(LIMITE_DA_MENSAGEM + 1))).toMatch(/passa de 1150/)
   })
 
   it('aponta o marcador escrito errado, que chegaria cru na folha', () => {

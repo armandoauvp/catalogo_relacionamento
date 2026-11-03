@@ -137,11 +137,11 @@ const escapar = (texto: string) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 /**
  * Quanto cabe numa carta.
  *
- * Não é limite do banco, é limite de folha: a carta é impressa num cartão
- * pequeno, e um texto muito longo sai em corpo ilegível ou não sai. O número
- * veio da carta mais longa que a área já mandou, com folga.
+ * É limite de folha: um texto mais longo não cabe no papel que a área usa. O
+ * número é o que ela mediu nesse papel (pedido de 03/11/2026). A trava do banco
+ * nos modelos (`modelo_carta_texto_valido`) repete este valor, e muda junto.
  */
-export const LIMITE_DA_MENSAGEM = 600
+export const LIMITE_DA_MENSAGEM = 1150
 
 /** Quanto ainda cabe, e se já passou. */
 export function espacoRestante(mensagem: string): { restam: number; excedeu: boolean } {
