@@ -191,7 +191,9 @@ mandado para aquele cliente, limite do mês contado com o pedido atual dentro,
 prévia da carta ao lado do campo e na revisão, e a rota que o pedido segue
 depois da aprovação. As sugestões de texto da carta moram no banco
 (`ModeloCarta`) e o Admin as edita em Administração → Modelos de carta; a
-validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`. Na
+validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`. A
+saudação é editável e gravada com a solicitação (`saudacaoCarta`): vazia é carta
+sem saudação, nula só nas anteriores ao campo. Na
 mesma tela mora o guia de como escrever (`GuiaCarta`), que o consultor lê
 recolhido na etapa da carta.
 

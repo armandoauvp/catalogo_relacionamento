@@ -10,6 +10,7 @@ import {
   primeiroNome,
   problemaDoGuia,
   problemaDoModelo,
+  saudacaoSugerida,
 } from './carta'
 
 describe('primeiro nome', () => {
@@ -27,6 +28,35 @@ describe('primeiro nome', () => {
 
   it('devolve vazio para nome vazio, em vez de estourar', () => {
     expect(primeiroNome('   ')).toBe('')
+  })
+})
+
+describe('saudação escrita à mão', () => {
+  const base = {
+    destinatario: 'Gabriela Souza',
+    motivo: MotivoEnvio.aniversario,
+    motivoOutro: '',
+    mensagem: 'Que este ano venha com muitas conquistas.',
+    remetente: 'Lilian',
+  }
+
+  it('sem nada escrito, vale a sugestão', () => {
+    expect(previaDaCarta(base).saudacao).toBe('Olá, Gabriela,')
+    expect(previaDaCarta({ ...base, saudacao: null }).saudacao).toBe('Olá, Gabriela,')
+    expect(saudacaoSugerida('Gabriela Souza', base.mensagem)).toBe('Olá, Gabriela,')
+  })
+
+  it('o que a pessoa escreveu manda, mesmo com outro nome', () => {
+    expect(previaDaCarta({ ...base, saudacao: ' Oi, Gabi! ' }).saudacao).toBe('Oi, Gabi!')
+  })
+
+  it('vazio é carta sem saudação, e não volta para a sugestão', () => {
+    expect(previaDaCarta({ ...base, saudacao: '' }).saudacao).toBe('')
+    expect(previaDaCarta({ ...base, saudacao: '   ' }).saudacao).toBe('')
+  })
+
+  it('a sugestão continua sumindo quando a frase já chama pelo nome', () => {
+    expect(saudacaoSugerida('Gabriela Souza', 'Gabriela, feliz aniversário!')).toBe('')
   })
 })
 

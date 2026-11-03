@@ -114,6 +114,9 @@ export function DetalheDaSolicitacao({
             {/* A carta é o texto que chega ao cliente: tratada como citação,
                 e não como mais um campo do formulário. */}
             <blockquote className="border-primary/25 bg-muted/40 rounded-r-md border-l-2 py-3 pr-4 pl-4 text-sm leading-relaxed whitespace-pre-wrap">
+              {solicitacao.saudacaoCarta ? (
+                <span className="mb-2 block">{solicitacao.saudacaoCarta}</span>
+              ) : null}
               {solicitacao.mensagemCarta}
             </blockquote>
 

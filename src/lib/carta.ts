@@ -95,6 +95,8 @@ export type DadosDaCarta = {
   mensagem: string
   /** Quem assina: o consultor que está pedindo. */
   remetente: string
+  /** O que a pessoa escreveu na saudação. Vazio é sem saudação; nulo, a sugestão. */
+  saudacao?: string | null
 }
 
 export type PreviaDaCarta = {
@@ -121,25 +123,40 @@ const ROTULO_DA_OCASIAO: Record<MotivoEnvio, string> = {
 }
 
 /**
- * Monta a folha como ela será lida.
+ * A saudação que a carta sugere, até a pessoa escrever a dela.
  *
- * A saudação some quando a primeira frase já chama a pessoa pelo nome. Não é
- * só o "Oi, Marina": "Feliz aniversário, Marina!" também já cumprimenta, e
- * imprimir "Olá, Marina," logo acima disso repete o nome duas vezes em duas
- * linhas. Por isso a checagem é a frase inteira, e não o começo dela.
+ * Ela some quando a primeira frase já chama a pessoa pelo nome. Não é só o "Oi,
+ * Marina": "Feliz aniversário, Marina!" também já cumprimenta, e imprimir "Olá,
+ * Marina," logo acima disso repete o nome duas vezes em duas linhas. Por isso a
+ * checagem é a frase inteira, e não o começo dela.
  */
-export function previaDaCarta(dados: DadosDaCarta): PreviaDaCarta {
-  const nome = primeiroNome(dados.destinatario)
-  const corpo = dados.mensagem.trim()
+export function saudacaoSugerida(destinatario: string, mensagem: string): string {
+  const nome = primeiroNome(destinatario)
 
   // A primeira frase: até o primeiro ponto final, de exclamação ou de
   // interrogação. Sem pontuação nenhuma, a mensagem inteira é uma frase só.
-  const primeiraFrase = corpo.split(/[.!?]/, 1)[0] ?? ''
+  const primeiraFrase = mensagem.trim().split(/[.!?]/, 1)[0] ?? ''
   const jaCumprimenta =
     nome.length > 0 && new RegExp(`\\b${escapar(nome)}\\b`, 'iu').test(primeiraFrase)
 
+  return !nome || jaCumprimenta ? '' : `Olá, ${nome},`
+}
+
+/**
+ * Uma linha, e não um parágrafo: quem recebe a chamada de "Gabi" lê "Oi, Gabi!".
+ * Fica fora do limite da mensagem, porque ocupa uma linha só.
+ */
+export const LIMITE_DA_SAUDACAO = 80
+
+/**
+ * Monta a folha como ela será lida. A saudação escrita manda: quem conhece o
+ * cliente sabe como chamá-lo, e o cadastro só sabe o nome completo.
+ */
+export function previaDaCarta(dados: DadosDaCarta): PreviaDaCarta {
+  const corpo = dados.mensagem.trim()
+
   return {
-    saudacao: !nome || jaCumprimenta ? '' : `Olá, ${nome},`,
+    saudacao: (dados.saudacao ?? saudacaoSugerida(dados.destinatario, corpo)).trim(),
     corpo,
     assinatura: dados.remetente.trim(),
     ocasiao: ocasiaoDaCarta(dados.motivo, dados.motivoOutro),

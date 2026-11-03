@@ -129,6 +129,9 @@ se a geração da carta em formato de impressão é urgente ou não.
 **Assumido:** a carta é digitada na ferramenta e o processo de impressão segue
 como é hoje. A geração em formato de impressão está fora do V1.
 
+A saudação é editável e fica gravada com a solicitação desde 03/11/2026; antes
+era só da prévia, e quem lia a carta depois não a via.
+
 O que existe é a **prévia**: a folha montada com saudação, corpo e assinatura,
 ao lado do campo enquanto se escreve e de novo na revisão
 (`src/components/folha-da-carta.tsx`). Ela não imprime, mas é onde se percebe

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { MotivoEnvio, StatusSolicitacao } from '@prisma/client'
 import { cepSchema, textoOpcional, ufSchema, urlOpcional, valorSchema } from './comuns'
+import { LIMITE_DA_SAUDACAO } from '@/lib/carta'
 
 /**
  * Um item é de catálogo ou é específico, nunca os dois nem nenhum.
@@ -66,6 +67,12 @@ export const solicitacaoSchema = enderecoEntregaSchema
     motivo: z.nativeEnum(MotivoEnvio),
     motivoOutro: textoOpcional,
     mensagemCarta: z.string().trim().min(1, 'Escreva a mensagem da carta.').max(5000),
+    // Vazia vale: é carta sem saudação.
+    saudacaoCarta: z
+      .string()
+      .trim()
+      .max(LIMITE_DA_SAUDACAO, `Use até ${LIMITE_DA_SAUDACAO} caracteres na saudação.`)
+      .default(''),
     observacoes: textoOpcional,
     itens: z.array(itemSchema).min(1, 'Adicione pelo menos um item.'),
   })

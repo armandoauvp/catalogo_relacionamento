@@ -273,6 +273,9 @@ model Solicitacao {
   /// Obrigatório quando `motivo = outro`; validado na camada de aplicação.
   motivoOutro   String?     @map("motivo_outro")
   mensagemCarta String      @map("mensagem_carta")
+  /// A primeira linha da carta, como ficou. Vazia é carta sem saudação; nula só
+  /// nas solicitações anteriores ao campo, em que a saudação não era gravada.
+  saudacaoCarta String?     @map("saudacao_carta")
   observacoes   String?
 
   status     StatusSolicitacao @default(pendente)

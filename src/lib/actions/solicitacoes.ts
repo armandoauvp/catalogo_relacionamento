@@ -247,6 +247,7 @@ export async function criarSolicitacao(
           motivo: dados.motivo,
           motivoOutro: dados.motivoOutro,
           mensagemCarta: dados.mensagemCarta,
+          saudacaoCarta: dados.saudacaoCarta,
           observacoes: dados.observacoes,
           status: StatusSolicitacao.pendente,
           valorTotal: totalDosItens(itens),

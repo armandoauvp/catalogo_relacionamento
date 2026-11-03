@@ -26,6 +26,8 @@ import {
   type ModeloDeCarta,
   espacoRestante,
   previaDaCarta,
+  saudacaoSugerida,
+  LIMITE_DA_SAUDACAO,
 } from '@/lib/carta'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
 import { acompanhamentosFaltando, mensagemDePendencia } from '@/lib/acompanhamentos'
@@ -90,6 +92,8 @@ type Carta = {
   motivo: MotivoEnvio
   motivoOutro: string
   mensagem: string
+  /** Nula enquanto a pessoa não mexe: a sugestão acompanha o nome e a mensagem. */
+  saudacao: string | null
   observacoes: string
 }
 
@@ -228,6 +232,7 @@ export function FormularioDeSolicitacao({
     motivo: MotivoEnvio.aniversario,
     motivoOutro: '',
     mensagem: '',
+    saudacao: null,
     observacoes: '',
   })
 
@@ -484,6 +489,7 @@ export function FormularioDeSolicitacao({
         motivo: carta.motivo,
         motivoOutro: carta.motivoOutro,
         mensagemCarta: carta.mensagem,
+        saudacaoCarta: carta.saudacao ?? saudacaoSugerida(entrega.destinatario, carta.mensagem),
         observacoes: carta.observacoes,
         entregaCep: entrega.cep,
         entregaLogradouro: entrega.logradouro,
@@ -648,6 +654,8 @@ export function FormularioDeSolicitacao({
         p['mensagem'] = `A mensagem passou de ${LIMITE_DA_MENSAGEM} caracteres e não cabe na folha.`
       if (carta.motivo === MotivoEnvio.outro && !carta.motivoOutro.trim())
         p['motivoOutro'] = 'Diga qual é o motivo.'
+      if ((carta.saudacao ?? '').trim().length > LIMITE_DA_SAUDACAO)
+        p['saudacao'] = `Use até ${LIMITE_DA_SAUDACAO} caracteres na saudação.`
     }
 
     return p
@@ -1543,7 +1551,9 @@ function EtapaCarta({
     motivoOutro: carta.motivoOutro,
     mensagem: carta.mensagem,
     remetente: consultor,
+    saudacao: carta.saudacao,
   })
+  const sugerida = saudacaoSugerida(destinatario, carta.mensagem)
 
   return (
     <div className="space-y-5">
@@ -1602,6 +1612,35 @@ function EtapaCarta({
                 <ErroDoCampo mensagem={erros['motivoOutro']} />
               </div>
             ) : null}
+          </div>
+
+          {/* Quem conhece o cliente sabe como chamá-lo: o cadastro só sabe o nome. */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <Label htmlFor="saudacao">Saudação</Label>
+              {carta.saudacao !== null && carta.saudacao !== sugerida ? (
+                <button
+                  type="button"
+                  onClick={() => setCarta({ ...carta, saudacao: null })}
+                  className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-4"
+                >
+                  Usar a sugestão
+                </button>
+              ) : null}
+            </div>
+            <Input
+              id="saudacao"
+              value={carta.saudacao ?? sugerida}
+              maxLength={LIMITE_DA_SAUDACAO}
+              aria-invalid={Boolean(erros['saudacao'])}
+              onChange={(e) => setCarta({ ...carta, saudacao: e.target.value })}
+              placeholder="Sem saudação"
+            />
+            <ErroDoCampo mensagem={erros['saudacao']} />
+            <p className="text-muted-foreground text-xs">
+              A primeira linha da carta. Troque por como você chama a pessoa, como “Oi, Gabi!”, ou
+              deixe em branco.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -1724,6 +1763,7 @@ function EtapaRevisao({
     motivoOutro: carta.motivoOutro,
     mensagem: carta.mensagem,
     remetente: consultor,
+    saudacao: carta.saudacao,
   })
 
   return (
