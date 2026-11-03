@@ -45,6 +45,7 @@ function CartaoDeAtalho({ atalho }: { atalho: Atalho }) {
   return (
     <Link
       href={atalho.href}
+      data-tour={principal ? 'nova-solicitacao' : undefined}
       className={cn(
         'group focus-visible:ring-ring flex flex-col rounded-lg border p-5 outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'transition-[box-shadow,border-color,background-color] duration-200 hover:shadow-[0_8px_24px_-12px_rgba(11,41,5,0.28)]',

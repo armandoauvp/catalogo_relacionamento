@@ -29,6 +29,7 @@ duplique numa tela.
 | Presente aprovado → trilha       | `src/lib/logistica/ponte.ts`              |
 | Kit que exige bebida junto       | `src/lib/acompanhamentos.ts`              |
 | Modelos e montagem da carta      | `src/lib/carta.ts`                        |
+| Tour guiado de cada perfil       | `src/lib/tour.ts`                         |
 | Fornecedor padrão por categoria  | `src/lib/fornecedores.ts`                 |
 | Upload e leitura de foto         | `src/lib/arquivos.ts`                     |
 | Redução da foto antes do envio   | `src/lib/arquivos-no-navegador.ts`        |
@@ -198,6 +199,11 @@ aprovar" (`?fila=aprovar`) abre esse caminho na tela inicial e na gestão. O
 passo seguinte de cada status vira um botão, no detalhe e na fila de compras, e
 uma frase para quem pediu; os dois moram em `src/lib/status.ts` (`proximoPasso`
 e `oQueAconteceAgora`).
+
+Cada perfil tem um tour guiado (`src/components/tour.tsx`, a partir do `Tour` do
+Design System), que abre sozinho no primeiro acesso e fica no menu da conta. Os
+passos apontam para o atributo `data-tour` das telas: ao mudar uma delas de
+forma relevante, confira o passo; sem o alvo, ele só aparece centralizado.
 
 O Tiny está integrado ([docs/13-tiny.md](docs/13-tiny.md)): o presente que
 chega a "Organizando envio" vira pedido lá pela fila, a importação em lote do

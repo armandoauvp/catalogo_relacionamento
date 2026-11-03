@@ -846,7 +846,7 @@ function Trilha({
   aoIr: (i: number) => void
 }) {
   return (
-    <ol className="mb-6 flex flex-wrap items-center gap-x-1 gap-y-2">
+    <ol className="mb-6 flex flex-wrap items-center gap-x-1 gap-y-2" data-tour="etapas-solicitacao">
       {ETAPAS.map((nome, i) => {
         const pendente = incompletas.includes(i as Etapa)
         // Visitada e resolvida. Uma etapa incompleta não ganha o certo verde,
@@ -1869,7 +1869,7 @@ function Resumo({
   mudarQuantidade: (i: number, q: number) => void
 }) {
   return (
-    <aside className="lg:sticky lg:top-24 lg:self-start">
+    <aside className="lg:sticky lg:top-24 lg:self-start" data-tour="resumo-solicitacao">
       <Card>
         <CardContent className="space-y-4 p-5">
           <p className="font-ui text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase">

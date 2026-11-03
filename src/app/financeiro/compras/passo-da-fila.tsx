@@ -49,6 +49,7 @@ export function PassoDaFila({
       <Button
         variant="outline"
         size="sm"
+        data-tour="passo-fila"
         // Em duas linhas: numa só, a coluna empurra a tabela para fora da tela.
         className="h-auto w-28 py-1.5 leading-snug whitespace-normal"
         onClick={() => setAberto(true)}

@@ -152,7 +152,7 @@ export default async function AdminCatalogoPage({
       ) : (
         <>
           <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden" data-tour="lista-produtos">
             <Table>
               <TableHeader>
                 <TableRow>

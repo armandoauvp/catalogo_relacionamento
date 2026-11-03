@@ -65,6 +65,7 @@ export function StatusDaSemana({
   return (
     <section
       aria-labelledby="status-da-semana"
+      data-tour="status-semana"
       className="bg-card relative mb-6 overflow-hidden rounded-lg border"
     >
       <span className={cn('absolute inset-y-0 left-0 w-1.5', estilo.faixa)} aria-hidden="true" />

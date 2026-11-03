@@ -245,7 +245,7 @@ export default async function ExpedicaoPage({
           descricao="Tire um dos filtros acima para ver os outros pedidos."
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-tour="lista-expedicao">
           {listados.map((pedido) => (
             <Card key={pedido.id}>
               <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-4">

@@ -72,7 +72,7 @@ export function EnviosDaDemanda({
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setAberto(true)}>
+      <Button variant="ghost" size="sm" data-tour="envios-demanda" onClick={() => setAberto(true)}>
         <PackageCheck aria-hidden="true" />
         {podeLancar ? 'Envios' : 'Ver envios'}
       </Button>

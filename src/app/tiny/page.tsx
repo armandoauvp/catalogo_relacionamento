@@ -156,7 +156,7 @@ export default async function TinyPage({
         </div>
       ) : null}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3" data-tour="painel-tiny">
         <Stat
           destaque
           rotulo="Na fila"

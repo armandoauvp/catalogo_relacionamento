@@ -113,6 +113,8 @@ model Usuario {
   pedidosTiny     PedidoTiny[]
   contatosTiny    ContatoTiny[]
   eventosTiny     EventoTiny[]
+  /// Os perfis cujo tour guiado a pessoa já viu, para não reabrir sozinho.
+  toursVistos     String[]                  @default([]) @map("tours_vistos")
   enviosDemanda   EnvioDaDemanda[]          @relation("EnviosRegistrados")
   enviosAnulados  EnvioDaDemanda[]          @relation("EnviosAnulados")
 

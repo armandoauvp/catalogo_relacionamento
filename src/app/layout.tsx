@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { usuarioAtual } from '@/lib/auth-guards'
 import { modoDemonstracao, perfilLivre } from '@/lib/env'
+import { db } from '@/lib/db'
 import { Nav } from '@/components/nav'
+import { Tour } from '@/components/tour'
 import { Transicao } from '@/components/transicao'
 import './globals.css'
 
@@ -53,6 +55,12 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // A navegação depende do perfil, então é montada no servidor a cada request.
   const usuario = await usuarioAtual()
+  const vistos = usuario
+    ? await db.usuario.findUnique({
+        where: { id: usuario.id },
+        select: { toursVistos: true },
+      })
+    : null
 
   return (
     <html lang="pt-BR" className={`${anek.variable} ${roboto.variable} ${sora.variable}`}>
@@ -76,6 +84,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ) : null}
         {usuario ? (
           <Nav perfil={usuario.perfil} nome={usuario.nome} perfilLivre={perfilLivre} />
+        ) : null}
+        {usuario ? (
+          // Por perfil, e com `key`: quem troca de perfil na fase de testes vê o
+          // tour do novo, com o estado zerado.
+          <Tour
+            key={usuario.perfil}
+            perfil={usuario.perfil}
+            jaViu={vistos?.toursVistos.includes(usuario.perfil) ?? false}
+          />
         ) : null}
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 md:px-8">

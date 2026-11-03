@@ -95,7 +95,7 @@ export default async function FilaDeComprasPage({
       ) : (
         <>
           <FiltrosAtivos filtros={filtrosAtivos} />
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden" data-tour="lista-compras">
             <Table>
               <TableHeader>
                 <TableRow>

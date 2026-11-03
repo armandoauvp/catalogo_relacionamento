@@ -128,7 +128,7 @@ export function TabelaDaGestao({
 
       {resumo ? <ResumoDoEncaminhamento resumo={resumo} aoFechar={() => setResumo(null)} /> : null}
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" data-tour="lista-gestao">
         <Table>
           <TableHeader>
             <TableRow>

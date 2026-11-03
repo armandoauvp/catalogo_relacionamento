@@ -189,66 +189,68 @@ export default async function AdminSolicitacoesPage({
         />
       </div>
 
-      <BarraDeFiltros>
-        <FormDeFiltro
-          acao="/admin/solicitacoes"
-          className="flex flex-1 flex-wrap items-center gap-2"
-        >
-          <Input
-            name="busca"
-            defaultValue={filtro.busca}
-            placeholder="Código, cliente ou consultor"
-            aria-label="Buscar solicitações"
-            className="w-56"
-          />
-          <Input
-            name="de"
-            type="date"
-            defaultValue={params.de as string}
-            aria-label="Data inicial"
-            className="w-40"
-          />
-          <Input
-            name="ate"
-            type="date"
-            defaultValue={params.ate as string}
-            aria-label="Data final"
-            className="w-40"
-          />
-          <Select
-            name="consultorId"
-            defaultValue={filtro.consultorId ?? ''}
-            aria-label="Filtrar por consultor"
-            className="w-auto min-w-48"
+      <div data-tour="filtros-gestao">
+        <BarraDeFiltros>
+          <FormDeFiltro
+            acao="/admin/solicitacoes"
+            className="flex flex-1 flex-wrap items-center gap-2"
           >
-            <option value="">Todos os consultores</option>
-            {consultores.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Select>
-          <Select
-            name="status"
-            defaultValue={(params.status as string) ?? ''}
-            aria-label="Filtrar por status"
-            className="w-auto min-w-48"
-          >
-            <option value="">Todos os status</option>
-            {Object.entries(ROTULO_STATUS).map(([valor, rotulo]) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </Select>
-          <BotaoDeFiltro>Filtrar</BotaoDeFiltro>
-          {filtrando ? (
-            <Button variant="ghost" asChild>
-              <LinkDeFiltro href="/admin/solicitacoes">Limpar</LinkDeFiltro>
-            </Button>
-          ) : null}
-        </FormDeFiltro>
-      </BarraDeFiltros>
+            <Input
+              name="busca"
+              defaultValue={filtro.busca}
+              placeholder="Código, cliente ou consultor"
+              aria-label="Buscar solicitações"
+              className="w-56"
+            />
+            <Input
+              name="de"
+              type="date"
+              defaultValue={params.de as string}
+              aria-label="Data inicial"
+              className="w-40"
+            />
+            <Input
+              name="ate"
+              type="date"
+              defaultValue={params.ate as string}
+              aria-label="Data final"
+              className="w-40"
+            />
+            <Select
+              name="consultorId"
+              defaultValue={filtro.consultorId ?? ''}
+              aria-label="Filtrar por consultor"
+              className="w-auto min-w-48"
+            >
+              <option value="">Todos os consultores</option>
+              {consultores.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </Select>
+            <Select
+              name="status"
+              defaultValue={(params.status as string) ?? ''}
+              aria-label="Filtrar por status"
+              className="w-auto min-w-48"
+            >
+              <option value="">Todos os status</option>
+              {Object.entries(ROTULO_STATUS).map(([valor, rotulo]) => (
+                <option key={valor} value={valor}>
+                  {rotulo}
+                </option>
+              ))}
+            </Select>
+            <BotaoDeFiltro>Filtrar</BotaoDeFiltro>
+            {filtrando ? (
+              <Button variant="ghost" asChild>
+                <LinkDeFiltro href="/admin/solicitacoes">Limpar</LinkDeFiltro>
+              </Button>
+            ) : null}
+          </FormDeFiltro>
+        </BarraDeFiltros>
+      </div>
 
       {solicitacoes.length === 0 ? (
         <EstadoVazio

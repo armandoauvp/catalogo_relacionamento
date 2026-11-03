@@ -158,7 +158,7 @@ export default async function SolicitacoesPage({
           }
         />
       ) : (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden" data-tour="lista-minhas">
           <Table>
             <TableHeader>
               <TableRow>

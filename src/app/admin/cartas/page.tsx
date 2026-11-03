@@ -30,12 +30,12 @@ export default async function ModelosDeCartaPage() {
       />
 
       <div className="space-y-6">
-        {Object.values(MotivoEnvio).map((motivo) => {
+        {Object.values(MotivoEnvio).map((motivo, i) => {
           const doMotivo = modelos.filter((m) => m.motivo === motivo)
           const ativos = doMotivo.filter((m) => m.ativo).length
 
           return (
-            <Card key={motivo}>
+            <Card key={motivo} data-tour={i === 0 ? 'modelos-carta' : undefined}>
               <CardContent className="p-5">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>

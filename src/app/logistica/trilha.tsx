@@ -90,7 +90,7 @@ export function Trilha({
   const atrasadas = abertas.filter((d) => d.atrasada).length
 
   return (
-    <section aria-labelledby="trilha" className="bg-card rounded-lg border">
+    <section aria-labelledby="trilha" className="bg-card rounded-lg border" data-tour="trilha">
       <div id="trilha" className="px-5 pt-5">
         <TituloDoBloco
           titulo="Trilha de demandas"

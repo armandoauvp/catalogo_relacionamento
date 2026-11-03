@@ -87,7 +87,7 @@ export default async function AdminUsuariosPage({
       </p>
 
       <FiltrosAtivos filtros={filtrosAtivos} limpar={caminho} />
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" data-tour="lista-usuarios">
         <Table>
           <TableHeader>
             <TableRow>

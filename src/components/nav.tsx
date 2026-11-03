@@ -8,6 +8,7 @@ import type { Perfil } from '@prisma/client'
 import {
   Check,
   ChevronDown,
+  Compass,
   Gift,
   ListChecks,
   LogOut,
@@ -33,6 +34,7 @@ import {
 import { sair, verComoPerfil } from '@/lib/actions/sessao'
 import { pode, ROTULO_PERFIL, type Acao } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
+import { EVENTO_ABRIR_TOUR } from '@/components/tour'
 
 /**
  * Navegação superior, no padrão do `GlobalNav` da Central: barra clara com
@@ -319,6 +321,7 @@ export function Nav({
                 >
                   <Link
                     href={item.href}
+                    data-tour={`nav-${item.id}`}
                     aria-current={estaAtivo ? 'page' : undefined}
                     className={cn(
                       'font-display relative flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-normal whitespace-nowrap transition-colors duration-200',
@@ -408,6 +411,7 @@ export function Nav({
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label={`Conta de ${nome}`}
+              data-tour="conta"
               className="hover:bg-muted -mr-1.5 flex items-center gap-2.5 rounded-xl py-1 pr-1.5 pl-2 transition-colors outline-none"
             >
               <span className="hidden text-right leading-tight sm:block">
@@ -446,6 +450,10 @@ export function Nav({
                   <div className="bg-border -mx-1 my-1 h-px" role="separator" />
                 </>
               ) : null}
+              <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event(EVENTO_ABRIR_TOUR))}>
+                <Compass className="h-4 w-4" aria-hidden="true" />
+                Ver o tour
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button type="submit" form="form-sair" className="w-full items-center">
                   <LogOut className="h-4 w-4" aria-hidden="true" />
