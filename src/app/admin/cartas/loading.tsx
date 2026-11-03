@@ -7,6 +7,8 @@ export default function Carregando() {
   return (
     <>
       <EsqueletoDeCabecalho />
+      {/* O bloco do guia de escrita, sem texto cadastrado. */}
+      <Skeleton className="mb-6 h-[114px] rounded-lg" />
       <div className="space-y-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <Card key={i}>

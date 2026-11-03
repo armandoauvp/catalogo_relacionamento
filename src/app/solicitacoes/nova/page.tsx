@@ -21,7 +21,7 @@ import { FormularioDeSolicitacao, type ProdutoDoCatalogo } from './formulario'
 export default async function NovaSolicitacaoPage() {
   const usuario = await exigirPermissao('solicitacao.criar')
 
-  const [pagina, saldo, modelosDeCarta] = await Promise.all([
+  const [pagina, saldo, modelosDeCarta, guiaDaCarta] = await Promise.all([
     catalogoProvider.listar({ apenasAtivos: true, porPagina: 500 }),
     saldoDoMes(usuario.id),
     db.modeloCarta.findMany({
@@ -29,6 +29,7 @@ export default async function NovaSolicitacaoPage() {
       orderBy: [{ ordem: 'asc' }, { criadoEm: 'asc' }],
       select: { id: true, motivo: true, texto: true },
     }),
+    db.guiaCarta.findUnique({ where: { id: 'unica' }, select: { texto: true } }),
   ])
 
   const produtos: ProdutoDoCatalogo[] = pagina.itens.map((p) => ({
@@ -60,6 +61,7 @@ export default async function NovaSolicitacaoPage() {
         gastoNoMes={saldo.gasto.toNumber()}
         limiteMensal={saldo.limite ? saldo.limite.toNumber() : null}
         modelosDeCarta={modelosDeCarta}
+        guiaDaCarta={guiaDaCarta?.texto ?? ''}
       />
     </>
   )

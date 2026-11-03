@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { MotivoEnvio } from '@prisma/client'
 import {
   LIMITE_DA_MENSAGEM,
+  LIMITE_DO_GUIA,
   aplicarModelo,
   espacoRestante,
   ocasiaoDaCarta,
   previaDaCarta,
   primeiroNome,
+  problemaDoGuia,
   problemaDoModelo,
 } from './carta'
 
@@ -25,6 +27,18 @@ describe('primeiro nome', () => {
 
   it('devolve vazio para nome vazio, em vez de estourar', () => {
     expect(primeiroNome('   ')).toBe('')
+  })
+})
+
+describe('guia da carta', () => {
+  it('aceita texto dentro do limite, e o vazio, que tira o guia do ar', () => {
+    expect(problemaDoGuia('Comece pelo nome e cite algo que só vocês dois sabem.')).toBeNull()
+    expect(problemaDoGuia('   ')).toBeNull()
+    expect(problemaDoGuia('a'.repeat(LIMITE_DO_GUIA))).toBeNull()
+  })
+
+  it('recusa o que passa do limite', () => {
+    expect(problemaDoGuia('a'.repeat(LIMITE_DO_GUIA + 1))).toMatch(/passa de 5000/)
   })
 })
 

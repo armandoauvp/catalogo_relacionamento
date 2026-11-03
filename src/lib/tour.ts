@@ -67,9 +67,9 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
     {
       rota: '/admin/cartas',
       alvo: 'modelos-carta',
-      titulo: 'Sugestões para a carta',
+      titulo: 'Guia e sugestões para a carta',
       texto:
-        'Os textos que o consultor vê ao escrever a carta, por motivo. Edite sem pedir a ninguém.',
+        'O guia de escrita, logo acima, e os textos que o consultor vê ao escrever a carta, por motivo. Edite sem pedir a ninguém.',
       acao: 'carta.gerenciarModelos',
     },
     {

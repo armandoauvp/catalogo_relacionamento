@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { MotivoEnvio } from '@prisma/client'
 import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
-import { problemaDoModelo } from '@/lib/carta'
+import { problemaDoGuia, problemaDoModelo } from '@/lib/carta'
 import { comoErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -98,6 +98,28 @@ export async function moverModelo(
       for (const [ordem, m] of lista.entries()) {
         await tx.modeloCarta.update({ where: { id: m.id }, data: { ordem } })
       }
+    })
+
+    revalidarModelos()
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/** Grava o guia de como escrever a carta. Texto vazio tira o bloco do ar para o consultor. */
+export async function salvarGuia(texto: string): Promise<ResultadoDaAction> {
+  try {
+    await autorizarAction('carta.gerenciarModelos')
+
+    const problema = problemaDoGuia(texto)
+    if (problema) return { ok: false, erro: problema, campo: 'texto' }
+    const limpo = texto.trim()
+
+    await db.guiaCarta.upsert({
+      where: { id: 'unica' },
+      create: { texto: limpo },
+      update: { texto: limpo },
     })
 
     revalidarModelos()

@@ -191,7 +191,9 @@ mandado para aquele cliente, limite do mês contado com o pedido atual dentro,
 prévia da carta ao lado do campo e na revisão, e a rota que o pedido segue
 depois da aprovação. As sugestões de texto da carta moram no banco
 (`ModeloCarta`) e o Admin as edita em Administração → Modelos de carta; a
-validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`.
+validação do texto, inclusive o marcador `{nome}`, é `problemaDoModelo`. Na
+mesma tela mora o guia de como escrever (`GuiaCarta`), que o consultor lê
+recolhido na etapa da carta.
 
 O caminho do Admin é por pilha: a gestão encaminha em lote, e a expedição
 devolve o rastreio que o consultor lê na própria solicitação. O cartão "Para

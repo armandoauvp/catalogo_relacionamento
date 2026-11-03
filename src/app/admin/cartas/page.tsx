@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { cn } from '@/lib/utils'
 import { AcoesDoModelo, EditorDeModelo } from './editor-de-modelo'
+import { EditorDoGuia } from './editor-do-guia'
 
 /**
  * Modelos de carta: as sugestões da etapa da carta, por motivo.
@@ -21,6 +22,7 @@ export default async function ModelosDeCartaPage() {
     orderBy: [{ ordem: 'asc' }, { criadoEm: 'asc' }],
     select: { id: true, motivo: true, texto: true, ativo: true },
   })
+  const guia = await db.guiaCarta.findUnique({ where: { id: 'unica' }, select: { texto: true } })
 
   return (
     <>
@@ -28,6 +30,8 @@ export default async function ModelosDeCartaPage() {
         titulo="Modelos de carta"
         descricao="As sugestões de texto que o consultor vê na etapa da carta, na ordem desta lista. Ele escolhe uma e edita antes de enviar; mudar um modelo não altera carta já enviada."
       />
+
+      <EditorDoGuia texto={guia?.texto ?? ''} />
 
       <div className="space-y-6">
         {Object.values(MotivoEnvio).map((motivo, i) => {

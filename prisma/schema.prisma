@@ -154,6 +154,17 @@ model ModeloCarta {
   @@map("modelos_carta")
 }
 
+/// O guia de como escrever a carta, que a área escreve e o consultor lê na
+/// etapa da carta. Um registro só; sem ele, ou com o texto vazio, o bloco não
+/// aparece para o consultor.
+model GuiaCarta {
+  id           String   @id @default("unica")
+  texto        String
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("guia_carta")
+}
+
 model Produto {
   id                      String        @id @default(cuid())
   nome                    String

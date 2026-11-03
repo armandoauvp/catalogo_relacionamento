@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { MotivoEnvio } from '@prisma/client'
-import { AlertCircle, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -159,6 +159,7 @@ export function FormularioDeSolicitacao({
   gastoNoMes,
   limiteMensal,
   modelosDeCarta,
+  guiaDaCarta,
 }: {
   produtos: ProdutoDoCatalogo[]
   /** Quem assina a carta. */
@@ -167,6 +168,8 @@ export function FormularioDeSolicitacao({
   limiteMensal: number | null
   /** Só os ativos, na ordem da tela de modelos. */
   modelosDeCarta: ModeloDeCarta[]
+  /** Vazio quando a área ainda não escreveu: o bloco nem aparece. */
+  guiaDaCarta: string
 }) {
   const router = useRouter()
   const [enviando, iniciarEnvio] = useTransition()
@@ -770,6 +773,7 @@ export function FormularioDeSolicitacao({
                 destinatario={entrega.destinatario || cliente?.nome || ''}
                 consultor={consultor}
                 modelos={modelosDeCarta.filter((m) => m.motivo === carta.motivo)}
+                guia={guiaDaCarta}
               />
             ) : null}
 
@@ -1522,6 +1526,7 @@ function EtapaCarta({
   destinatario,
   consultor,
   modelos,
+  guia,
 }: {
   carta: Carta
   setCarta: React.Dispatch<React.SetStateAction<Carta>>
@@ -1529,6 +1534,7 @@ function EtapaCarta({
   destinatario: string
   consultor: string
   modelos: ModeloDeCarta[]
+  guia: string
 }) {
   const { restam, excedeu } = espacoRestante(carta.mensagem)
   const previa = previaDaCarta({
@@ -1547,6 +1553,23 @@ function EtapaCarta({
           A mensagem acompanha o presente. A impressão continua sendo feita fora do sistema.
         </p>
       </div>
+
+      {/* Recolhido: quem já sabe escrever não precisa rolar por cima dele, e
+          abrir é decisão de quem lê, então não há salto inesperado na tela. */}
+      {guia ? (
+        <details className="bg-muted/40 group rounded-lg border px-4 py-3" data-tour="guia-carta">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium">
+            Como escrever uma boa carta
+            <ChevronDown
+              className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </summary>
+          <p className="text-muted-foreground mt-3 text-sm leading-relaxed whitespace-pre-wrap">
+            {guia}
+          </p>
+        </details>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
         <div className="min-w-0 space-y-5">

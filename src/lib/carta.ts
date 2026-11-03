@@ -64,6 +64,20 @@ export function problemaDoModelo(texto: string): string | null {
   return null
 }
 
+/**
+ * Quanto cabe no guia de como escrever a carta. É orientação para ler antes de
+ * escrever, e não uma folha: o limite só impede que vire um manual.
+ */
+export const LIMITE_DO_GUIA = 5000
+
+/** O que impede gravar o guia, ou nulo se ele pode ir. Vazio vale: é tirar o guia do ar. */
+export function problemaDoGuia(texto: string): string | null {
+  if (texto.trim().length > LIMITE_DO_GUIA) {
+    return `O guia passa de ${LIMITE_DO_GUIA} caracteres. Encurte para caber numa leitura rápida.`
+  }
+  return null
+}
+
 /** Troca o `{nome}` do modelo pelo primeiro nome de quem recebe. */
 export function aplicarModelo(modelo: string, nomeDoCliente: string): string {
   const nome = primeiroNome(nomeDoCliente)
