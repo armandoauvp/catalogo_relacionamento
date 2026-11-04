@@ -155,6 +155,14 @@ export function ehPassoDeCompra(atual: StatusSolicitacao, novo: StatusSolicitaca
   )
 }
 
+/**
+ * Quando a expedição pode dar o pedido como entregue. Sem rastreio não há o que
+ * acompanhar: quem marca precisa ter visto o pedido sair.
+ */
+export function podeMarcarEntregue(status: StatusSolicitacao, rastreio: string | null): boolean {
+  return status === StatusSolicitacao.organizando_envio && Boolean(rastreio)
+}
+
 export type ResultadoValidacao = { ok: true } | { ok: false; erro: string }
 
 /**

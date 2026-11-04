@@ -360,6 +360,14 @@ promover admins. O limite mensal é só do Relacionamento, mesmo o Admin de Log�
 alcançando os consultores. A aprovação não é do Admin de Logística. Mudar qualquer
 um deles é uma linha em `src/lib/permissions.ts`.
 
+### Quem marca "Entregue" e "Cliente confirmou"?
+
+**Definido:** quem opera a expedição marca "Entregue", a Logística inclusive, pela
+própria fila e só com rastreio (`marcarEntregue`).
+
+**Ainda em aberto:** quem marca "Cliente confirmou". Hoje é quem pode alterar status:
+Admin geral, Admin de Relacionamento e Financeiro.
+
 ### Onde ficam as fotos de produto?
 
 **Assumido:** no próprio Postgres, tabela `arquivos`, servidas por

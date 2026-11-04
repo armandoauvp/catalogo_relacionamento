@@ -104,7 +104,7 @@ const OPERACAO_DA_LOGISTICA: readonly PassoDoTour[] = [
     alvo: 'lista-expedicao',
     titulo: 'Separar e postar',
     texto:
-      'Os pedidos liberados, com itens e endereço. Registre o rastreio aqui: o consultor lê na solicitação dele.',
+      'Os pedidos liberados, com itens e endereço. Registre o rastreio aqui, que o consultor lê na solicitação dele, e marque como entregue quando chegar.',
     acao: 'expedicao.registrarRastreio',
   },
   {

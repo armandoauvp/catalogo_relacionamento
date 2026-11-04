@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { StatusSolicitacao } from '@prisma/client'
+import type { StatusSolicitacao } from '@prisma/client'
 import { Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { alterarStatus, registrarRastreio } from '@/lib/actions/solicitacoes'
+import { marcarEntregue, registrarRastreio } from '@/lib/actions/solicitacoes'
+import { podeMarcarEntregue } from '@/lib/status'
 
 /**
  * Rastreio do pedido.
@@ -42,7 +43,7 @@ export function Rastreio({
   const [transporte, setTransporte] = useState(transportadora ?? '')
 
   const mudou = codigo !== (rastreio ?? '') || transporte !== (transportadora ?? '')
-  const podeEntregar = status === StatusSolicitacao.organizando_envio && Boolean(rastreio)
+  const podeEntregar = podeMarcarEntregue(status, rastreio)
 
   function salvar() {
     setErro(null)
@@ -58,13 +59,10 @@ export function Rastreio({
     })
   }
 
-  function marcarEntregue() {
+  function entregar() {
     setErro(null)
     iniciar(async () => {
-      const r = await alterarStatus({
-        solicitacaoId,
-        statusNovo: StatusSolicitacao.entregue,
-      })
+      const r = await marcarEntregue(solicitacaoId)
       if (!r.ok) return setErro(r.erro)
       router.refresh()
     })
@@ -110,7 +108,7 @@ export function Rastreio({
         </Button>
 
         {podeEntregar ? (
-          <Button onClick={marcarEntregue} disabled={salvando}>
+          <Button onClick={entregar} disabled={salvando}>
             <Check aria-hidden="true" />
             Marcar como entregue
           </Button>

@@ -15,6 +15,7 @@ import {
   ROTULO_STATUS,
   caminhoDeEncaminhamento,
   ehPassoDeCompra,
+  podeMarcarEntregue,
   validarMudancaDeStatus,
   type Encaminhamento,
 } from '@/lib/status'
@@ -311,41 +312,81 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
 
     if (ehPassoDeCompra(solicitacao.status, statusNovo)) await autorizarAction('compras.operar')
 
-    const foiParaOTiny = await db.$transaction(async (tx) => {
-      await tx.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } })
-      await tx.solicitacaoHistorico.create({
-        data: {
-          solicitacaoId: solicitacao.id,
-          statusAnterior: solicitacao.status,
-          statusNovo,
-          usuarioId: usuario.id,
-          motivo,
-        },
-      })
-      // Aprovado, o presente entra na trilha da Logística; os status seguintes
-      // movem a fase. Na mesma transação: ou anda tudo, ou nada.
-      await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
-      if (statusNovo === StatusSolicitacao.organizando_envio) {
-        return enfileirarPresente(tx, solicitacao.id, usuario.id)
-      }
-      // Cancelado aqui não pode seguir para despacho no Tiny.
-      if (statusNovo === StatusSolicitacao.cancelado) {
-        return cancelarPresenteNoTiny(tx, solicitacao.id, usuario.id)
-      }
-      return false
-    })
-    if (foiParaOTiny) processarFilaDepois()
-
-    revalidatePath(`/admin/solicitacoes/${solicitacao.id}`)
-    revalidatePath('/admin/solicitacoes')
-    revalidatePath('/financeiro/compras')
-    revalidatePath('/expedicao')
-    revalidatePath('/solicitacoes')
-    revalidatePath('/logistica')
+    await gravarMudancaDeStatus(usuario.id, solicitacao, statusNovo, motivo)
     return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)
   }
+}
+
+/**
+ * Dá o pedido como entregue, pela fila da expedição.
+ *
+ * Separada de `alterarStatus` porque quem posta acompanha a entrega, mas não
+ * decide o resto do fluxo: a Logística marca isto e nenhum outro status.
+ */
+export async function marcarEntregue(solicitacaoId: string): Promise<ResultadoDaAction> {
+  try {
+    const usuario = await autorizarAction('expedicao.registrarRastreio')
+
+    const solicitacao = await db.solicitacao.findUnique({
+      where: { id: solicitacaoId },
+      select: { id: true, status: true, rastreio: true },
+    })
+    if (!solicitacao) return { ok: false, erro: 'Solicitação não encontrada.' }
+
+    if (!podeMarcarEntregue(solicitacao.status, solicitacao.rastreio)) {
+      return {
+        ok: false,
+        erro: 'Só dá para marcar como entregue o pedido em organizando envio e com rastreio.',
+      }
+    }
+
+    await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.entregue)
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/** Grava uma mudança já autorizada e validada, com tudo o que anda junto com ela. */
+async function gravarMudancaDeStatus(
+  usuarioId: string,
+  solicitacao: { id: string; status: StatusSolicitacao },
+  statusNovo: StatusSolicitacao,
+  motivo?: string | null,
+) {
+  const foiParaOTiny = await db.$transaction(async (tx) => {
+    await tx.solicitacao.update({ where: { id: solicitacao.id }, data: { status: statusNovo } })
+    await tx.solicitacaoHistorico.create({
+      data: {
+        solicitacaoId: solicitacao.id,
+        statusAnterior: solicitacao.status,
+        statusNovo,
+        usuarioId,
+        motivo,
+      },
+    })
+    // Aprovado, o presente entra na trilha da Logística; os status seguintes
+    // movem a fase. Na mesma transação: ou anda tudo, ou nada.
+    await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
+    if (statusNovo === StatusSolicitacao.organizando_envio) {
+      return enfileirarPresente(tx, solicitacao.id, usuarioId)
+    }
+    // Cancelado aqui não pode seguir para despacho no Tiny.
+    if (statusNovo === StatusSolicitacao.cancelado) {
+      return cancelarPresenteNoTiny(tx, solicitacao.id, usuarioId)
+    }
+    return false
+  })
+  if (foiParaOTiny) processarFilaDepois()
+
+  revalidatePath(`/admin/solicitacoes/${solicitacao.id}`)
+  revalidatePath('/admin/solicitacoes')
+  revalidatePath('/financeiro/compras')
+  revalidatePath('/expedicao')
+  revalidatePath('/solicitacoes')
+  revalidatePath('/logistica')
 }
 
 /**

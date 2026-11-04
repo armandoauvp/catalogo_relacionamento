@@ -233,7 +233,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'carta.gerenciarModelos': false,
     'compras.verFila': false,
     'compras.operar': false,
-    // Quem separa e posta é o time, então a fila e o rastreio são dele.
+    // Quem separa e posta é o time, então a fila, o rastreio e o "entregue" são dele.
     'expedicao.verFila': true,
     'expedicao.registrarRastreio': true,
     'solicitacao.criar': false,

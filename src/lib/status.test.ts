@@ -8,6 +8,7 @@ import {
   ehPassoDeCompra,
   ehTerminal,
   oQueAconteceAgora,
+  podeMarcarEntregue,
   precisaDeCompra,
   proximoDepoisDaAprovacao,
   proximoPasso,
@@ -370,6 +371,25 @@ describe('próximo passo', () => {
   it('todo status tem a frase para quem pediu', () => {
     for (const status of Object.values(StatusSolicitacao)) {
       expect(oQueAconteceAgora(status).length).toBeGreaterThan(10)
+    }
+  })
+})
+
+describe('marcar como entregue pela expedição', () => {
+  it('vale para o pedido em organizando envio que já tem rastreio', () => {
+    expect(podeMarcarEntregue('organizando_envio', 'AA123456789BR')).toBe(true)
+    expect(transicaoPermitida('organizando_envio', 'entregue')).toBe(true)
+  })
+
+  it('sem rastreio não há o que acompanhar', () => {
+    expect(podeMarcarEntregue('organizando_envio', null)).toBe(false)
+    expect(podeMarcarEntregue('organizando_envio', '')).toBe(false)
+  })
+
+  it('nenhum outro status serve, mesmo com rastreio', () => {
+    const outros = Object.values(StatusSolicitacao).filter((s) => s !== 'organizando_envio')
+    for (const status of outros) {
+      expect(podeMarcarEntregue(status, 'AA123456789BR'), status).toBe(false)
     }
   })
 })

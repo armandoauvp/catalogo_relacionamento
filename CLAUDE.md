@@ -130,7 +130,8 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   é 4 MB.
 
 - **Rastreio não muda status.** Gravar o código diz que saiu; "entregue" é
-  decisão de quem acompanha.
+  decisão de quem acompanha. Quem opera a expedição, Logística inclusive, marca
+  por `marcarEntregue`, só com rastreio; nenhum outro status passa por ali.
 - **Telas leem catálogo e clientes pelos providers**, não pelo Prisma direto.
 - **A tela não pisca.** Filtro é mudança da mesma tela: navega por
   `FormDeFiltro`/`LinkDeFiltro` (`src/components/filtro-sem-piscar.tsx`), nunca

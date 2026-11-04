@@ -13,7 +13,7 @@ botão e bloquear a ação nunca divirjam.
 | Ver as próprias solicitações              |        ✓        |   ✓   |     ✓      |     -     |
 | Ver todas as solicitações                 |        -        |   ✓   |     ✓      |     -     |
 | Ver a fila de compras                     |        -        |   ✓   |     ✓      |     -     |
-| Ver a fila da expedição e anotar rastreio |        -        |   ✓   |     ✓      |     ✓     |
+| Fila da expedição: rastreio e entregue    |        -        |   ✓   |     ✓      |     ✓     |
 | Ver dados sensíveis do cliente            | só das próprias |   ✓   |    ✓ ¹     |     ✓     |
 | Alterar status                            |        -        |   ✓   |     ✓      |     -     |
 | Editar/corrigir solicitação               |        -        |   ✓   |     -      |     -     |
