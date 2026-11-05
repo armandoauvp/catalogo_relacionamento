@@ -484,6 +484,9 @@ model EnvioDaDemanda {
   quantidade    Int
   /// O dia do envio, como o fim daquele dia em São Paulo, igual às previsões.
   enviadoEm     DateTime  @map("enviado_em")
+  /// Quanto custou este envio, em BRL. Opcional, e nulo não é zero: é o que ainda
+  /// não foi informado, e o painel avisa que ficou fora da soma.
+  custo         Decimal?  @db.Decimal(12, 2)
   observacao    String?
   registradoPor String    @map("registrado_por")
   anuladoEm     DateTime? @map("anulado_em")

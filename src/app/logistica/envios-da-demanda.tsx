@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { formatarData, formatarDataHora, formatarISO } from '@/lib/datas'
 import { anularEnvio, registrarEnvio } from '@/lib/actions/logistica'
 import type { LancamentoDeEnvio } from '@/lib/logistica/painel'
+import { formatarBRL } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 const numero = (n: number) => n.toLocaleString('pt-BR')
@@ -21,18 +22,22 @@ const numero = (n: number) => n.toLocaleString('pt-BR')
  * 29". O total vai na linha da trilha; aqui ficam o lançamento e o histórico,
  * que é o que permite fechar o mês por subsidiária e departamento depois.
  *
- * Quem só lê o painel vê o histórico; lançar e anular é da Logística.
+ * Quem só lê o painel vê o histórico; lançar e anular é da Logística. O custo só
+ * chega aqui para quem pode vê-lo.
  */
 export function EnviosDaDemanda({
   demandaId,
   titulo,
   total,
+  custoTotal,
   historico,
   podeLancar,
 }: {
   demandaId: string
   titulo: string
   total: number
+  /** Em texto, sem os anulados. Nulo para quem não pode ver custos. */
+  custoTotal: string | null
   historico: LancamentoDeEnvio[]
   /** Quem gerencia a trilha e a demanda está aberta. */
   podeLancar: boolean
@@ -88,6 +93,13 @@ export function EnviosDaDemanda({
           <span className="text-muted-foreground">
             {total === 1 ? 'item despachado' : 'itens despachados'} até agora
           </span>
+          {custoTotal && Number(custoTotal) > 0 ? (
+            <span className="text-muted-foreground">
+              {' '}
+              · <span className="text-foreground font-medium">{formatarBRL(custoTotal)}</span> de
+              custo
+            </span>
+          ) : null}
         </p>
 
         {podeLancar ? (
@@ -116,14 +128,25 @@ export function EnviosDaDemanda({
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`envio-obs-${demandaId}`}>Observação</Label>
-              <Input
-                id={`envio-obs-${demandaId}`}
-                name="observacao"
-                placeholder="Opcional. Ex.: lote da semana 44"
-                maxLength={200}
-              />
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
+              <div className="space-y-1.5">
+                <Label htmlFor={`envio-custo-${demandaId}`}>Custo deste envio</Label>
+                <Input
+                  id={`envio-custo-${demandaId}`}
+                  name="custo"
+                  inputMode="decimal"
+                  placeholder="Opcional. Ex.: 1.250,00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`envio-obs-${demandaId}`}>Observação</Label>
+                <Input
+                  id={`envio-obs-${demandaId}`}
+                  name="observacao"
+                  placeholder="Opcional. Ex.: lote da semana 44"
+                  maxLength={200}
+                />
+              </div>
             </div>
             {erro ? (
               <p role="alert" className="text-destructive text-sm">
@@ -159,6 +182,14 @@ export function EnviosDaDemanda({
                         {numero(e.quantidade)}
                       </span>{' '}
                       em {formatarData(e.enviadoEm)}
+                      {e.custo ? (
+                        <>
+                          {' · '}
+                          <span className={cn('tabular-nums', e.anuladoEm && 'line-through')}>
+                            {formatarBRL(e.custo)}
+                          </span>
+                        </>
+                      ) : null}
                       {e.observacao ? (
                         <span className="text-muted-foreground"> · {e.observacao}</span>
                       ) : null}

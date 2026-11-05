@@ -1,4 +1,5 @@
 import { formatarISO } from '@/lib/datas'
+import { paraNumero } from '@/lib/money'
 import {
   ROTULO_COMPLEXIDADE,
   ROTULO_FASE,
@@ -13,7 +14,7 @@ import type { ColunaExport } from './linhas'
  *
  * Uma linha por demanda, nas mesmas colunas que a trilha mostra, e com o mesmo
  * recorte de período: quem exporta "a semana 34" recebe exatamente o que viu.
- * A coluna de observações só existe para quem pode lê-las na tela.
+ * As colunas de observações e de custo só existem para quem pode lê-las na tela.
  */
 
 const COLUNAS_BASE = [
@@ -49,11 +50,26 @@ const COLUNA_OBSERVACOES = {
   tipo: 'texto',
 } as const satisfies ColunaExport
 
-export function colunasDaTrilha(verObservacoes: boolean): readonly ColunaExport[] {
-  return verObservacoes ? [...COLUNAS_BASE, COLUNA_OBSERVACOES] : COLUNAS_BASE
+const COLUNAS_DE_CUSTO = [
+  { chave: 'custoNoPeriodo', titulo: 'Custo no período', largura: 14, tipo: 'numero' },
+  { chave: 'custoNoTotal', titulo: 'Custo no total', largura: 14, tipo: 'numero' },
+] as const satisfies readonly ColunaExport[]
+
+export function colunasDaTrilha(
+  verObservacoes: boolean,
+  verCustos: boolean,
+): readonly ColunaExport[] {
+  return [
+    ...COLUNAS_BASE,
+    ...(verCustos ? COLUNAS_DE_CUSTO : []),
+    ...(verObservacoes ? [COLUNA_OBSERVACOES] : []),
+  ]
 }
 
-type Chave = (typeof COLUNAS_BASE)[number]['chave'] | typeof COLUNA_OBSERVACOES.chave
+type Chave =
+  | (typeof COLUNAS_BASE)[number]['chave']
+  | (typeof COLUNAS_DE_CUSTO)[number]['chave']
+  | typeof COLUNA_OBSERVACOES.chave
 export type LinhaDaTrilha = Record<Chave, string | number | null>
 
 const ROTULO_ORIGEM = { manual: 'Manual', solicitacao: 'Presente', clickup: 'ClickUp' } as const
@@ -83,6 +99,8 @@ export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTri
     concluidaEm: data(d.concluidaEm),
     despachadosNoPeriodo: d.envios.noPeriodo,
     despachadosNoTotal: d.envios.total,
+    custoNoPeriodo: d.envios.custo ? paraNumero(d.envios.custo.noPeriodo) : null,
+    custoNoTotal: d.envios.custo ? paraNumero(d.envios.custo.total) : null,
     clickup: d.clickupUrl,
     formulario: d.linkFormulario,
     observacoes: d.observacoes,

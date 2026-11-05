@@ -96,7 +96,7 @@ const OPERACAO_DA_LOGISTICA: readonly PassoDoTour[] = [
     alvo: 'envios-demanda',
     titulo: 'Lançar o que saiu',
     texto:
-      'Tarefa longa recebe os envios de cada semana aqui, sem criar outra demanda. O total alimenta o fechamento do mês.',
+      'Tarefa longa recebe os envios de cada semana aqui, com o custo quando houver, sem criar outra demanda. Os totais alimentam o fechamento do mês.',
     acao: 'logistica.gerenciar',
   },
   {

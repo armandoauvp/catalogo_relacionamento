@@ -40,7 +40,8 @@ O protótipo não tinha código. Tudo aqui foi construído do zero.
 | FAQ (item 7)                                                                  | `/logistica/faq`                    | pronto     |
 | Fases operacionais padronizadas (proposta, item 5)                            | enum no schema                      | pronto     |
 | Horas por produto (proposta, item 2)                                          | -                                   | abandonado |
-| Custo dos envios, total e por departamento (áudios de 09/10/2026)             | -                                   | retirado   |
+| Custo na demanda, total e por departamento (áudios de 09/10/2026)             | -                                   | retirado   |
+| Custo em cada envio lançado, por subsidiária e departamento (relatório 29/10) | botão "Envios" e cartão por depto.  | pronto     |
 | Presente aprovado vira pedido no Tiny, com o rastreio de volta                | fila, [docs/13-tiny.md](13-tiny.md) | pronto     |
 | Envio em lote por planilha, como no AUVP-Eventos, com demanda na trilha       | `/tiny/importar`                    | pronto     |
 
@@ -54,9 +55,18 @@ parte em `painel.ts`:
 - **Volume** é o que foi _pedido_ no período (`solicitadaEm`), que na trilha
   manual é o dia do cadastro. O comparativo é com o período anterior do mesmo
   tamanho, e os números separam recorrentes de pontuais.
-- **Custo** saiu em 22/10/2026, a pedido da área: o card, a troca entre
-  quantidade e custo no gráfico, o campo no cadastro e a coluna na exportação.
-  A coluna `custo_envio` continua no banco, sem uso, com o que foi anotado.
+- **Custo na demanda** saiu em 22/10/2026, a pedido da área: o card, a troca
+  entre quantidade e custo no gráfico, o campo no cadastro e a coluna na
+  exportação. A coluna `custo_envio` continua no banco, sem uso, com o que foi
+  anotado.
+- **Custo do envio** entrou em 05/11/2026, para fechar o relatório de 29/10: é
+  um campo opcional em cada lançamento, e não na demanda, para o custo acompanhar
+  o que saiu em cada semana. O total do período aparece em "Itens despachados",
+  e a vista "Custo" do cartão por departamento (`?volume=custo`) o abre por
+  subsidiária e departamento, pela data do envio. Anulado sai da soma. **Nulo não
+  é zero:** envio sem custo fica fora da soma, e a tela diz quantos ficaram
+  (`custoPorDepartamento`). O Consultor não vê: o filtro é no servidor, na tela
+  e na exportação (`logistica.verCustos`).
 - **O gráfico de volume é de barras**, e não a rosca do protótipo. Comparar
   fatias de rosca é adivinhação; comprimento de barra se lê. Cada barra traz
   quantidade e percentual, então a tabela que ficava embaixo da rosca deixou

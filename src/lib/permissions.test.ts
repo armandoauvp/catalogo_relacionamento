@@ -199,6 +199,27 @@ describe('admin de Logística', () => {
   })
 })
 
+describe('custo dos envios', () => {
+  it('fica fora do alcance do consultor, que também lê o dashboard', () => {
+    expect(pode(Perfil.consultor, 'logistica.ver')).toBe(true)
+    expect(pode(Perfil.consultor, 'logistica.verCustos')).toBe(false)
+  })
+
+  it('os demais perfis veem', () => {
+    for (const perfil of Object.values(Perfil).filter((p) => p !== Perfil.consultor)) {
+      expect(pode(perfil, 'logistica.verCustos'), perfil).toBe(true)
+    }
+  })
+
+  it('quem lança o envio vê o custo que lançou', () => {
+    for (const perfil of Object.values(Perfil)) {
+      if (pode(perfil, 'logistica.gerenciar')) {
+        expect(pode(perfil, 'logistica.verCustos'), perfil).toBe(true)
+      }
+    }
+  })
+})
+
 describe('tela inicial', () => {
   it('quem opera a Logística e não pede presente começa pelo painel', () => {
     expect(comecaNaLogistica(Perfil.logistica)).toBe(true)

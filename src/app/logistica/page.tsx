@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
+import { formatarBRL, paraNumero } from '@/lib/money'
 import { lerPeriodo, queryDoPeriodo } from '@/lib/periodo'
 import { painelLogistico, sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -54,10 +55,11 @@ export default async function LogisticaPage({
   const params = await searchParams
   const periodo = lerPeriodo(params)
   const verObservacoes = pode(usuario.perfil, 'logistica.verObservacoes')
+  const verCustos = pode(usuario.perfil, 'logistica.verCustos')
   const podeGerenciar = pode(usuario.perfil, 'logistica.gerenciar')
 
   const [painel, equipe, perguntas, sugestoes, emEstoque] = await Promise.all([
-    painelLogistico(periodo, { verObservacoes }),
+    painelLogistico(periodo, { verObservacoes, verCustos }),
     db.membroEquipe.findMany({
       where: { ativo: true },
       orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
@@ -82,6 +84,7 @@ export default async function LogisticaPage({
     temRecorte(recorte) || recorte.ordem
       ? await trilhaDoPeriodo(periodo, {
           verObservacoes,
+          verCustos,
           limite: LIMITE_DA_TRILHA_NA_TELA,
           recorte,
         })
@@ -120,14 +123,32 @@ export default async function LogisticaPage({
     },
   ].filter((f): f is FiltroAtivo => Boolean(f))
 
-  // O cartão por departamento conta pedidos ou itens despachados; a escolha
-  // mora na URL, junto do período, para o fechamento ir por link.
-  const vista: VistaDoVolume = params.volume === 'despachados' ? 'despachados' : 'pedidos'
+  // O cartão por departamento conta pedidos, itens despachados ou custo; a
+  // escolha mora na URL, junto do período, para o fechamento ir por link. Quem
+  // não pode ver custos e abre esse link cai em "Pedidos".
+  const { custo } = painel.despachados
+  const vistas: VistaDoVolume[] = custo
+    ? ['pedidos', 'despachados', 'custo']
+    : ['pedidos', 'despachados']
+  const vista = vistas.find((v) => v === params.volume) ?? 'pedidos'
   const semVista = hrefSemFiltro(caminho, params, 'volume')
+  const comVista = (v: VistaDoVolume) =>
+    `${semVista}${semVista.includes('?') ? '&' : '?'}volume=${v}`
   const hrefsDoVolume = {
     pedidos: semVista,
-    despachados: `${semVista}${semVista.includes('?') ? '&' : '?'}volume=despachados`,
+    despachados: comVista('despachados'),
+    custo: comVista('custo'),
   }
+  const dadosDaVista =
+    vista === 'custo' && custo
+      ? {
+          linhas: custo.porDepartamento,
+          total: paraNumero(custo.total),
+          semCusto: custo.semCusto,
+        }
+      : vista === 'despachados'
+        ? { linhas: painel.despachados.porDepartamento, total: painel.despachados.total }
+        : { linhas: volume.porDepartamento, total: volume.total }
 
   return (
     <>
@@ -174,20 +195,29 @@ export default async function LogisticaPage({
         <Stat
           rotulo="Itens despachados"
           valor={painel.despachados.total.toLocaleString('pt-BR')}
-          apoio="Lançados nas tarefas, pela data do envio."
+          apoio={
+            <>
+              Lançados nas tarefas, pela data do envio.
+              {custo && !custo.total.isZero() ? (
+                <>
+                  <br />
+                  {formatarBRL(custo.total)} de custo
+                  {custo.semCusto
+                    ? ` · ${plural(custo.semCusto, 'envio sem custo', 'envios sem custo')}`
+                    : ''}
+                </>
+              ) : null}
+            </>
+          }
         />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <VolumePorDepartamento
           vista={vista}
+          vistas={vistas}
           hrefs={hrefsDoVolume}
-          {...(vista === 'pedidos'
-            ? { linhas: volume.porDepartamento, total: volume.total }
-            : {
-                linhas: painel.despachados.porDepartamento,
-                total: painel.despachados.total,
-              })}
+          {...dadosDaVista}
         />
         <Evolucao pontos={painel.evolucao} apoio={APOIO_DA_EVOLUCAO[periodo.tipo]} />
       </div>

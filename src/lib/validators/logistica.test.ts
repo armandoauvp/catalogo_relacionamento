@@ -1,5 +1,45 @@
 import { describe, expect, it } from 'vitest'
-import { demandaSchema, membroSchema, perguntaSchema, statusDaSemanaSchema } from './logistica'
+import {
+  demandaSchema,
+  envioSchema,
+  membroSchema,
+  perguntaSchema,
+  statusDaSemanaSchema,
+} from './logistica'
+
+describe('custo do envio', () => {
+  const envio = (custo: unknown) => ({
+    demandaId: 'd1',
+    quantidade: '500',
+    enviadoEm: '2026-10-29',
+    custo,
+    observacao: '',
+  })
+  const custoLido = (custo: unknown) => envioSchema.parse(envio(custo)).custo
+
+  it('é opcional, e em branco vira nulo, não zero', () => {
+    expect(custoLido('')).toBeNull()
+    expect(custoLido('   ')).toBeNull()
+    expect(custoLido(null)).toBeNull()
+  })
+
+  it('zero digitado continua sendo zero', () => {
+    expect(custoLido('0')).toBe(0)
+  })
+
+  it('lê o valor como a pessoa digita', () => {
+    expect(custoLido('1.250,50')).toBe(1250.5)
+    expect(custoLido('1250,50')).toBe(1250.5)
+    expect(custoLido('1250.50')).toBe(1250.5)
+    expect(custoLido('1.250')).toBe(1250)
+    expect(custoLido('1.250.000')).toBe(1250000)
+  })
+
+  it('recusa negativo e texto', () => {
+    expect(envioSchema.safeParse(envio('-5')).success).toBe(false)
+    expect(envioSchema.safeParse(envio('abc')).success).toBe(false)
+  })
+})
 
 describe('status da semana', () => {
   it('aceita a definição manual com observação', () => {

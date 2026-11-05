@@ -324,6 +324,7 @@ function LinhaDaTrilha({
           demandaId={d.id}
           titulo={d.titulo}
           total={d.envios.total}
+          custoTotal={d.envios.custo?.total ?? null}
           historico={d.envios.historico}
           podeLancar={Boolean(sugestoes) && !concluida}
         />

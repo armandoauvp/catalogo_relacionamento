@@ -7,6 +7,7 @@ import { fotoDoFormulario } from '@/lib/arquivos'
 import { Prisma } from '@prisma/client'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
 import { concluidaEmParaFase, problemaDoEnvio, proximaOcorrencia } from '@/lib/logistica/demandas'
+import { dinheiro } from '@/lib/money'
 import {
   demandaSchema,
   envioSchema,
@@ -270,13 +271,14 @@ export async function registrarEnvio(dados: FormData): Promise<ResultadoDaAction
       demandaId: dados.get('demandaId'),
       quantidade: dados.get('quantidade'),
       enviadoEm: dados.get('enviadoEm'),
+      custo: dados.get('custo'),
       observacao: dados.get('observacao'),
     })
     if (!validado.success) return primeiroErro(validado.error)
-    const { demandaId, quantidade, enviadoEm, observacao } = validado.data
+    const { demandaId, quantidade, enviadoEm, custo, observacao } = validado.data
 
     const problema = problemaDoEnvio(
-      { quantidade, enviadoEm },
+      { quantidade, enviadoEm, custo },
       fimDoDiaLocal(formatarISO(new Date()))!,
     )
     if (problema) return { ok: false, erro: problema }
@@ -289,7 +291,14 @@ export async function registrarEnvio(dados: FormData): Promise<ResultadoDaAction
     if (!demanda.ativa) return { ok: false, erro: 'Demanda arquivada não recebe envio.' }
 
     await db.envioDaDemanda.create({
-      data: { demandaId, quantidade, enviadoEm, observacao, registradoPor: usuario.id },
+      data: {
+        demandaId,
+        quantidade,
+        enviadoEm,
+        custo: custo === null ? null : dinheiro(custo),
+        observacao,
+        registradoPor: usuario.id,
+      },
     })
     revalidarLogistica()
     return { ok: true, dados: undefined }

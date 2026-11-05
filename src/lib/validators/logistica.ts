@@ -8,7 +8,7 @@ import {
 } from '@prisma/client'
 import { fimDoDiaLocal } from '@/lib/datas'
 import { semanasNoAno } from '@/lib/periodo'
-import { emailOpcional, urlOpcional } from './comuns'
+import { emailOpcional, urlOpcional, valorOpcional } from './comuns'
 
 /**
  * Formulários do módulo de Logística: demanda, status da semana, equipe e FAQ.
@@ -131,6 +131,7 @@ export const envioSchema = z.object({
     z.number({ message: 'Informe quantos itens saíram.' }),
   ),
   enviadoEm: diaObrigatorio('Informe o dia do envio.'),
+  custo: valorOpcional,
   observacao: z.preprocess(
     vazioViraNulo,
     z.string().trim().max(200, 'Use até 200 caracteres.').nullable(),

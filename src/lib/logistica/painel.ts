@@ -18,6 +18,8 @@ import {
 } from '@/lib/periodo'
 import {
   compararPorOrdem,
+  custoDosEnvios,
+  custoPorDepartamento,
   ehPrioritaria,
   estavaAtrasada,
   contarRecorrentes,
@@ -86,6 +88,11 @@ export type DemandaNaTrilha = {
     ultimo: Date | null
     /** Do mais recente ao mais antigo, anulados inclusive. */
     historico: LancamentoDeEnvio[]
+    /**
+     * Em texto ("1250.50"), porque vai a componente do navegador, e `Decimal` não
+     * atravessa essa fronteira. Nulo quando quem lê não pode ver custos.
+     */
+    custo: { total: string; noPeriodo: string } | null
   }
 }
 
@@ -93,6 +100,8 @@ export type LancamentoDeEnvio = {
   id: string
   quantidade: number
   enviadoEm: Date
+  /** Nulo sem custo informado, e também quando quem lê não pode ver custos. */
+  custo: string | null
   observacao: string | null
   registradoPor: string
   criadoEm: Date
@@ -117,6 +126,7 @@ export async function trilhaDoPeriodo(
   periodo: Periodo,
   opcoes: {
     verObservacoes: boolean
+    verCustos: boolean
     agora?: Date
     limite?: number
     /** O clique nos grupos da linha; só a trilha e a exportação o respeitam. */
@@ -171,10 +181,18 @@ export async function trilhaDoPeriodo(
         total: somaDosEnvios(d.envios),
         noPeriodo: somaDosEnvios(d.envios, periodo),
         ultimo: ultimoEnvio(d.envios),
+        // Como as observações: o que não pode ser lido não chega ao navegador.
+        custo: opcoes.verCustos
+          ? {
+              total: custoDosEnvios(d.envios).toFixed(2),
+              noPeriodo: custoDosEnvios(d.envios, periodo).toFixed(2),
+            }
+          : null,
         historico: d.envios.map((e) => ({
           id: e.id,
           quantidade: e.quantidade,
           enviadoEm: e.enviadoEm,
+          custo: opcoes.verCustos && e.custo ? e.custo.toFixed(2) : null,
           observacao: e.observacao,
           registradoPor: e.registrante.nome,
           criadoEm: e.criadoEm,
@@ -266,6 +284,8 @@ export type PainelLogistico = {
   despachados: {
     total: number
     porDepartamento: LinhaDeVolume[]
+    /** Nulo quando quem lê não pode ver custos. */
+    custo: ReturnType<typeof custoPorDepartamento> | null
   }
   evolucao: { rotulo: string; rotuloLongo: string; quantidade: number }[]
   trilha: { demandas: DemandaNaTrilha[]; total: number }
@@ -273,7 +293,7 @@ export type PainelLogistico = {
 
 export async function painelLogistico(
   periodo: Periodo,
-  opcoes: { verObservacoes: boolean; agora?: Date },
+  opcoes: { verObservacoes: boolean; verCustos: boolean; agora?: Date },
 ): Promise<PainelLogistico> {
   const agora = opcoes.agora ?? new Date()
   const anterior = lerPeriodo(periodo.anterior, agora)
@@ -304,6 +324,7 @@ export async function painelLogistico(
         },
         select: {
           quantidade: true,
+          custo: true,
           demanda: { select: { subsidiaria: true, departamento: true } },
         },
       }),
@@ -331,6 +352,9 @@ export async function painelLogistico(
       porDepartamento: volumePorDepartamento(
         enviosDoPeriodo.map((e) => ({ ...e.demanda, quantidade: e.quantidade })),
       ),
+      custo: opcoes.verCustos
+        ? custoPorDepartamento(enviosDoPeriodo.map((e) => ({ ...e.demanda, custo: e.custo })))
+        : null,
     },
     evolucao: fatias.map((f, i) => ({
       rotulo: f.rotulo,

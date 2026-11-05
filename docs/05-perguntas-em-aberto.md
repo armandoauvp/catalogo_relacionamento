@@ -360,6 +360,14 @@ promover admins. O limite mensal é só do Relacionamento, mesmo o Admin de Log�
 alcançando os consultores. A aprovação não é do Admin de Logística. Mudar qualquer
 um deles é uma linha em `src/lib/permissions.ts`.
 
+### Quem vê o custo dos envios?
+
+O custo voltou em 05/11/2026, em cada envio lançado (relatório de 29/10).
+
+**Assumido, a confirmar:** todos os perfis menos o Consultor, porque o relatório
+fala em controle da gestão, e o dashboard é lido pela empresa inteira. Abrir para
+o Consultor é uma linha em `src/lib/permissions.ts` (`logistica.verCustos`).
+
 ### Quem marca "Entregue" e "Cliente confirmou"?
 
 **Definido:** quem opera a expedição marca "Entregue", a Logística inclusive, pela

@@ -235,6 +235,10 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
 - **Observação de demanda é filtrada no servidor.** Quem não tem
   `logistica.verObservacoes` não recebe o texto nem no HTML nem na planilha;
   esconder na tela não basta.
+- **Custo de envio também é filtrado no servidor.** Quem não tem
+  `logistica.verCustos` não recebe o valor nem no HTML nem na planilha. O custo
+  é do lançamento (`EnvioDaDemanda.custo`), opcional, e nulo não é zero: fica
+  fora da soma, e a tela diz quantos ficaram.
 - **A trilha é manual.** A Logística cadastra as demandas aqui; ela não
   espelha o ClickUp, que é só um link. O presente aprovado entra sozinho, na
   mesma transação da mudança de status (`src/lib/logistica/ponte.ts`).

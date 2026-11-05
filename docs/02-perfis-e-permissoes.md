@@ -22,12 +22,17 @@ botão e bloquear a ação nunca divirjam.
 | Ver saldo gasto                           |     próprio     | todos |   todos    |     -     |
 | Ver o Dashboard Logístico                 |        ✓        |   ✓   |     ✓      |     ✓     |
 | Ler as observações das demandas           |       - ²       |   ✓   |    - ²     |     ✓     |
+| Ver o custo dos envios ³                  |        -        |   ✓   |     ✓      |     ✓     |
 | Definir o status da semana, equipe e FAQ  |        -        |   ✓   |     -      |     ✓     |
 
 ¹ Único ponto do perfil Financeiro ainda sem confirmação da área. Ver abaixo.
 
 ² Suposição: as observações vêm do ClickUp em texto livre e é ali que aparecem
 nome e endereço de quem recebe. Isolado em `PENDENTE_CONFIRMACAO`.
+
+³ Suposição: o relatório de 29/10 fala em controle da gestão, e o dashboard é lido
+pela empresa inteira. Os dois admins de área também veem. Só a Logística e os
+admins com `logistica.gerenciar` lançam.
 
 ## Um admin por área
 

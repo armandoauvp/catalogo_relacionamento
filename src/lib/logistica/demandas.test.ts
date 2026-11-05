@@ -6,6 +6,8 @@ import {
   compararPorOrdem,
   concluidaEmParaFase,
   contarRecorrentes,
+  custoDosEnvios,
+  custoPorDepartamento,
   estavaAberta,
   estavaAtrasada,
   oQueEstaSendoEnviado,
@@ -302,6 +304,29 @@ describe('envios lançados na tarefa', () => {
     )
   })
 
+  it('recusa custo fora da escala, e sem custo nada muda', () => {
+    const hoje = dia('2026-08-19')
+    const base = { quantidade: 500, enviadoEm: hoje }
+    expect(problemaDoEnvio({ ...base, custo: null }, hoje)).toBeNull()
+    expect(problemaDoEnvio({ ...base, custo: 0 }, hoje)).toBeNull()
+    expect(problemaDoEnvio({ ...base, custo: 1250.5 }, hoje)).toBeNull()
+    expect(problemaDoEnvio({ ...base, custo: 2_000_000 }, hoje)).toMatch(/Confira o valor/)
+  })
+
+  it('o custo segue as regras da quantidade: sem anulado, pela data do envio', () => {
+    const comCusto = [
+      { ...envio(500, '2026-08-03'), custo: '100.10' },
+      { ...envio(300, '2026-08-12'), custo: '200.20' },
+      { ...envio(5000, '2026-08-13', true), custo: '9999.99' },
+      { ...envio(200, '2026-08-14'), custo: null },
+    ]
+    expect(custoDosEnvios(comCusto).toFixed(2)).toBe('300.30')
+    expect(
+      custoDosEnvios(comCusto, { inicio: dia('2026-08-10'), fim: dia('2026-08-17') }).toFixed(2),
+    ).toBe('200.20')
+    expect(custoDosEnvios([]).toFixed(2)).toBe('0.00')
+  })
+
   it('no gráfico por departamento, cada lançamento pesa a quantidade', () => {
     const linhas = volumePorDepartamento([
       { subsidiaria: 'AUVP Consultoria', departamento: 'Relacionamento', quantidade: 500 },
@@ -312,6 +337,60 @@ describe('envios lançados na tarefa', () => {
       ['Relacionamento', 800, 80],
       ['Produto', 200, 20],
     ])
+  })
+})
+
+describe('custo por subsidiária e departamento', () => {
+  const consultoria = { subsidiaria: 'AUVP Consultoria', departamento: 'Relacionamento' }
+  const escola = { subsidiaria: 'AUVP Escola', departamento: 'Produto' }
+
+  it('soma por departamento, do maior ao menor, com o percentual do total', () => {
+    const { total, porDepartamento } = custoPorDepartamento([
+      { ...escola, custo: '250.00' },
+      { ...consultoria, custo: '500.00' },
+      { ...consultoria, custo: '250.00' },
+    ])
+    expect(total.toFixed(2)).toBe('1000.00')
+    expect(porDepartamento.map((l) => [l.departamento, l.quantidade, l.percentual])).toEqual([
+      ['Relacionamento', 750, 75],
+      ['Produto', 250, 25],
+    ])
+  })
+
+  it('a soma é exata, sem o erro de ponto flutuante', () => {
+    const { total, porDepartamento } = custoPorDepartamento([
+      { ...consultoria, custo: '0.10' },
+      { ...consultoria, custo: '0.20' },
+    ])
+    expect(total.toFixed(2)).toBe('0.30')
+    expect(porDepartamento[0]?.quantidade).toBe(0.3)
+  })
+
+  it('sem custo fica fora da soma e é contado à parte: nulo não é zero', () => {
+    const { total, semCusto, porDepartamento } = custoPorDepartamento([
+      { ...consultoria, custo: '100.00' },
+      { ...escola, custo: null },
+      { ...escola, custo: null },
+    ])
+    expect(total.toFixed(2)).toBe('100.00')
+    expect(semCusto).toBe(2)
+    expect(porDepartamento.map((l) => l.departamento)).toEqual(['Relacionamento'])
+  })
+
+  it('zero informado conta como lançado, e não divide por zero', () => {
+    const { semCusto, porDepartamento } = custoPorDepartamento([{ ...escola, custo: '0' }])
+    expect(semCusto).toBe(0)
+    expect(porDepartamento).toMatchObject([{ departamento: 'Produto', percentual: 0 }])
+  })
+
+  it('agrupa o que veio sem subsidiária ou departamento', () => {
+    const { porDepartamento } = custoPorDepartamento([
+      { subsidiaria: null, departamento: ' ', custo: '10.00' },
+    ])
+    expect(porDepartamento[0]).toMatchObject({
+      subsidiaria: 'Sem subsidiária',
+      departamento: 'Sem departamento',
+    })
   })
 })
 

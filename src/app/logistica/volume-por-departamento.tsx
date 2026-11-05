@@ -2,29 +2,55 @@ import type { Route } from 'next'
 import type { LinhaDeVolume } from '@/lib/logistica/demandas'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { Button } from '@/components/ui/button'
+import { formatarBRL } from '@/lib/money'
 import { TituloDoBloco } from './pecas'
 
 const porcento = (n: number) =>
   `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 const numero = (n: number) => n.toLocaleString('pt-BR')
 
-export type VistaDoVolume = 'pedidos' | 'despachados'
+export type VistaDoVolume = 'pedidos' | 'despachados' | 'custo'
+
+const ROTULO_DA_VISTA: Record<VistaDoVolume, string> = {
+  pedidos: 'Pedidos',
+  despachados: 'Despachados',
+  custo: 'Custo',
+}
 
 const TEXTO: Record<
   VistaDoVolume,
-  { titulo: string; apoio: (total: number) => string; vazio: string }
+  {
+    titulo: string
+    apoio: (total: number, semCusto: number) => string
+    vazio: string
+    formatar: (n: number) => string
+  }
 > = {
   pedidos: {
     titulo: 'Volume de Pedidos por Departamento',
     apoio: (t) =>
       `${numero(t)} ${t === 1 ? 'pedido' : 'pedidos'} no período, por subsidiária e departamento.`,
     vazio: 'Nenhum pedido no período.',
+    formatar: numero,
   },
   despachados: {
     titulo: 'Itens Despachados por Departamento',
     apoio: (t) =>
       `${numero(t)} ${t === 1 ? 'item despachado' : 'itens despachados'} no período, lançados nas tarefas, por subsidiária e departamento.`,
     vazio: 'Nenhum envio lançado nas tarefas no período.',
+    formatar: numero,
+  },
+  custo: {
+    titulo: 'Custo dos Envios por Departamento',
+    // Sem o aviso, um total parcial se leria como o custo inteiro do período.
+    apoio: (t, semCusto) =>
+      `${formatarBRL(t)} no período, por subsidiária e departamento.${
+        semCusto
+          ? ` ${semCusto} ${semCusto === 1 ? 'envio sem custo informado ficou' : 'envios sem custo informado ficaram'} fora da soma.`
+          : ''
+      }`,
+    vazio: 'Nenhum envio com custo informado no período.',
+    formatar: formatarBRL,
   },
 }
 
@@ -43,12 +69,18 @@ const TEXTO: Record<
 export function VolumePorDepartamento({
   linhas,
   total,
+  semCusto = 0,
   vista,
+  vistas,
   hrefs,
 }: {
   linhas: LinhaDeVolume[]
   total: number
+  /** Só na vista de custo: envios que ficaram fora da soma. */
+  semCusto?: number
   vista: VistaDoVolume
+  /** As vistas que quem lê pode abrir: o custo não aparece para todos. */
+  vistas: readonly VistaDoVolume[]
   hrefs: Record<VistaDoVolume, string>
 }) {
   const maior = Math.max(1, ...linhas.map((l) => l.quantidade))
@@ -69,17 +101,17 @@ export function VolumePorDepartamento({
       <div id="volume-por-departamento">
         <TituloDoBloco
           titulo={texto.titulo}
-          apoio={texto.apoio(total)}
+          apoio={texto.apoio(total, semCusto)}
           acoes={
             <nav aria-label="O que contar" className="bg-muted flex rounded-md p-0.5">
-              {(['pedidos', 'despachados'] as const).map((v) => (
+              {vistas.map((v) => (
                 <Button key={v} size="sm" variant={vista === v ? 'secondary' : 'ghost'} asChild>
                   <LinkDeFiltro
                     href={hrefs[v] as Route}
                     scroll={false}
                     aria-current={vista === v ? 'true' : undefined}
                   >
-                    {v === 'pedidos' ? 'Pedidos' : 'Despachados'}
+                    {ROTULO_DA_VISTA[v]}
                   </LinkDeFiltro>
                 </Button>
               ))}
@@ -96,7 +128,7 @@ export function VolumePorDepartamento({
             <div key={subsidiaria}>
               <p className="text-muted-foreground font-ui mb-2 flex justify-between gap-3 text-xs font-semibold tracking-[0.08em] uppercase">
                 <span>{subsidiaria}</span>
-                <span className="tabular-nums">{numero(grupo.total)}</span>
+                <span className="tabular-nums">{texto.formatar(grupo.total)}</span>
               </p>
               <ul className="space-y-2.5">
                 {grupo.linhas.map((l) => (
@@ -116,7 +148,7 @@ export function VolumePorDepartamento({
                       />
                     </span>
                     <span className="text-right tabular-nums">
-                      <span className="font-semibold">{numero(l.quantidade)}</span>
+                      <span className="font-semibold">{texto.formatar(l.quantidade)}</span>
                       <span className="text-muted-foreground ml-2 inline-block w-14">
                         {porcento(l.percentual)}
                       </span>

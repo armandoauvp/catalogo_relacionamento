@@ -3,7 +3,9 @@ import type {
   FaseOperacional,
   Periodicidade,
   PrioridadeDemanda,
+  Prisma,
 } from '@prisma/client'
+import { paraNumero, somar, type Dinheiro } from '@/lib/money'
 import type { Fatia } from '@/lib/periodo'
 
 /**
@@ -195,10 +197,28 @@ export function somaDosEnvios(
   envios: readonly EnvioLancado[],
   intervalo?: { inicio: Date; fim: Date },
 ): number {
+  return enviosQueContam(envios, intervalo).reduce((soma, e) => soma + e.quantidade, 0)
+}
+
+function enviosQueContam<T extends EnvioLancado>(
+  envios: readonly T[],
+  intervalo?: { inicio: Date; fim: Date },
+): T[] {
   return envios
     .filter((e) => e.anuladoEm === null)
     .filter((e) => !intervalo || (e.enviadoEm >= intervalo.inicio && e.enviadoEm < intervalo.fim))
-    .reduce((soma, e) => soma + e.quantidade, 0)
+}
+
+/** Quanto custaram os envios, nas mesmas regras de `somaDosEnvios`. Sem custo soma nada. */
+export function custoDosEnvios(
+  envios: readonly (EnvioLancado & { custo: Prisma.Decimal.Value | null })[],
+  intervalo?: { inicio: Date; fim: Date },
+): Dinheiro {
+  return somar(
+    enviosQueContam(envios, intervalo)
+      .map((e) => e.custo)
+      .filter((c) => c !== null),
+  )
 }
 
 /** O envio mais recente que vale, para a linha dizer "último em 29/10". */
@@ -210,6 +230,9 @@ export function ultimoEnvio(envios: readonly EnvioLancado[]): Date | null {
 /** Um lote despachado é grande, mas não sem fim: um zero a mais vira o mês inteiro. */
 export const TETO_DO_ENVIO = 100_000
 
+/** O custo é opcional, então nada confere o número depois: um dígito a mais fica. */
+export const TETO_DO_CUSTO = 1_000_000
+
 /**
  * O que impede lançar um envio, ou nulo se ele pode ir.
  *
@@ -217,7 +240,7 @@ export const TETO_DO_ENVIO = 100_000
  * até o fim do dia, e amanhã não: envio é registro do que já saiu.
  */
 export function problemaDoEnvio(
-  envio: { quantidade: number; enviadoEm: Date },
+  envio: { quantidade: number; enviadoEm: Date; custo?: number | null },
   fimDeHoje: Date,
 ): string | null {
   if (!Number.isInteger(envio.quantidade) || envio.quantidade < 1) {
@@ -228,6 +251,9 @@ export function problemaDoEnvio(
   }
   if (envio.enviadoEm > fimDeHoje)
     return 'O envio ainda não aconteceu: use a data de hoje ou antes.'
+  if (envio.custo != null && envio.custo > TETO_DO_CUSTO) {
+    return `Mais de ${TETO_DO_CUSTO.toLocaleString('pt-BR')} de custo num lançamento só? Confira o valor.`
+  }
   return null
 }
 
@@ -286,6 +312,55 @@ export function volumePorDepartamento(
       (a, b) =>
         b.quantidade - a.quantidade || a.departamento.localeCompare(b.departamento, 'pt-BR'),
     )
+}
+
+/**
+ * Custo dos envios por subsidiária e departamento (relatório de 29/10): o
+ * fechamento do mês em dinheiro.
+ *
+ * A soma é em `Decimal`. `quantidade` vira número só no fim, para a barra e o
+ * texto. Envio sem custo fica fora da soma e é contado à parte: nulo não é zero,
+ * e a tela precisa dizer quando o total ainda não é o valor inteiro.
+ */
+export function custoPorDepartamento(
+  envios: readonly {
+    subsidiaria: string | null
+    departamento: string | null
+    custo: Prisma.Decimal.Value | null
+  }[],
+): { total: Dinheiro; semCusto: number; porDepartamento: LinhaDeVolume[] } {
+  const comCusto = envios.flatMap((e) => (e.custo === null ? [] : [{ ...e, custo: e.custo }]))
+  const total = somar(comCusto.map((e) => e.custo))
+
+  const grupos = new Map<
+    string,
+    { subsidiaria: string; departamento: string; custos: Prisma.Decimal.Value[] }
+  >()
+  for (const e of comCusto) {
+    const subsidiaria = e.subsidiaria?.trim() || SEM_SUBSIDIARIA
+    const departamento = e.departamento?.trim() || SEM_DEPARTAMENTO
+    const chave = `${subsidiaria}\u0000${departamento}`
+    const grupo = grupos.get(chave) ?? { subsidiaria, departamento, custos: [] }
+    grupo.custos.push(e.custo)
+    grupos.set(chave, grupo)
+  }
+
+  const porDepartamento = [...grupos.values()]
+    .map((g) => {
+      const soma = somar(g.custos)
+      return {
+        subsidiaria: g.subsidiaria,
+        departamento: g.departamento,
+        quantidade: paraNumero(soma),
+        percentual: total.isZero() ? 0 : paraNumero(soma.dividedBy(total).times(100)),
+      }
+    })
+    .sort(
+      (a, b) =>
+        b.quantidade - a.quantidade || a.departamento.localeCompare(b.departamento, 'pt-BR'),
+    )
+
+  return { total, semCusto: envios.length - comCusto.length, porDepartamento }
 }
 
 // ---------------------------------------------------------------------------

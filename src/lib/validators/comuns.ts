@@ -78,8 +78,11 @@ export const valorSchema = z
   .union([z.string(), z.number()])
   .transform((v) => {
     if (typeof v === 'number') return v
-    const limpo = v.trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.')
-    return Number(limpo)
+    const limpo = v.trim().replace(/\s/g, '')
+    if (limpo.includes(',')) return Number(limpo.replace(/\./g, '').replace(',', '.'))
+    // Sem vírgula, ponto com um ou dois dígitos no fim é centavo; com três, é
+    // milhar: "1234.56" não pode virar 123456, nem "1.250" virar 1,25.
+    return Number(/\.\d{1,2}$/.test(limpo) ? limpo : limpo.replace(/\./g, ''))
   })
   .refine((v) => Number.isFinite(v) && v >= 0, { message: 'Valor inválido.' })
 

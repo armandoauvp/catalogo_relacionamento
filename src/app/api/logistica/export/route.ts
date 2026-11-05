@@ -34,11 +34,12 @@ export async function GET(req: Request) {
   })
 
   const verObservacoes = pode(usuario.perfil, 'logistica.verObservacoes')
+  const verCustos = pode(usuario.perfil, 'logistica.verCustos')
   // O mesmo recorte que o clique nos grupos fez na tela.
   const recorte = filtroDaTrilhaSchema.parse(Object.fromEntries(params))
-  const { demandas } = await trilhaDoPeriodo(periodo, { verObservacoes, recorte })
+  const { demandas } = await trilhaDoPeriodo(periodo, { verObservacoes, verCustos, recorte })
   const linhas = linhasDaTrilha(demandas)
-  const colunas = colunasDaTrilha(verObservacoes)
+  const colunas = colunasDaTrilha(verObservacoes, verCustos)
   const nome = nomeDoArquivoDaTrilha(periodo.rotulo, formato)
 
   if (formato === 'xlsx') {
