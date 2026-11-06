@@ -100,18 +100,37 @@ export function demandaDoPresente(
 }
 
 /**
+ * O presente entregue já conta como despachado: a quantidade de peças do
+ * pedido. Devolvido não lança: ele só chega depois de "Entregue", que já lançou.
+ */
+export function despachoDoPresente(
+  status: StatusSolicitacao,
+  itens: readonly { quantidade: number }[],
+): number | null {
+  if (status !== 'entregue' && status !== 'cliente_confirmou') return null
+  const total = itens.reduce((soma, i) => soma + i.quantidade, 0)
+  return total > 0 ? total : null
+}
+
+/**
  * Leva a mudança de status do presente para a trilha. Recebe a transação de
  * quem muda o status: a demanda nasce, anda ou é arquivada junto com o
  * histórico, ou nada acontece.
+ *
+ * Com `registradoPor`, o presente que chega a "Entregue" lança o envio, uma
+ * vez só: se a demanda já tem envio que vale, nada é lançado de novo.
  */
 export async function sincronizarDemandaDoPresente(
   tx: Prisma.TransactionClient,
   solicitacaoId: string,
   status: StatusSolicitacao,
-  agora: Date = new Date(),
+  opcoes: { agora?: Date; registradoPor?: string } = {},
 ): Promise<void> {
+  const agora = opcoes.agora ?? new Date()
   const destino = faseDoPresente(status)
   if (destino === null) return
+  const lancar = (demandaId: string) =>
+    lancarDespachoDoPresente(tx, demandaId, solicitacaoId, status, agora, opcoes.registradoPor)
 
   const existente = await tx.demandaLogistica.findUnique({
     where: { solicitacaoId },
@@ -138,6 +157,7 @@ export async function sincronizarDemandaDoPresente(
         concluidaEm: concluidaEmParaFase(destino, existente.concluidaEm, agora),
       },
     })
+    await lancar(existente.id)
     return
   }
 
@@ -152,7 +172,8 @@ export async function sincronizarDemandaDoPresente(
     },
   })
 
-  await tx.demandaLogistica.create({
+  const criada = await tx.demandaLogistica.create({
+    select: { id: true },
     data: {
       ...demandaDoPresente(
         {
@@ -168,6 +189,35 @@ export async function sincronizarDemandaDoPresente(
         agora,
       ),
       solicitacaoId,
+    },
+  })
+  await lancar(criada.id)
+}
+
+async function lancarDespachoDoPresente(
+  tx: Prisma.TransactionClient,
+  demandaId: string,
+  solicitacaoId: string,
+  status: StatusSolicitacao,
+  agora: Date,
+  registradoPor: string | undefined,
+) {
+  if (!registradoPor) return
+  const itens = await tx.solicitacaoItem.findMany({
+    where: { solicitacaoId },
+    select: { quantidade: true },
+  })
+  const quantidade = despachoDoPresente(status, itens)
+  if (quantidade === null) return
+  const jaLancado = await tx.envioDaDemanda.count({ where: { demandaId, anuladoEm: null } })
+  if (jaLancado > 0) return
+  await tx.envioDaDemanda.create({
+    data: {
+      demandaId,
+      quantidade,
+      enviadoEm: fimDoDiaLocal(formatarISO(agora))!,
+      observacao: 'Lançado ao entregar o presente',
+      registradoPor,
     },
   })
 }

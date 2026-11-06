@@ -27,6 +27,7 @@ duplique numa tela.
 | Status da semana e limiares      | `src/lib/logistica/status-operacional.ts` |
 | Trilha, "Kit", atraso e somas    | `src/lib/logistica/demandas.ts`           |
 | Presente aprovado → trilha       | `src/lib/logistica/ponte.ts`              |
+| Empresas e departamentos (lista) | `src/lib/logistica/cadastros.ts`          |
 | Kit que exige bebida junto       | `src/lib/acompanhamentos.ts`              |
 | Modelos e montagem da carta      | `src/lib/carta.ts`                        |
 | Tour guiado de cada perfil       | `src/lib/tour.ts`                         |
@@ -235,10 +236,16 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
 - **Observação de demanda é filtrada no servidor.** Quem não tem
   `logistica.verObservacoes` não recebe o texto nem no HTML nem na planilha;
   esconder na tela não basta.
-- **Custo de envio também é filtrado no servidor.** Quem não tem
-  `logistica.verCustos` não recebe o valor nem no HTML nem na planilha. O custo
-  é do lançamento (`EnvioDaDemanda.custo`), opcional, e nulo não é zero: fica
-  fora da soma, e a tela diz quantos ficaram.
+- **Custo de envio aparece só em percentual.** É o custo da Logística (frete e
+  operação), não o do item, lançado em cada envio (`EnvioDaDemanda.custo`). O
+  painel mostra a fatia de cada departamento, sem R$, e a planilha não leva
+  custo; o valor fica no histórico de quem lança. Quem não tem
+  `logistica.verCustos` não recebe nem isso. Nulo não é zero: fica fora da
+  conta, e a tela diz quantos ficaram.
+- **Concluir lança o despachado.** A tarefa que vai a "Concluído" registra o
+  envio do dia (`despachoAoConcluir`), e o presente entregue lança as peças do
+  pedido uma vez só (`despachoDoPresente`). Sem isso, a tarefa concluída
+  ficaria em Pedidos sem nunca contar em Despachados.
 - **A trilha é manual.** A Logística cadastra as demandas aqui; ela não
   espelha o ClickUp, que é só um link. O presente aprovado entra sozinho, na
   mesma transação da mudança de status (`src/lib/logistica/ponte.ts`).

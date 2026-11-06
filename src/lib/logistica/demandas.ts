@@ -197,28 +197,10 @@ export function somaDosEnvios(
   envios: readonly EnvioLancado[],
   intervalo?: { inicio: Date; fim: Date },
 ): number {
-  return enviosQueContam(envios, intervalo).reduce((soma, e) => soma + e.quantidade, 0)
-}
-
-function enviosQueContam<T extends EnvioLancado>(
-  envios: readonly T[],
-  intervalo?: { inicio: Date; fim: Date },
-): T[] {
   return envios
     .filter((e) => e.anuladoEm === null)
     .filter((e) => !intervalo || (e.enviadoEm >= intervalo.inicio && e.enviadoEm < intervalo.fim))
-}
-
-/** Quanto custaram os envios, nas mesmas regras de `somaDosEnvios`. Sem custo soma nada. */
-export function custoDosEnvios(
-  envios: readonly (EnvioLancado & { custo: Prisma.Decimal.Value | null })[],
-  intervalo?: { inicio: Date; fim: Date },
-): Dinheiro {
-  return somar(
-    enviosQueContam(envios, intervalo)
-      .map((e) => e.custo)
-      .filter((c) => c !== null),
-  )
+    .reduce((soma, e) => soma + e.quantidade, 0)
 }
 
 /** O envio mais recente que vale, para a linha dizer "último em 29/10". */
@@ -229,6 +211,22 @@ export function ultimoEnvio(envios: readonly EnvioLancado[]): Date | null {
 
 /** Um lote despachado é grande, mas não sem fim: um zero a mais vira o mês inteiro. */
 export const TETO_DO_ENVIO = 100_000
+
+/**
+ * O que concluir uma tarefa pede de despacho (pedido da área de 05/11): a
+ * conclusão já lança o que saiu, para a tarefa passar de "pedida" a
+ * "despachada" sem ninguém lembrar de abrir o botão Envios. Sem nada lançado,
+ * a quantidade é obrigatória; com lançamentos, é opcional, para não contar duas
+ * vezes. Quem já estava concluída e é salva de novo não pede nada.
+ */
+export function despachoAoConcluir(
+  faseAnterior: FaseOperacional | null,
+  faseNova: FaseOperacional,
+  jaDespachado: number,
+): 'obrigatorio' | 'opcional' | null {
+  if (faseNova !== 'concluido' || faseAnterior === 'concluido') return null
+  return jaDespachado > 0 ? 'opcional' : 'obrigatorio'
+}
 
 /** O custo é opcional, então nada confere o número depois: um dígito a mais fica. */
 export const TETO_DO_CUSTO = 1_000_000
@@ -368,10 +366,27 @@ export function custoPorDepartamento(
 // ---------------------------------------------------------------------------
 
 export const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = {
+  diaria: 'Diária',
   semanal: 'Semanal',
   quinzenal: 'Quinzenal',
   mensal: 'Mensal',
+  personalizada: 'A cada N dias',
 }
+
+/** O que o selo diz: "Mensal", ou "A cada 3 dias" na periodicidade livre. */
+export function rotuloDaRecorrencia(
+  periodicidade: Periodicidade | null,
+  intervaloDias: number | null,
+): string | null {
+  if (!periodicidade) return null
+  if (periodicidade === 'personalizada' && intervaloDias) {
+    return `A cada ${intervaloDias} ${intervaloDias === 1 ? 'dia' : 'dias'}`
+  }
+  return ROTULO_PERIODICIDADE[periodicidade]
+}
+
+/** O maior intervalo livre: mais que um ano não é rotina, é outra demanda. */
+export const TETO_DO_INTERVALO = 365
 
 /**
  * A data de conclusão acompanha a fase: entrar em "Concluído" grava o
@@ -389,9 +404,19 @@ export function concluidaEmParaFase(
 
 const DIA_MS = 86_400_000
 
-function somarPeriodo(data: Date, periodicidade: Periodicidade, vezes: number): Date {
-  if (periodicidade === 'semanal') return new Date(data.getTime() + 7 * vezes * DIA_MS)
-  if (periodicidade === 'quinzenal') return new Date(data.getTime() + 14 * vezes * DIA_MS)
+type Recorrencia = { periodicidade: Periodicidade; intervaloDias?: number | null }
+
+function somarPeriodo(data: Date, recorrencia: Recorrencia, vezes: number): Date {
+  const { periodicidade, intervaloDias } = recorrencia
+  const emDias = (dias: number) => new Date(data.getTime() + dias * vezes * DIA_MS)
+  if (periodicidade === 'diaria') return emDias(1)
+  if (periodicidade === 'semanal') return emDias(7)
+  if (periodicidade === 'quinzenal') return emDias(14)
+  if (periodicidade === 'personalizada') {
+    // O banco garante o intervalo nessa periodicidade; sem ele, o laço não andaria.
+    if (!intervaloDias || intervaloDias < 1) throw new Error('Periodicidade livre sem intervalo.')
+    return emDias(intervaloDias)
+  }
   // Mensal anda pelo calendário: 31/01 vai a 28/02, e não a 03/03.
   const alvo = new Date(data.getTime())
   const dia = alvo.getUTCDate()
@@ -412,24 +437,31 @@ function somarPeriodo(data: Date, periodicidade: Periodicidade, vezes: number): 
  * está por vir: nascer atrasada não ajudaria ninguém.
  */
 export function proximaOcorrencia(
-  anterior: {
-    periodicidade: Periodicidade
+  anterior: Recorrencia & {
     previsaoInicio: Date | null
     previsaoConclusao: Date
   },
   agora: Date,
 ): { solicitadaEm: Date; previsaoInicio: Date | null; previsaoConclusao: Date } {
   let vezes = 1
-  while (somarPeriodo(anterior.previsaoConclusao, anterior.periodicidade, vezes) <= agora) {
+  while (somarPeriodo(anterior.previsaoConclusao, anterior, vezes) <= agora) {
     vezes++
   }
   return {
     solicitadaEm: agora,
     previsaoInicio: anterior.previsaoInicio
-      ? somarPeriodo(anterior.previsaoInicio, anterior.periodicidade, vezes)
+      ? somarPeriodo(anterior.previsaoInicio, anterior, vezes)
       : null,
-    previsaoConclusao: somarPeriodo(anterior.previsaoConclusao, anterior.periodicidade, vezes),
+    previsaoConclusao: somarPeriodo(anterior.previsaoConclusao, anterior, vezes),
   }
+}
+
+/**
+ * A série acabou: a próxima ocorrência teria a conclusão depois do fim que a
+ * Logística marcou. Sem fim marcado, a série não acaba.
+ */
+export function serieTerminou(previsaoConclusao: Date, recorrenteAte: Date | null): boolean {
+  return recorrenteAte !== null && previsaoConclusao > recorrenteAte
 }
 
 /** Quantas são recorrentes e quantas pontuais: a Logística diz que metade do trabalho é rotina. */

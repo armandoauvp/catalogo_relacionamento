@@ -6,10 +6,19 @@ import { autorizarAction } from '@/lib/auth-guards'
 import { fotoDoFormulario } from '@/lib/arquivos'
 import { Prisma } from '@prisma/client'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
-import { concluidaEmParaFase, problemaDoEnvio, proximaOcorrencia } from '@/lib/logistica/demandas'
+import {
+  concluidaEmParaFase,
+  despachoAoConcluir,
+  problemaDoEnvio,
+  proximaOcorrencia,
+  serieTerminou,
+  somaDosEnvios,
+} from '@/lib/logistica/demandas'
+import { problemaDaClassificacao } from '@/lib/logistica/cadastros'
 import { dinheiro } from '@/lib/money'
 import {
   demandaSchema,
+  despachoDaConclusaoSchema,
   envioSchema,
   membroSchema,
   perguntaSchema,
@@ -161,11 +170,13 @@ async function gerarProximaSeConcluida(
   const datas = proximaOcorrencia(
     {
       periodicidade: d.periodicidade,
+      intervaloDias: d.intervaloDias,
       previsaoInicio: d.previsaoInicio,
       previsaoConclusao: d.previsaoConclusao,
     },
     agora,
   )
+  if (serieTerminou(datas.previsaoConclusao, d.recorrenteAte)) return
 
   await tx.demandaLogistica.create({
     data: {
@@ -183,6 +194,8 @@ async function gerarProximaSeConcluida(
       clickupUrl: d.clickupUrl,
       recorrente: true,
       periodicidade: d.periodicidade,
+      intervaloDias: d.intervaloDias,
+      recorrenteAte: d.recorrenteAte,
       fase: 'recebido',
       ocorrenciaAnteriorId: d.id,
       ...datas,
@@ -192,21 +205,66 @@ async function gerarProximaSeConcluida(
 
 export async function salvarDemanda(dados: FormData): Promise<ResultadoDaAction> {
   try {
-    await autorizarAction('logistica.gerenciar')
+    const usuario = await autorizarAction('logistica.gerenciar')
 
     const validado = demandaSchema.safeParse(Object.fromEntries(dados.entries()))
     if (!validado.success) return primeiroErro(validado.error)
-    const { periodicidade, recorrente, ...campos } = validado.data
+    const despacho = despachoDaConclusaoSchema.safeParse({
+      quantidade: dados.get('despachadoNaConclusao'),
+      custo: dados.get('custoNaConclusao'),
+    })
+    if (!despacho.success) {
+      return { ...primeiroErro(despacho.error), campo: 'despachadoNaConclusao' }
+    }
+    const { periodicidade, intervaloDias, recorrenteAte, recorrente, ...campos } = validado.data
 
     const registro = {
       ...campos,
       recorrente,
-      // Desmarcar "recorrente" apaga a periodicidade: a regra do banco exige
-      // as duas juntas, e uma periodicidade órfã confundiria a próxima edição.
+      // Desmarcar "recorrente" apaga a periodicidade, o intervalo e o fim: as
+      // regras do banco exigem tudo junto, e um campo órfão confundiria a
+      // próxima edição.
       periodicidade: recorrente ? periodicidade : null,
+      intervaloDias: recorrente && periodicidade === 'personalizada' ? intervaloDias : null,
+      recorrenteAte: recorrente ? recorrenteAte : null,
     }
     const agora = new Date()
     const id = String(dados.get('id') ?? '')
+
+    // Concluir lança o que saiu; a regra de quando é obrigatório mora em
+    // `despachoAoConcluir`.
+    const anterior = id
+      ? await db.demandaLogistica.findUniqueOrThrow({
+          where: { id },
+          select: {
+            fase: true,
+            subsidiaria: true,
+            departamento: true,
+            envios: { select: { quantidade: true, enviadoEm: true, anuladoEm: true } },
+          },
+        })
+      : null
+    const classificacao = problemaDaClassificacao(registro, anterior)
+    if (classificacao) return { ok: false, erro: classificacao.erro, campo: classificacao.campo }
+    const exigencia = despachoAoConcluir(
+      anterior?.fase ?? null,
+      registro.fase,
+      somaDosEnvios(anterior?.envios ?? []),
+    )
+    const fimDeHoje = fimDoDiaLocal(formatarISO(agora))!
+    const { quantidade, custo } = despacho.data
+    if (exigencia === 'obrigatorio' && quantidade === null) {
+      return {
+        ok: false,
+        erro: 'Para concluir, informe quantos itens saíram.',
+        campo: 'despachadoNaConclusao',
+      }
+    }
+    const lancamento = exigencia !== null && quantidade !== null ? { quantidade, custo } : null
+    if (lancamento) {
+      const problema = problemaDoEnvio({ ...lancamento, enviadoEm: fimDeHoje }, fimDeHoje)
+      if (problema) return { ok: false, erro: problema, campo: 'despachadoNaConclusao' }
+    }
 
     await db.$transaction(async (tx) => {
       let salvaId = id
@@ -233,6 +291,18 @@ export async function salvarDemanda(dados: FormData): Promise<ResultadoDaAction>
           select: { id: true },
         })
         salvaId = criada.id
+      }
+      if (lancamento) {
+        await tx.envioDaDemanda.create({
+          data: {
+            demandaId: salvaId,
+            quantidade: lancamento.quantidade,
+            enviadoEm: fimDeHoje,
+            custo: lancamento.custo === null ? null : dinheiro(lancamento.custo),
+            observacao: 'Lançado ao concluir a tarefa',
+            registradoPor: usuario.id,
+          },
+        })
       }
       await gerarProximaSeConcluida(tx, salvaId, agora)
     })

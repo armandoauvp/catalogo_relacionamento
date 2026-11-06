@@ -26,13 +26,26 @@ const demanda: DemandaNaTrilha = {
   concluidaEm: null,
   recorrente: true,
   periodicidade: 'semanal',
+  intervaloDias: null,
+  recorrenteAte: null,
   itens: ['Camiseta', 'Caneca'],
   envios: {
     total: 1250,
     noPeriodo: 500,
     ultimo: null,
-    historico: [],
-    custo: { total: '3100.75', noPeriodo: '1250.50' },
+    historico: [
+      {
+        id: 'e1',
+        quantidade: 500,
+        enviadoEm: new Date('2026-08-19T15:00:00Z'),
+        custo: '1250.50',
+        observacao: null,
+        registradoPor: 'Ana',
+        criadoEm: new Date('2026-08-19T15:00:00Z'),
+        anuladoEm: null,
+        anuladoPor: null,
+      },
+    ],
   },
 }
 
@@ -53,30 +66,31 @@ describe('exportação da trilha', () => {
     })
   })
 
+  it('a recorrência livre diz o intervalo, e a série diz até quando vai', () => {
+    const [linha] = linhasDaTrilha([
+      {
+        ...demanda,
+        periodicidade: 'personalizada',
+        intervaloDias: 3,
+        recorrenteAte: new Date('2026-12-20T02:59:59.999Z'),
+      },
+    ])
+    expect(linha?.recorrencia).toBe('Recorrente · A cada 3 dias até 2026-12-19')
+  })
+
   it('a coluna de observações só existe para quem pode lê-las', () => {
-    const semObservacoes = gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(false, false))
-    const comObservacoes = gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(true, false))
+    const semObservacoes = gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(false))
+    const comObservacoes = gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(true))
     expect(semObservacoes).not.toContain('Entregar na portaria')
     expect(comObservacoes).toContain('Entregar na portaria')
   })
 
-  it('as colunas de custo só existem para quem pode vê-las', () => {
-    const chaves = (verCustos: boolean) => colunasDaTrilha(false, verCustos).map((c) => c.chave)
-    expect(chaves(false)).not.toContain('custoNoPeriodo')
-    expect(chaves(true)).toEqual(expect.arrayContaining(['custoNoPeriodo', 'custoNoTotal']))
-    expect(gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(false, false))).not.toContain(
-      'Custo no',
-    )
-  })
-
-  it('o custo vai como número, para a planilha somar', () => {
-    const [linha] = linhasDaTrilha([demanda])
-    expect(linha).toMatchObject({ custoNoPeriodo: 1250.5, custoNoTotal: 3100.75 })
-  })
-
-  it('sem permissão, o custo não vem da trilha e a linha fica vazia', () => {
-    const [linha] = linhasDaTrilha([{ ...demanda, envios: { ...demanda.envios, custo: null } }])
-    expect(linha).toMatchObject({ custoNoPeriodo: null, custoNoTotal: null })
+  it('o custo não vai à planilha: desde 05/11 ele aparece só em percentual, no painel', () => {
+    for (const verObservacoes of [false, true]) {
+      const csv = gerarCsv(linhasDaTrilha([demanda]), colunasDaTrilha(verObservacoes))
+      expect(csv).not.toMatch(/custo/i)
+      expect(csv).not.toMatch(/1250[.,]5/)
+    }
   })
 
   it('o nome do arquivo carrega o período, sem acento nem espaço', () => {

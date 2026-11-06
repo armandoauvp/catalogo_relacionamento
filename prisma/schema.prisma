@@ -463,6 +463,9 @@ enum Periodicidade {
   semanal
   quinzenal
   mensal
+  diaria
+  /// A cada `intervaloDias` dias.
+  personalizada
 }
 
 /// Uma demanda da Logística: o envio que o dashboard conta e a trilha lista.
@@ -529,6 +532,11 @@ model DemandaLogistica {
   /// Volta sozinha: ao concluir, nasce a próxima ocorrência.
   recorrente           Boolean              @default(false)
   periodicidade        Periodicidade?
+  /// Só na periodicidade livre: de quantos em quantos dias volta, de 1 a 365.
+  intervaloDias        Int?                 @map("intervalo_dias")
+  /// Fim da série: a próxima ocorrência não nasce se a conclusão dela passar
+  /// desta data. Nula, a série não acaba.
+  recorrenteAte        DateTime?            @map("recorrente_ate")
   /// A ocorrência de onde esta nasceu. Única: uma recorrente concluída gera
   /// uma próxima, nunca duas, mesmo que a conclusão seja salva de novo.
   ocorrenciaAnteriorId String?              @unique @map("ocorrencia_anterior_id")

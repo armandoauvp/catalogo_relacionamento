@@ -369,7 +369,7 @@ async function gravarMudancaDeStatus(
     })
     // Aprovado, o presente entra na trilha da Logística; os status seguintes
     // movem a fase. Na mesma transação: ou anda tudo, ou nada.
-    await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo)
+    await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo, { registradoPor: usuarioId })
     if (statusNovo === StatusSolicitacao.organizando_envio) {
       return enfileirarPresente(tx, solicitacao.id, usuarioId)
     }
@@ -512,7 +512,9 @@ export async function encaminharEmLote(
           anterior = passo
         }
 
-        await sincronizarDemandaDoPresente(tx, solicitacao.id, anterior)
+        await sincronizarDemandaDoPresente(tx, solicitacao.id, anterior, {
+          registradoPor: usuario.id,
+        })
         if (anterior === StatusSolicitacao.organizando_envio) {
           algumParaOTiny =
             (await enfileirarPresente(tx, solicitacao.id, usuario.id)) || algumParaOTiny

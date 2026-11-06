@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { StatusSolicitacao } from '@prisma/client'
-import { demandaDoPresente, faseDoPresente, PONTE } from './ponte'
+import { demandaDoPresente, despachoDoPresente, faseDoPresente, PONTE } from './ponte'
+
+describe('o presente entregue conta como despachado', () => {
+  const itens = [{ quantidade: 2 }, { quantidade: 1 }]
+
+  it('entregue lança a soma das peças do pedido', () => {
+    expect(despachoDoPresente('entregue', itens)).toBe(3)
+    expect(despachoDoPresente('cliente_confirmou', itens)).toBe(3)
+  })
+
+  it('nenhum outro status lança, devolvido inclusive', () => {
+    const outros = Object.values(StatusSolicitacao).filter(
+      (s) => s !== 'entregue' && s !== 'cliente_confirmou',
+    )
+    for (const status of outros) expect(despachoDoPresente(status, itens), status).toBeNull()
+  })
+
+  it('pedido sem peças não lança zero', () => {
+    expect(despachoDoPresente('entregue', [])).toBeNull()
+  })
+})
 
 const AGORA = new Date('2026-10-09T15:00:00Z')
 

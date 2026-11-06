@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   CalendarX2,
+  ChevronRight,
   ExternalLink,
   FileText,
   Flame,
@@ -12,8 +13,8 @@ import { formatarData } from '@/lib/datas'
 import {
   ORDENS_DA_TRILHA,
   ROTULO_COMPLEXIDADE,
-  ROTULO_PERIODICIDADE,
   ROTULO_PRIORIDADE,
+  rotuloDaRecorrencia,
   type OrdemDaTrilha,
 } from '@/lib/logistica/demandas'
 import type { DemandaNaTrilha, sugestoesDoCadastro } from '@/lib/logistica/painel'
@@ -166,6 +167,12 @@ function LinhaDaTrilha({
     ...new Set([d.produto, d.responsavel].filter((t) => t !== d.departamento)),
     d.complexidade ? `Complexidade ${ROTULO_COMPLEXIDADE[d.complexidade].toLowerCase()}` : null,
   ].filter(Boolean)
+  const detalheFiltrado = [
+    grupo('subsidiaria', d.subsidiaria ?? ''),
+    grupo('departamento', d.departamento ?? ''),
+    grupo('origem', 'solicitacao'),
+    grupo('recorrente', 'sim'),
+  ].some((g) => g.ativo)
 
   return (
     <li
@@ -192,24 +199,6 @@ function LinhaDaTrilha({
               </Badge>
             </FiltroDoGrupo>
           ) : null}
-          {d.origem === 'solicitacao' ? (
-            <FiltroDoGrupo {...grupo('origem', 'solicitacao')} rotulo="demandas de presente">
-              <Badge variant="outline" className="gap-1">
-                <Gift className="size-3" aria-hidden="true" />
-                Presente
-              </Badge>
-            </FiltroDoGrupo>
-          ) : null}
-          {d.recorrente ? (
-            <FiltroDoGrupo {...grupo('recorrente', 'sim')} rotulo="demandas recorrentes">
-              <Badge variant="outline" className="gap-1">
-                <Repeat className="size-3" aria-hidden="true" />
-                Recorrente
-                {d.periodicidade ? ` · ${ROTULO_PERIODICIDADE[d.periodicidade]}` : ''}
-              </Badge>
-            </FiltroDoGrupo>
-          ) : null}
-
           {d.clickupUrl ? (
             <a
               href={d.clickupUrl}
@@ -267,33 +256,6 @@ function LinhaDaTrilha({
               d.enviado.rotulo
             )}
           </span>
-          {d.subsidiaria || d.departamento ? (
-            <span>
-              ·{' '}
-              {d.subsidiaria ? (
-                <FiltroDoGrupo
-                  {...grupo('subsidiaria', d.subsidiaria)}
-                  rotulo={`subsidiária ${d.subsidiaria}`}
-                  texto
-                >
-                  {d.subsidiaria}
-                </FiltroDoGrupo>
-              ) : null}
-              {d.subsidiaria && d.departamento ? ' › ' : null}
-              {d.departamento ? (
-                <FiltroDoGrupo
-                  {...grupo('departamento', d.departamento)}
-                  rotulo={`departamento ${d.departamento}`}
-                  texto
-                >
-                  {d.departamento}
-                </FiltroDoGrupo>
-              ) : null}
-            </span>
-          ) : null}
-          {contexto.map((t) => (
-            <span key={t}>· {t}</span>
-          ))}
           {d.envios.total > 0 ? (
             <span className="text-foreground">
               ·{' '}
@@ -309,6 +271,63 @@ function LinhaDaTrilha({
             </span>
           ) : null}
         </p>
+
+        {/* O resto da classificação fica a um clique (pedido de 05/11): a linha
+            diz o que é, em que fase está e quando acaba. Abre sozinho quando um
+            filtro daqui está ligado, para o motivo do recorte ficar à vista. */}
+        <details className="group mt-1" open={detalheFiltrado || undefined}>
+          <summary className="text-muted-foreground hover:text-foreground inline-flex cursor-pointer list-none items-center gap-1 text-xs [&::-webkit-details-marker]:hidden">
+            <ChevronRight
+              className="size-3.5 transition-transform group-open:rotate-90"
+              aria-hidden="true"
+            />
+            Detalhes
+          </summary>
+          <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[1.125rem] text-sm">
+            {d.subsidiaria ? (
+              <FiltroDoGrupo
+                {...grupo('subsidiaria', d.subsidiaria)}
+                rotulo={`subsidiária ${d.subsidiaria}`}
+                texto
+              >
+                {d.subsidiaria}
+              </FiltroDoGrupo>
+            ) : null}
+            {d.subsidiaria && d.departamento ? <span>›</span> : null}
+            {d.departamento ? (
+              <FiltroDoGrupo
+                {...grupo('departamento', d.departamento)}
+                rotulo={`departamento ${d.departamento}`}
+                texto
+              >
+                {d.departamento}
+              </FiltroDoGrupo>
+            ) : null}
+            {contexto.map((t) => (
+              <span key={t}>· {t}</span>
+            ))}
+            {d.origem === 'solicitacao' ? (
+              <FiltroDoGrupo {...grupo('origem', 'solicitacao')} rotulo="demandas de presente">
+                <Badge variant="outline" className="gap-1">
+                  <Gift className="size-3" aria-hidden="true" />
+                  Presente
+                </Badge>
+              </FiltroDoGrupo>
+            ) : null}
+            {d.recorrente ? (
+              <FiltroDoGrupo {...grupo('recorrente', 'sim')} rotulo="demandas recorrentes">
+                <Badge variant="outline" className="gap-1">
+                  <Repeat className="size-3" aria-hidden="true" />
+                  Recorrente
+                  {d.periodicidade
+                    ? ` · ${rotuloDaRecorrencia(d.periodicidade, d.intervaloDias)}`
+                    : ''}
+                  {d.recorrenteAte ? ` até ${formatarData(d.recorrenteAte)}` : ''}
+                </Badge>
+              </FiltroDoGrupo>
+            ) : null}
+          </div>
+        </details>
       </div>
 
       <div>
@@ -324,7 +343,6 @@ function LinhaDaTrilha({
           demandaId={d.id}
           titulo={d.titulo}
           total={d.envios.total}
-          custoTotal={d.envios.custo?.total ?? null}
           historico={d.envios.historico}
           podeLancar={Boolean(sugestoes) && !concluida}
         />

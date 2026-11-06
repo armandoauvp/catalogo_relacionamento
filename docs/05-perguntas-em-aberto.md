@@ -360,6 +360,28 @@ promover admins. O limite mensal é só do Relacionamento, mesmo o Admin de Log�
 alcançando os consultores. A aprovação não é do Admin de Logística. Mudar qualquer
 um deles é uma linha em `src/lib/permissions.ts`.
 
+### Em que departamento entra o presente?
+
+O presente aprovado entra na trilha como "AUVP Consultoria › Relacionamento"
+(`PONTE`, em `src/lib/logistica/ponte.ts`). Desde 06/11/2026 a demanda escolhe
+empresa e departamento na lista do formulário do Financeiro, e Relacionamento
+não está nela.
+
+**Assumido, a confirmar:** o presente continua em Relacionamento, que aparece
+como "fora da lista" ao editar. Mudar é uma linha em `PONTE`.
+
+### A lista de departamentos está completa?
+
+**Assumido:** são os 19 do print do formulário do Financeiro, de Atendimento e
+CX a Treinamentos, e as 7 empresas. Faltando algum, entra em
+`src/lib/logistica/cadastros.ts`.
+
+### Lote do Tiny recorrente
+
+**Ainda em aberto.** Repetir um lote sozinho cria pedidos de verdade no Tiny sem
+ninguém olhar. A proposta é o lote poder gerar uma tarefa recorrente na trilha,
+com alguém confirmando o envio ao Tiny a cada vez.
+
 ### Quem vê o custo dos envios?
 
 O custo voltou em 05/11/2026, em cada envio lançado (relatório de 29/10).

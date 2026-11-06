@@ -147,6 +147,25 @@ describe('demanda', () => {
     ).toBe(true)
   })
 
+  it('a cada N dias exige o intervalo, inteiro de 1 a 365', () => {
+    const livre = { ...valida, recorrente: 'on', periodicidade: 'personalizada' }
+    expect(demandaSchema.safeParse(livre).error?.issues[0]?.path).toEqual(['intervaloDias'])
+    for (const ruim of ['0', '366', '2.5', 'abc']) {
+      expect(demandaSchema.safeParse({ ...livre, intervaloDias: ruim }).success, ruim).toBe(false)
+    }
+    expect(demandaSchema.parse({ ...livre, intervaloDias: '3' }).intervaloDias).toBe(3)
+  })
+
+  it('a série não termina antes da conclusão desta ocorrência', () => {
+    const recorrente = { ...valida, recorrente: 'on', periodicidade: 'diaria' }
+    const r = demandaSchema.safeParse({ ...recorrente, recorrenteAte: '2026-10-10' })
+    expect(r.error?.issues[0]?.path).toEqual(['recorrenteAte'])
+    expect(
+      demandaSchema.parse({ ...recorrente, recorrenteAte: '2026-12-31' }).recorrenteAte,
+    ).not.toBeNull()
+    expect(demandaSchema.parse(recorrente).recorrenteAte).toBeNull()
+  })
+
   it('início não pode vir depois da conclusão', () => {
     const r = demandaSchema.safeParse({ ...valida, previsaoInicio: '2026-10-20' })
     expect(r.error?.issues[0]?.path).toEqual(['previsaoInicio'])

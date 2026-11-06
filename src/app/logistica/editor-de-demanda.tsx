@@ -11,11 +11,13 @@ import { arquivarDemanda, salvarDemanda } from '@/lib/actions/logistica'
 import { formatarISO } from '@/lib/datas'
 import {
   FASES,
+  despachoAoConcluir,
   ROTULO_COMPLEXIDADE,
   ROTULO_FASE,
   ROTULO_PERIODICIDADE,
   ROTULO_PRIORIDADE,
 } from '@/lib/logistica/demandas'
+import { DEPARTAMENTOS, opcoesDoCampo, SUBSIDIARIAS } from '@/lib/logistica/cadastros'
 import type { DemandaNaTrilha } from '@/lib/logistica/painel'
 import { cn } from '@/lib/utils'
 import type { Sugestoes } from './trilha'
@@ -45,13 +47,39 @@ function Campo({
   )
 }
 
+/** Escolha numa lista pronta; o valor antigo de fora dela continua escolhível. */
+function SelectDaLista({
+  name,
+  lista,
+  atual,
+  vazio,
+}: {
+  name: string
+  lista: readonly string[]
+  atual: string | null | undefined
+  vazio: string
+}) {
+  return (
+    <select name={name} defaultValue={atual ?? ''} required className={CLASSE_DO_SELECT}>
+      <option value="" disabled>
+        {vazio}
+      </option>
+      {opcoesDoCampo(lista, atual).map((o) => (
+        <option key={o.valor} value={o.valor}>
+          {o.foraDaLista ? `${o.valor} (fora da lista)` : o.valor}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 /**
  * Cadastro e edição de demanda da trilha.
  *
  * Os campos são os que a Logística listou (proposta, item 4, e os áudios de
- * 09/10/2026). Subsidiária, departamento, produto e responsável sugerem o que
- * já foi usado, para a mesma subsidiária não aparecer com três grafias no
- * gráfico. Nada é apagado: o que entrou por engano é arquivado.
+ * 09/10/2026). Empresa e departamento saem das listas do formulário do
+ * Financeiro (`cadastros.ts`); produto e responsável sugerem o que já foi usado.
+ * Nada é apagado: o que entrou por engano é arquivado.
  */
 export function EditorDeDemanda({
   demanda,
@@ -66,6 +94,10 @@ export function EditorDeDemanda({
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, iniciar] = useTransition()
   const [recorrente, setRecorrente] = useState(demanda?.recorrente ?? false)
+  const [periodicidade, setPeriodicidade] = useState(demanda?.periodicidade ?? 'semanal')
+  const [fase, setFase] = useState(demanda?.fase ?? 'recebido')
+  // A mesma regra da action, para a tela pedir só o que o servidor vai exigir.
+  const despacho = despachoAoConcluir(demanda?.fase ?? null, fase, demanda?.envios.total ?? 0)
   const prefixo = demanda ? `demanda-${demanda.id}` : 'demanda-nova'
 
   function enviar(dados: FormData) {
@@ -147,23 +179,21 @@ export function EditorDeDemanda({
           </Campo>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo rotulo="Subsidiária">
-              <Input
+            <Campo rotulo="Empresa (subsidiária)">
+              <SelectDaLista
                 name="subsidiaria"
-                list={`${prefixo}-subsidiarias`}
-                defaultValue={demanda?.subsidiaria ?? ''}
-                required
+                lista={SUBSIDIARIAS}
+                atual={demanda?.subsidiaria}
+                vazio="Escolha a empresa"
               />
-              {lista('subsidiarias', sugestoes.subsidiarias)}
             </Campo>
             <Campo rotulo="Departamento">
-              <Input
+              <SelectDaLista
                 name="departamento"
-                list={`${prefixo}-departamentos`}
-                defaultValue={demanda?.departamento ?? ''}
-                required
+                lista={DEPARTAMENTOS}
+                atual={demanda?.departamento}
+                vazio="Escolha o departamento"
               />
-              {lista('departamentos', sugestoes.departamentos)}
             </Campo>
             <Campo rotulo="Produto (opcional)">
               <Input
@@ -188,7 +218,8 @@ export function EditorDeDemanda({
             <Campo rotulo="Fase">
               <select
                 name="fase"
-                defaultValue={demanda?.fase ?? 'recebido'}
+                value={fase}
+                onChange={(e) => setFase(e.target.value as typeof fase)}
                 className={CLASSE_DO_SELECT}
               >
                 {FASES.map((f) => (
@@ -228,6 +259,31 @@ export function EditorDeDemanda({
             </Campo>
           </div>
 
+          {despacho ? (
+            <div className="bg-muted/40 grid gap-4 rounded-lg border p-3 sm:grid-cols-2">
+              <Campo
+                rotulo={
+                  despacho === 'obrigatorio' ? 'Quantos saíram' : 'Saiu mais algum? (opcional)'
+                }
+                dica={
+                  despacho === 'obrigatorio'
+                    ? 'Concluir lança o envio de hoje: a tarefa passa a contar em Despachados.'
+                    : `Já foram lançados ${(demanda?.envios.total ?? 0).toLocaleString('pt-BR')}. Preencha só o que ainda não entrou.`
+                }
+              >
+                <Input
+                  name="despachadoNaConclusao"
+                  inputMode="numeric"
+                  placeholder="Ex.: 500"
+                  required={despacho === 'obrigatorio'}
+                />
+              </Campo>
+              <Campo rotulo="Custo deste envio (opcional)" dica="Custo da Logística, não do item.">
+                <Input name="custoNaConclusao" inputMode="decimal" placeholder="Ex.: 1.250,00" />
+              </Campo>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               rotulo="Previsão de início"
@@ -261,24 +317,48 @@ export function EditorDeDemanda({
               Recorrente
             </label>
             {recorrente ? (
-              <Campo rotulo="Volta a cada" className="min-w-40">
-                <select
-                  name="periodicidade"
-                  defaultValue={demanda?.periodicidade ?? 'semanal'}
-                  className={CLASSE_DO_SELECT}
-                >
-                  {(Object.keys(ROTULO_PERIODICIDADE) as (keyof typeof ROTULO_PERIODICIDADE)[]).map(
-                    (p) => (
+              <>
+                <Campo rotulo="Volta a cada" className="min-w-40">
+                  <select
+                    name="periodicidade"
+                    value={periodicidade}
+                    onChange={(e) => setPeriodicidade(e.target.value as typeof periodicidade)}
+                    className={CLASSE_DO_SELECT}
+                  >
+                    {(
+                      Object.keys(ROTULO_PERIODICIDADE) as (keyof typeof ROTULO_PERIODICIDADE)[]
+                    ).map((p) => (
                       <option key={p} value={p}>
                         {ROTULO_PERIODICIDADE[p]}
                       </option>
-                    ),
-                  )}
-                </select>
-              </Campo>
+                    ))}
+                  </select>
+                </Campo>
+                {periodicidade === 'personalizada' ? (
+                  <Campo rotulo="Quantos dias" className="w-28">
+                    <Input
+                      name="intervaloDias"
+                      type="number"
+                      min={1}
+                      max={365}
+                      inputMode="numeric"
+                      defaultValue={demanda?.intervaloDias ?? ''}
+                      required
+                    />
+                  </Campo>
+                ) : null}
+                <Campo rotulo="Até (opcional)" className="min-w-40">
+                  <Input
+                    type="date"
+                    name="recorrenteAte"
+                    defaultValue={dia(demanda?.recorrenteAte)}
+                  />
+                </Campo>
+              </>
             ) : null}
             <p className="text-muted-foreground basis-full text-xs">
-              Ao concluir uma recorrente, a próxima ocorrência entra sozinha na trilha.
+              Ao concluir uma recorrente, a próxima ocorrência entra sozinha na trilha. Com data
+              final, a série para quando a próxima conclusão passar dela.
             </p>
           </div>
 

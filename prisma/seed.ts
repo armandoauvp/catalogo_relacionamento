@@ -320,7 +320,7 @@ async function main() {
   })
   for (const s of semDemanda) {
     await db.$transaction((tx) =>
-      sincronizarDemandaDoPresente(tx, s.id, s.status, s.historico[0]?.criadoEm),
+      sincronizarDemandaDoPresente(tx, s.id, s.status, { agora: s.historico[0]?.criadoEm }),
     )
   }
 

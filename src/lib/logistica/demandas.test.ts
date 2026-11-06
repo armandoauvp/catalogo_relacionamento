@@ -6,13 +6,15 @@ import {
   compararPorOrdem,
   concluidaEmParaFase,
   contarRecorrentes,
-  custoDosEnvios,
   custoPorDepartamento,
+  despachoAoConcluir,
   estavaAberta,
   estavaAtrasada,
   oQueEstaSendoEnviado,
   problemaDoEnvio,
   proximaOcorrencia,
+  rotuloDaRecorrencia,
+  serieTerminou,
   SEM_DEPARTAMENTO,
   somaDosEnvios,
   ultimoEnvio,
@@ -200,6 +202,60 @@ describe('próxima ocorrência de uma recorrente', () => {
     )
     expect(p.previsaoConclusao).toEqual(dia('2026-09-03'))
   })
+
+  it('diária anda um dia, e pula os que já passaram', () => {
+    const amanha = proximaOcorrencia(
+      { periodicidade: 'diaria', previsaoInicio: null, previsaoConclusao: dia('2026-08-20') },
+      AGORA,
+    )
+    expect(amanha.previsaoConclusao).toEqual(dia('2026-08-21'))
+    const atrasada = proximaOcorrencia(
+      { periodicidade: 'diaria', previsaoInicio: null, previsaoConclusao: dia('2026-08-10') },
+      AGORA,
+    )
+    expect(atrasada.previsaoConclusao > AGORA).toBe(true)
+    expect(atrasada.previsaoConclusao.getTime() - AGORA.getTime()).toBeLessThanOrEqual(86_400_000)
+  })
+
+  it('a cada N dias anda o intervalo escolhido nas duas previsões', () => {
+    const p = proximaOcorrencia(
+      {
+        periodicidade: 'personalizada',
+        intervaloDias: 3,
+        previsaoInicio: dia('2026-08-19'),
+        previsaoConclusao: dia('2026-08-20'),
+      },
+      AGORA,
+    )
+    expect(p.previsaoInicio).toEqual(dia('2026-08-22'))
+    expect(p.previsaoConclusao).toEqual(dia('2026-08-23'))
+  })
+
+  it('a periodicidade livre sem intervalo é erro, e não laço sem fim', () => {
+    expect(() =>
+      proximaOcorrencia(
+        {
+          periodicidade: 'personalizada',
+          previsaoInicio: null,
+          previsaoConclusao: dia('2026-08-20'),
+        },
+        AGORA,
+      ),
+    ).toThrow(/sem intervalo/)
+  })
+
+  it('com data final, a série termina quando a próxima conclusão passa dela', () => {
+    expect(serieTerminou(dia('2026-09-03'), dia('2026-09-02'))).toBe(true)
+    expect(serieTerminou(dia('2026-09-03'), dia('2026-09-03'))).toBe(false)
+    expect(serieTerminou(dia('2026-09-03'), null)).toBe(false)
+  })
+
+  it('o selo diz o intervalo livre por extenso', () => {
+    expect(rotuloDaRecorrencia('personalizada', 3)).toBe('A cada 3 dias')
+    expect(rotuloDaRecorrencia('personalizada', 1)).toBe('A cada 1 dia')
+    expect(rotuloDaRecorrencia('diaria', null)).toBe('Diária')
+    expect(rotuloDaRecorrencia(null, null)).toBeNull()
+  })
 })
 
 describe('recorrentes e previsão de início', () => {
@@ -304,6 +360,18 @@ describe('envios lançados na tarefa', () => {
     )
   })
 
+  it('concluir pede o despacho: obrigatório sem nada lançado, opcional se já houver', () => {
+    expect(despachoAoConcluir('em_execucao', 'concluido', 0)).toBe('obrigatorio')
+    expect(despachoAoConcluir(null, 'concluido', 0)).toBe('obrigatorio')
+    expect(despachoAoConcluir('em_execucao', 'concluido', 800)).toBe('opcional')
+  })
+
+  it('só pede na passagem para concluído, nunca de novo', () => {
+    expect(despachoAoConcluir('concluido', 'concluido', 0)).toBeNull()
+    expect(despachoAoConcluir('recebido', 'em_execucao', 0)).toBeNull()
+    expect(despachoAoConcluir('concluido', 'revisao', 0)).toBeNull()
+  })
+
   it('recusa custo fora da escala, e sem custo nada muda', () => {
     const hoje = dia('2026-08-19')
     const base = { quantidade: 500, enviadoEm: hoje }
@@ -311,20 +379,6 @@ describe('envios lançados na tarefa', () => {
     expect(problemaDoEnvio({ ...base, custo: 0 }, hoje)).toBeNull()
     expect(problemaDoEnvio({ ...base, custo: 1250.5 }, hoje)).toBeNull()
     expect(problemaDoEnvio({ ...base, custo: 2_000_000 }, hoje)).toMatch(/Confira o valor/)
-  })
-
-  it('o custo segue as regras da quantidade: sem anulado, pela data do envio', () => {
-    const comCusto = [
-      { ...envio(500, '2026-08-03'), custo: '100.10' },
-      { ...envio(300, '2026-08-12'), custo: '200.20' },
-      { ...envio(5000, '2026-08-13', true), custo: '9999.99' },
-      { ...envio(200, '2026-08-14'), custo: null },
-    ]
-    expect(custoDosEnvios(comCusto).toFixed(2)).toBe('300.30')
-    expect(
-      custoDosEnvios(comCusto, { inicio: dia('2026-08-10'), fim: dia('2026-08-17') }).toFixed(2),
-    ).toBe('200.20')
-    expect(custoDosEnvios([]).toFixed(2)).toBe('0.00')
   })
 
   it('no gráfico por departamento, cada lançamento pesa a quantidade', () => {

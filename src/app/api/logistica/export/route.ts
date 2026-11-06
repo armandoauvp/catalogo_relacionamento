@@ -39,7 +39,7 @@ export async function GET(req: Request) {
   const recorte = filtroDaTrilhaSchema.parse(Object.fromEntries(params))
   const { demandas } = await trilhaDoPeriodo(periodo, { verObservacoes, verCustos, recorte })
   const linhas = linhasDaTrilha(demandas)
-  const colunas = colunasDaTrilha(verObservacoes, verCustos)
+  const colunas = colunasDaTrilha(verObservacoes)
   const nome = nomeDoArquivoDaTrilha(periodo.rotulo, formato)
 
   if (formato === 'xlsx') {

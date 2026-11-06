@@ -22,22 +22,20 @@ const numero = (n: number) => n.toLocaleString('pt-BR')
  * 29". O total vai na linha da trilha; aqui ficam o lançamento e o histórico,
  * que é o que permite fechar o mês por subsidiária e departamento depois.
  *
- * Quem só lê o painel vê o histórico; lançar e anular é da Logística. O custo só
- * chega aqui para quem pode vê-lo.
+ * Quem só lê o painel vê o histórico; lançar e anular é da Logística. O custo de
+ * cada lançamento só chega aqui para quem pode vê-lo, e não há total em R$: o
+ * painel mostra o custo só em percentual (pedido da área em 05/11).
  */
 export function EnviosDaDemanda({
   demandaId,
   titulo,
   total,
-  custoTotal,
   historico,
   podeLancar,
 }: {
   demandaId: string
   titulo: string
   total: number
-  /** Em texto, sem os anulados. Nulo para quem não pode ver custos. */
-  custoTotal: string | null
   historico: LancamentoDeEnvio[]
   /** Quem gerencia a trilha e a demanda está aberta. */
   podeLancar: boolean
@@ -93,13 +91,6 @@ export function EnviosDaDemanda({
           <span className="text-muted-foreground">
             {total === 1 ? 'item despachado' : 'itens despachados'} até agora
           </span>
-          {custoTotal && Number(custoTotal) > 0 ? (
-            <span className="text-muted-foreground">
-              {' '}
-              · <span className="text-foreground font-medium">{formatarBRL(custoTotal)}</span> de
-              custo
-            </span>
-          ) : null}
         </p>
 
         {podeLancar ? (
@@ -130,13 +121,17 @@ export function EnviosDaDemanda({
             </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
               <div className="space-y-1.5">
-                <Label htmlFor={`envio-custo-${demandaId}`}>Custo deste envio</Label>
+                <Label htmlFor={`envio-custo-${demandaId}`}>Custo da Logística</Label>
                 <Input
                   id={`envio-custo-${demandaId}`}
                   name="custo"
                   inputMode="decimal"
                   placeholder="Opcional. Ex.: 1.250,00"
+                  aria-describedby={`envio-custo-dica-${demandaId}`}
                 />
+                <p id={`envio-custo-dica-${demandaId}`} className="text-muted-foreground text-xs">
+                  Frete e operação deste envio, não o valor do item.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor={`envio-obs-${demandaId}`}>Observação</Label>

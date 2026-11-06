@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
-import { formatarBRL, paraNumero } from '@/lib/money'
+import { paraNumero } from '@/lib/money'
 import { lerPeriodo, queryDoPeriodo } from '@/lib/periodo'
 import { painelLogistico, sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -195,20 +195,7 @@ export default async function LogisticaPage({
         <Stat
           rotulo="Itens despachados"
           valor={painel.despachados.total.toLocaleString('pt-BR')}
-          apoio={
-            <>
-              Lançados nas tarefas, pela data do envio.
-              {custo && !custo.total.isZero() ? (
-                <>
-                  <br />
-                  {formatarBRL(custo.total)} de custo
-                  {custo.semCusto
-                    ? ` · ${plural(custo.semCusto, 'envio sem custo', 'envios sem custo')}`
-                    : ''}
-                </>
-              ) : null}
-            </>
-          }
+          apoio="Lançados nas tarefas ou na conclusão, pela data do envio."
         />
       </div>
 

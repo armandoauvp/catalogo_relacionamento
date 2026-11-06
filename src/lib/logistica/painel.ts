@@ -18,7 +18,6 @@ import {
 } from '@/lib/periodo'
 import {
   compararPorOrdem,
-  custoDosEnvios,
   custoPorDepartamento,
   ehPrioritaria,
   estavaAtrasada,
@@ -80,6 +79,8 @@ export type DemandaNaTrilha = {
   concluidaEm: Date | null
   recorrente: boolean
   periodicidade: Periodicidade | null
+  intervaloDias: number | null
+  recorrenteAte: Date | null
   itens: string[]
   /** O que a Logística lançou de despachado nesta demanda (relatório de 29/10). */
   envios: {
@@ -88,11 +89,6 @@ export type DemandaNaTrilha = {
     ultimo: Date | null
     /** Do mais recente ao mais antigo, anulados inclusive. */
     historico: LancamentoDeEnvio[]
-    /**
-     * Em texto ("1250.50"), porque vai a componente do navegador, e `Decimal` não
-     * atravessa essa fronteira. Nulo quando quem lê não pode ver custos.
-     */
-    custo: { total: string; noPeriodo: string } | null
   }
 }
 
@@ -176,22 +172,19 @@ export async function trilhaDoPeriodo(
       concluidaEm: d.concluidaEm,
       recorrente: d.recorrente,
       periodicidade: d.periodicidade,
+      intervaloDias: d.intervaloDias,
+      recorrenteAte: d.recorrenteAte,
       itens: d.itens,
       envios: {
         total: somaDosEnvios(d.envios),
         noPeriodo: somaDosEnvios(d.envios, periodo),
         ultimo: ultimoEnvio(d.envios),
-        // Como as observações: o que não pode ser lido não chega ao navegador.
-        custo: opcoes.verCustos
-          ? {
-              total: custoDosEnvios(d.envios).toFixed(2),
-              noPeriodo: custoDosEnvios(d.envios, periodo).toFixed(2),
-            }
-          : null,
         historico: d.envios.map((e) => ({
           id: e.id,
           quantidade: e.quantidade,
           enviadoEm: e.enviadoEm,
+          // Como as observações: o que não pode ser lido não chega ao navegador.
+          // Em texto, porque `Decimal` não atravessa para o componente de lá.
           custo: opcoes.verCustos && e.custo ? e.custo.toFixed(2) : null,
           observacao: e.observacao,
           registradoPor: e.registrante.nome,

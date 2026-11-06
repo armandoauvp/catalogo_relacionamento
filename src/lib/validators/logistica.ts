@@ -7,6 +7,7 @@ import {
   SituacaoOperacional,
 } from '@prisma/client'
 import { fimDoDiaLocal } from '@/lib/datas'
+import { TETO_DO_INTERVALO } from '@/lib/logistica/demandas'
 import { semanasNoAno } from '@/lib/periodo'
 import { emailOpcional, urlOpcional, valorOpcional } from './comuns'
 
@@ -109,15 +110,46 @@ export const demandaSchema = z
       vazioViraNulo,
       z.nativeEnum(Periodicidade, { message: 'Periodicidade inválida.' }).nullable(),
     ),
+    intervaloDias: z.preprocess(
+      (v) => (vazioViraNulo(v) === null ? null : Number(v)),
+      z.number({ message: 'Informe de quantos em quantos dias.' }).nullable(),
+    ),
+    recorrenteAte: diaOpcional,
   })
   .refine((d) => !d.recorrente || d.periodicidade !== null, {
     message: 'Diga de quanto em quanto tempo a demanda volta.',
     path: ['periodicidade'],
   })
+  .refine(
+    (d) =>
+      !d.recorrente ||
+      d.periodicidade !== 'personalizada' ||
+      (d.intervaloDias !== null &&
+        Number.isInteger(d.intervaloDias) &&
+        d.intervaloDias >= 1 &&
+        d.intervaloDias <= TETO_DO_INTERVALO),
+    {
+      message: `Informe de quantos em quantos dias, um número inteiro de 1 a ${TETO_DO_INTERVALO}.`,
+      path: ['intervaloDias'],
+    },
+  )
+  .refine((d) => !d.recorrente || !d.recorrenteAte || d.recorrenteAte >= d.previsaoConclusao, {
+    message: 'A série não pode terminar antes da conclusão desta ocorrência.',
+    path: ['recorrenteAte'],
+  })
   .refine((d) => !d.previsaoInicio || d.previsaoInicio <= d.previsaoConclusao, {
     message: 'O início previsto vem depois da conclusão.',
     path: ['previsaoInicio'],
   })
+
+/** O que saiu, informado ao concluir a tarefa. Vazio é "nada a lançar agora". */
+export const despachoDaConclusaoSchema = z.object({
+  quantidade: z.preprocess(
+    (v) => (vazioViraNulo(v) === null ? null : Number(String(v).replace(/[.\s]/g, ''))),
+    z.number({ message: 'Informe quantos itens saíram.' }).nullable(),
+  ),
+  custo: valorOpcional,
+})
 
 /**
  * Envio lançado numa demanda que segue aberta (relatório de 29/10). A

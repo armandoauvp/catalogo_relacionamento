@@ -2,7 +2,6 @@ import type { Route } from 'next'
 import type { LinhaDeVolume } from '@/lib/logistica/demandas'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
 import { Button } from '@/components/ui/button'
-import { formatarBRL } from '@/lib/money'
 import { TituloDoBloco } from './pecas'
 
 const porcento = (n: number) =>
@@ -24,6 +23,8 @@ const TEXTO: Record<
     apoio: (total: number, semCusto: number) => string
     vazio: string
     formatar: (n: number) => string
+    /** O valor absoluto não aparece, só a fatia de cada grupo. */
+    soPercentual?: boolean
   }
 > = {
   pedidos: {
@@ -40,17 +41,19 @@ const TEXTO: Record<
     vazio: 'Nenhum envio lançado nas tarefas no período.',
     formatar: numero,
   },
+  // Só a fatia, a pedido da área em 05/11: o valor em R$ fica com quem lança.
   custo: {
     titulo: 'Custo dos Envios por Departamento',
-    // Sem o aviso, um total parcial se leria como o custo inteiro do período.
-    apoio: (t, semCusto) =>
-      `${formatarBRL(t)} no período, por subsidiária e departamento.${
+    // Sem o aviso, uma fatia calculada sobre parte dos envios se leria como a do período inteiro.
+    apoio: (_t, semCusto) =>
+      `A fatia de cada subsidiária e departamento no custo da Logística (frete e operação, não o item) no período.${
         semCusto
-          ? ` ${semCusto} ${semCusto === 1 ? 'envio sem custo informado ficou' : 'envios sem custo informado ficaram'} fora da soma.`
+          ? ` ${semCusto} ${semCusto === 1 ? 'envio sem custo informado ficou' : 'envios sem custo informado ficaram'} fora da conta.`
           : ''
       }`,
     vazio: 'Nenhum envio com custo informado no período.',
-    formatar: formatarBRL,
+    formatar: porcento,
+    soPercentual: true,
   },
 }
 
@@ -128,7 +131,11 @@ export function VolumePorDepartamento({
             <div key={subsidiaria}>
               <p className="text-muted-foreground font-ui mb-2 flex justify-between gap-3 text-xs font-semibold tracking-[0.08em] uppercase">
                 <span>{subsidiaria}</span>
-                <span className="tabular-nums">{texto.formatar(grupo.total)}</span>
+                <span className="tabular-nums">
+                  {texto.soPercentual
+                    ? porcento(total ? (grupo.total / total) * 100 : 0)
+                    : texto.formatar(grupo.total)}
+                </span>
               </p>
               <ul className="space-y-2.5">
                 {grupo.linhas.map((l) => (
@@ -148,10 +155,16 @@ export function VolumePorDepartamento({
                       />
                     </span>
                     <span className="text-right tabular-nums">
-                      <span className="font-semibold">{texto.formatar(l.quantidade)}</span>
-                      <span className="text-muted-foreground ml-2 inline-block w-14">
-                        {porcento(l.percentual)}
-                      </span>
+                      {texto.soPercentual ? (
+                        <span className="font-semibold">{porcento(l.percentual)}</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold">{texto.formatar(l.quantidade)}</span>
+                          <span className="text-muted-foreground ml-2 inline-block w-14">
+                            {porcento(l.percentual)}
+                          </span>
+                        </>
+                      )}
                     </span>
                   </li>
                 ))}

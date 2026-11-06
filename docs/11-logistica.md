@@ -61,12 +61,14 @@ parte em `painel.ts`:
   anotado.
 - **Custo do envio** entrou em 05/11/2026, para fechar o relatório de 29/10: é
   um campo opcional em cada lançamento, e não na demanda, para o custo acompanhar
-  o que saiu em cada semana. O total do período aparece em "Itens despachados",
-  e a vista "Custo" do cartão por departamento (`?volume=custo`) o abre por
-  subsidiária e departamento, pela data do envio. Anulado sai da soma. **Nulo não
-  é zero:** envio sem custo fica fora da soma, e a tela diz quantos ficaram
-  (`custoPorDepartamento`). O Consultor não vê: o filtro é no servidor, na tela
-  e na exportação (`logistica.verCustos`).
+  o que saiu em cada semana. **Desde 06/11/2026 o painel mostra só a fatia (%)**:
+  a vista "Custo" do cartão por departamento (`?volume=custo`) diz quanto cada
+  subsidiária e departamento pesa no custo do período, sem valor em R$, e a
+  exportação não leva custo. O valor fica com quem lança, no histórico de cada
+  envio. É o custo **da Logística** (frete e operação), não o do item. Anulado
+  sai da conta. **Nulo não é zero:** envio sem custo fica fora, e a tela diz
+  quantos ficaram (`custoPorDepartamento`). O Consultor não vê: o filtro é no
+  servidor (`logistica.verCustos`).
 - **O gráfico de volume é de barras**, e não a rosca do protótipo. Comparar
   fatias de rosca é adivinhação; comprimento de barra se lê. Cada barra traz
   quantidade e percentual, então a tabela que ficava embaixo da rosca deixou
@@ -89,8 +91,15 @@ parte em `painel.ts`:
   aparecem sempre, junto da previsão ou da conclusão. Até 29/10/2026 o início
   sumia quando a demanda começava, e a área pediu de volta no relatório de
   29/10.
-- **Subsidiária e departamento** aparecem juntos na linha
-  ("AUVP Consultoria › Relacionamento"), e os dois recortam a trilha ao clique.
+- **A linha mostra o essencial** (06/11/2026): prioridade, título, o que vai, o
+  despachado, a fase e as datas. Empresa › departamento, produto, responsável,
+  complexidade e os selos de presente e recorrência ficam em "Detalhes", que
+  abre sozinho quando um desses filtros está ligado. Todos recortam a trilha ao
+  clique.
+- **Empresa e departamento saem de lista** (06/11/2026), a do formulário do
+  Financeiro, em `src/lib/logistica/cadastros.ts`. A demanda antiga mantém o
+  valor que tem, marcado "fora da lista", mas não troca para outro de fora
+  (`problemaDaClassificacao`, conferido no servidor).
 - **Envios lançados na tarefa** (relatório de 29/10): a tarefa que dura
   semanas recebe o que saiu em cada uma ("500 cartas, dia 29"), em vez de
   virar uma demanda nova. Cada lançamento tem quantidade, dia do envio, quem
@@ -105,10 +114,19 @@ parte em `painel.ts`:
   departamento. A exportação leva o despachado no período e no total de cada
   demanda.
 - **Concluir** grava a data de conclusão; voltar de "Concluído" apaga.
-- **Recorrente** tem periodicidade (semanal, quinzenal, mensal). Ao concluir,
-  a próxima ocorrência nasce sozinha, com as previsões um período adiante, ou
-  mais de um, se a anterior foi concluída tão tarde que a próxima já venceu.
-  O banco garante uma próxima só, mesmo que a conclusão seja salva de novo.
+- **Concluir lança o despachado** (06/11/2026): a tarefa que vai a "Concluído"
+  pede "Quantos saíram" e registra o envio do dia, para passar de pedida a
+  despachada sem ninguém abrir o botão Envios. Sem nada lançado antes, a
+  quantidade é obrigatória; com lançamentos, é opcional, para não contar duas
+  vezes (`despachoAoConcluir`). O presente que chega a "Entregue" lança sozinho
+  a quantidade de peças do pedido, uma vez só (`despachoDoPresente`).
+- **Recorrente** tem periodicidade: diária, semanal, quinzenal, mensal ou "a
+  cada N dias" (1 a 365). Ao concluir, a próxima ocorrência nasce sozinha, com
+  as previsões um período adiante, ou mais de um, se a anterior foi concluída
+  tão tarde que a próxima já venceu. Com **data final** ("Até"), a série para
+  quando a conclusão da próxima passaria dela (`serieTerminou`). O banco garante
+  uma próxima só, mesmo que a conclusão seja salva de novo, e o intervalo só na
+  periodicidade livre.
 - **Arquivar** tira a demanda do painel inteiro sem apagar. É o caminho para o
   que foi cadastrado por engano e para o presente cancelado.
 - **O status da semana** vale para a semana selecionada, ou para a semana
