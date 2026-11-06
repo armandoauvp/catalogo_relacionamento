@@ -21,7 +21,7 @@ import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
-import { PassoDaFila } from './passo-da-fila'
+import { CancelarNaFila, PassoDaFila } from './passo-da-fila'
 
 /**
  * Fila de compras: tela do perfil Financeiro.
@@ -38,6 +38,8 @@ export default async function FilaDeComprasPage({
 }) {
   const usuario = await exigirPermissao('compras.verFila')
   const operaCompra = pode(usuario.perfil, 'compras.operar')
+  // Cancelar é mudança de status como qualquer outra: quem pode mudar, cancela.
+  const cancela = pode(usuario.perfil, 'solicitacao.alterarStatus')
   const params = await searchParams
   const caminho = '/financeiro/compras'
   const status = STATUS_DA_FILA_DE_COMPRAS.find((s) => s === params.status)
@@ -151,12 +153,21 @@ export default async function FilaDeComprasPage({
                       </FiltroDoGrupo>
                     </TableCell>
                     <TableCell className="text-right">
-                      <PassoDaFila
-                        solicitacaoId={item.solicitacaoId}
-                        codigo={item.codigo}
-                        itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
-                        passo={operaCompra ? proximoPasso(item.status, []) : null}
-                      />
+                      <div className="flex flex-col items-end gap-1">
+                        <PassoDaFila
+                          solicitacaoId={item.solicitacaoId}
+                          codigo={item.codigo}
+                          itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
+                          passo={operaCompra ? proximoPasso(item.status, []) : null}
+                        />
+                        {cancela ? (
+                          <CancelarNaFila
+                            solicitacaoId={item.solicitacaoId}
+                            codigo={item.codigo}
+                            itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
+                          />
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -168,8 +179,9 @@ export default async function FilaDeComprasPage({
 
       <p className="text-muted-foreground mt-4 text-xs">
         A fila mostra as solicitações em{' '}
-        {STATUS_DA_FILA_DE_COMPRAS.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. Para
-        cancelar ou registrar um problema, abra a solicitação pelo código.
+        {STATUS_DA_FILA_DE_COMPRAS.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. Cancelar
+        não apaga: o pedido fica no histórico com o motivo. Para registrar um problema, abra a
+        solicitação pelo código.
       </p>
     </>
   )
