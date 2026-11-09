@@ -14,7 +14,7 @@ import { Perfil } from '@prisma/client'
  * `expedicao.verFila` e `expedicao.registrarRastreio` não pertencem a um perfil
  * novo: a expedição trabalha fora desta ferramenta, e quem exporta o pedido
  * para ela: e depois anota o rastreio que ela devolve, é quem já enxerga
- * tudo: Admin e Financeiro. O consultor lê o rastreio, não o escreve.
+ * tudo: Admin e Financeiro. O consultor lê o rastreio, não o escreve, e confirma o recebimento das próprias.
  *
  * O acesso a dados sensíveis do cliente segue liberado para o Financeiro por
  * coerência com a permissão de exportar, já que a exportação da spec carrega
@@ -48,6 +48,7 @@ export const ACOES = [
   'solicitacao.verTodas',
   'solicitacao.editar',
   'solicitacao.alterarStatus',
+  'solicitacao.confirmarRecebimento',
   'solicitacao.aprovar',
   'cliente.verDadosSensiveis',
   'cliente.gerenciar',
@@ -106,6 +107,8 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': false,
     'solicitacao.editar': false,
     'solicitacao.alterarStatus': false,
+    // Quem pediu é quem fala com o cliente: confirma o recebimento das próprias.
+    'solicitacao.confirmarRecebimento': true,
     'solicitacao.aprovar': false,
     'cliente.verDadosSensiveis': true, // limitado pelo escopo `proprias`
     'cliente.gerenciar': false,
@@ -133,6 +136,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': true,
     'solicitacao.editar': true,
     'solicitacao.alterarStatus': true,
+    'solicitacao.confirmarRecebimento': true,
     // O OK que libera a compra ou o envio é do Admin: é para ele a fila de aprovação.
     'solicitacao.aprovar': true,
     'cliente.verDadosSensiveis': true,
@@ -162,6 +166,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': true,
     'solicitacao.editar': true,
     'solicitacao.alterarStatus': true,
+    'solicitacao.confirmarRecebimento': true,
     'solicitacao.aprovar': true,
     'cliente.verDadosSensiveis': true,
     'cliente.gerenciar': true,
@@ -190,6 +195,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': true,
     'solicitacao.editar': false,
     'solicitacao.alterarStatus': false,
+    'solicitacao.confirmarRecebimento': false,
     'solicitacao.aprovar': false,
     'cliente.verDadosSensiveis': true,
     'cliente.gerenciar': false,
@@ -219,6 +225,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.editar': false,
     // Definido pela área: o Financeiro altera o status do pedido.
     'solicitacao.alterarStatus': true,
+    'solicitacao.confirmarRecebimento': true,
     'solicitacao.aprovar': false,
     'cliente.verDadosSensiveis': PENDENTE_CONFIRMACAO.financeiroVeDadosSensiveis,
     'cliente.gerenciar': false,
@@ -247,6 +254,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'solicitacao.verTodas': false,
     'solicitacao.editar': false,
     'solicitacao.alterarStatus': false,
+    'solicitacao.confirmarRecebimento': false,
     'solicitacao.aprovar': false,
     // O endereço de envio está na fila da expedição, e sem ele não há envio.
     'cliente.verDadosSensiveis': true,

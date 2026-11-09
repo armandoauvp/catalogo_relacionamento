@@ -84,7 +84,11 @@ histórico. Exigido em três camadas: no seletor da tela, em
 
 ## Quem muda
 
-Admin e Financeiro. O consultor acompanha.
+Admin e Financeiro. O consultor acompanha, e dá um passo só: com a
+solicitação dele em "Entregue", o botão "Meu cliente recebeu" a leva a
+"Cliente confirmou recebimento" (`confirmarRecebimento`, permissão
+`solicitacao.confirmarRecebimento`). É ele quem fala com o cliente. A Logística
+marca "Entregue" pela expedição, mas não confirma pelo cliente.
 
 ## Status é da solicitação, não do item
 

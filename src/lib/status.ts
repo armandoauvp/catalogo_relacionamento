@@ -163,6 +163,14 @@ export function podeMarcarEntregue(status: StatusSolicitacao, rastreio: string |
   return status === StatusSolicitacao.organizando_envio && Boolean(rastreio)
 }
 
+/**
+ * Quando quem acompanha pode dar o recebimento como confirmado. Só depois de
+ * entregue: antes disso não há o que o cliente confirmar.
+ */
+export function podeConfirmarRecebimento(status: StatusSolicitacao): boolean {
+  return status === StatusSolicitacao.entregue
+}
+
 export type ResultadoValidacao = { ok: true } | { ok: false; erro: string }
 
 /**

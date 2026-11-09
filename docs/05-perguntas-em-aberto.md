@@ -395,8 +395,11 @@ o Consultor é uma linha em `src/lib/permissions.ts` (`logistica.verCustos`).
 **Definido:** quem opera a expedição marca "Entregue", a Logística inclusive, pela
 própria fila e só com rastreio (`marcarEntregue`).
 
-**Ainda em aberto:** quem marca "Cliente confirmou". Hoje é quem pode alterar status:
-Admin geral, Admin de Relacionamento e Financeiro.
+**Definido em 09/11/2026:** o consultor marca "Cliente confirmou" nas próprias
+solicitações entregues, pelo botão "Meu cliente recebeu" na lista e no detalhe
+(`confirmarRecebimento`). Quem já alterava status, Admin geral, Admin de
+Relacionamento e Financeiro, continua podendo. A Logística não: ela sabe que
+entregou, não que o cliente recebeu.
 
 ### Onde ficam as fotos de produto?
 

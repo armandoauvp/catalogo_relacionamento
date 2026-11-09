@@ -22,7 +22,8 @@ import { Stat } from '@/components/stat'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
-import { ROTULO_STATUS } from '@/lib/status'
+import { ROTULO_STATUS, podeConfirmarRecebimento } from '@/lib/status'
+import { ConfirmarRecebimento } from '@/components/confirmar-recebimento'
 
 /**
  * Lista das solicitações do consultor, com o saldo do mês em destaque.
@@ -94,6 +95,7 @@ export default async function SolicitacoesPage({
   }).format(new Date())
 
   const podeCriar = pode(usuario.perfil, 'solicitacao.criar')
+  const podeConfirmar = pode(usuario.perfil, 'solicitacao.confirmarRecebimento')
 
   return (
     <>
@@ -199,12 +201,17 @@ export default async function SolicitacoesPage({
                     {formatarBRL(s.valorTotal)}
                   </TableCell>
                   <TableCell>
-                    <FiltroDoGrupo
-                      {...grupo('status', s.status)}
-                      rotulo={`status ${ROTULO_STATUS[s.status]}`}
-                    >
-                      <StatusBadge status={s.status} />
-                    </FiltroDoGrupo>
+                    <div className="flex flex-col items-start gap-2">
+                      <FiltroDoGrupo
+                        {...grupo('status', s.status)}
+                        rotulo={`status ${ROTULO_STATUS[s.status]}`}
+                      >
+                        <StatusBadge status={s.status} />
+                      </FiltroDoGrupo>
+                      {podeConfirmar && podeConfirmarRecebimento(s.status) ? (
+                        <ConfirmarRecebimento solicitacaoId={s.id} compacto />
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {s.rastreio ? (

@@ -15,6 +15,7 @@ import {
   ROTULO_STATUS,
   caminhoDeEncaminhamento,
   ehPassoDeCompra,
+  podeConfirmarRecebimento,
   podeMarcarEntregue,
   validarMudancaDeStatus,
   type Encaminhamento,
@@ -343,6 +344,38 @@ export async function marcarEntregue(solicitacaoId: string): Promise<ResultadoDa
     }
 
     await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.entregue)
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Encerra a solicitação entregue com o "cliente confirmou o recebimento".
+ *
+ * Separada de `alterarStatus` porque o consultor faz isto e nada mais: é ele
+ * quem fala com o cliente. A busca passa pelo escopo, então a solicitação de
+ * outra pessoa nem é encontrada.
+ */
+export async function confirmarRecebimento(solicitacaoId: string): Promise<ResultadoDaAction> {
+  try {
+    const usuario = await autorizarAction('solicitacao.confirmarRecebimento')
+
+    const escopo = filtroDeSolicitacoes(usuario.perfil, usuario.id)
+    if (!escopo) return { ok: false, erro: 'Solicitação não encontrada.' }
+
+    const solicitacao = await db.solicitacao.findFirst({
+      where: { id: solicitacaoId, ...escopo },
+      select: { id: true, status: true },
+    })
+    if (!solicitacao) return { ok: false, erro: 'Solicitação não encontrada.' }
+
+    if (!podeConfirmarRecebimento(solicitacao.status)) {
+      return { ok: false, erro: 'Só dá para confirmar o recebimento depois de entregue.' }
+    }
+
+    await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.cliente_confirmou)
+    revalidatePath(`/solicitacoes/${solicitacao.id}`)
     return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)

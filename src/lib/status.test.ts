@@ -8,6 +8,7 @@ import {
   ehPassoDeCompra,
   ehTerminal,
   oQueAconteceAgora,
+  podeConfirmarRecebimento,
   podeMarcarEntregue,
   precisaDeCompra,
   proximoDepoisDaAprovacao,
@@ -412,5 +413,19 @@ describe('passo de compra', () => {
 
   it('voltar de um problema para a expedição não é passo de compra', () => {
     expect(ehPassoDeCompra('deu_problema', 'organizando_envio')).toBe(false)
+  })
+})
+
+describe('confirmar o recebimento', () => {
+  it('vale só para o pedido entregue', () => {
+    expect(podeConfirmarRecebimento('entregue')).toBe(true)
+    expect(transicaoPermitida('entregue', 'cliente_confirmou')).toBe(true)
+  })
+
+  it('nenhum outro status serve', () => {
+    const outros = Object.values(StatusSolicitacao).filter((s) => s !== 'entregue')
+    for (const status of outros) {
+      expect(podeConfirmarRecebimento(status), status).toBe(false)
+    }
   })
 })

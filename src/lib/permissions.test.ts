@@ -335,3 +335,22 @@ describe('modelos de carta', () => {
     expect(pode(Perfil.logistica, 'carta.gerenciarModelos')).toBe(false)
   })
 })
+
+describe('confirmar o recebimento', () => {
+  it('o consultor confirma, sem passar a alterar status', () => {
+    expect(pode(Perfil.consultor, 'solicitacao.confirmarRecebimento')).toBe(true)
+    expect(pode(Perfil.consultor, 'solicitacao.alterarStatus')).toBe(false)
+  })
+
+  it('quem já alterava status continua podendo', () => {
+    for (const perfil of [Perfil.admin, Perfil.admin_relacionamento, Perfil.financeiro]) {
+      expect(pode(perfil, 'solicitacao.confirmarRecebimento'), perfil).toBe(true)
+    }
+  })
+
+  it('a Logística marca entregue, mas não fala pelo cliente', () => {
+    for (const perfil of [Perfil.logistica, Perfil.admin_logistica]) {
+      expect(pode(perfil, 'solicitacao.confirmarRecebimento'), perfil).toBe(false)
+    }
+  })
+})

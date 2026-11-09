@@ -4,7 +4,8 @@ import { db } from '@/lib/db'
 import { exigirUsuario } from '@/lib/auth-guards'
 import { filtroDeSolicitacoes, pode } from '@/lib/permissions'
 import { formatarData } from '@/lib/datas'
-import { oQueAconteceAgora } from '@/lib/status'
+import { oQueAconteceAgora, podeConfirmarRecebimento } from '@/lib/status'
+import { ConfirmarRecebimento } from '@/components/confirmar-recebimento'
 import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { DetalheDaSolicitacao } from '@/components/detalhe-da-solicitacao'
@@ -46,6 +47,10 @@ export default async function MinhaSolicitacaoPage({
 
   if (!solicitacao) notFound()
 
+  const podeConfirmar =
+    pode(usuario.perfil, 'solicitacao.confirmarRecebimento') &&
+    podeConfirmarRecebimento(solicitacao.status)
+
   return (
     <>
       <Link
@@ -63,12 +68,13 @@ export default async function MinhaSolicitacaoPage({
 
       {/* "Pendente" sozinho não diz nada a quem pediu: esta frase é a resposta
           ao "e agora, o que falta?". */}
-      <p
-        className="bg-muted/40 mb-6 rounded-lg border px-4 py-3 text-sm"
+      <div
+        className="bg-muted/40 mb-6 space-y-3 rounded-lg border px-4 py-3 text-sm"
         data-tour="o-que-acontece"
       >
-        {oQueAconteceAgora(solicitacao.status)}
-      </p>
+        <p>{oQueAconteceAgora(solicitacao.status)}</p>
+        {podeConfirmar ? <ConfirmarRecebimento solicitacaoId={solicitacao.id} /> : null}
+      </div>
 
       <DetalheDaSolicitacao
         solicitacao={solicitacao}

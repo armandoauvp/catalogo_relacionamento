@@ -1160,6 +1160,12 @@ function linhasDeSolicitacao(lista, comConsultor, comSelecao) {
       <td class="px-4 py-3.5">
         ${selo(s.status)}
         ${s.rastreio ? `<span class="mt-0.5 block text-xs tabular-nums text-muted-foreground">${esc(s.rastreio)}</span>` : ''}
+        ${
+          // Só na lista de quem pediu: é o consultor que fala com o cliente.
+          !comConsultor && s.status === 'entregue'
+            ? `<button data-confirmar="${esc(s.codigo)}" class="mt-2 inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-xs hover:bg-accent hover:text-accent-foreground">Meu cliente recebeu</button>`
+            : ''
+        }
       </td>
     </tr>`,
     )
@@ -2143,6 +2149,15 @@ document.addEventListener('click', (e) => {
     tela = aba.dataset.tela
     // Fecha o submenu antes de redesenhar, senão ele reabre já aberto.
     document.querySelectorAll('details[open]').forEach((d) => d.removeAttribute('open'))
+    render()
+    return
+  }
+
+  const confirmar = e.target.closest('[data-confirmar]')
+  if (confirmar) {
+    if (!window.confirm('O cliente confirmou? Isso encerra a solicitação.')) return
+    const s = SOLICITACOES.find((x) => x.codigo === confirmar.dataset.confirmar)
+    if (s) s.status = 'cliente_confirmou'
     render()
     return
   }

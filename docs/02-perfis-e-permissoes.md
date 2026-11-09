@@ -16,6 +16,7 @@ botão e bloquear a ação nunca divirjam.
 | Fila da expedição: rastreio e entregue    |        -        |   ✓   |     ✓      |     ✓     |
 | Ver dados sensíveis do cliente            | só das próprias |   ✓   |    ✓ ¹     |     ✓     |
 | Alterar status                            |        -        |   ✓   |     ✓      |     -     |
+| Confirmar que o cliente recebeu           | só das próprias |   ✓   |     ✓      |     -     |
 | Editar/corrigir solicitação               |        -        |   ✓   |     -      |     -     |
 | Gerenciar catálogo, categorias e usuários |        -        |   ✓   |     -      |     -     |
 | Exportar solicitações                     |        -        |   ✓   |     ✓      |     -     |
