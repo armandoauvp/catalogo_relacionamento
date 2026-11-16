@@ -30,7 +30,13 @@ export default async function DetalheSolicitacaoPage({
       itens: {
         include: {
           produto: {
-            select: { nome: true, origem: true, controlaEstoque: true, estoque: true },
+            select: {
+              nome: true,
+              urlCompra: true,
+              origem: true,
+              controlaEstoque: true,
+              estoque: true,
+            },
           },
         },
       },

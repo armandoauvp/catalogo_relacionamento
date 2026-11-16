@@ -37,7 +37,7 @@ export default async function MinhaSolicitacaoPage({
     include: {
       cliente: true,
       consultor: { select: { nome: true } },
-      itens: { include: { produto: { select: { nome: true } } } },
+      itens: { include: { produto: { select: { nome: true, urlCompra: true } } } },
       historico: {
         include: { usuario: { select: { nome: true } } },
         orderBy: { criadoEm: 'desc' },

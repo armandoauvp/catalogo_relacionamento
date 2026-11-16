@@ -106,9 +106,7 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
       consultorNome: s.consultor.nome,
       clienteNome: s.cliente.nome,
       produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
-      // O link do presente específico foi escolhido pelo consultor para aquele
-      // item; o do produto de catálogo é onde a área sempre compra aquilo.
-      site: item.urlExterna ?? item.produto?.urlCompra ?? null,
+      site: siteDeCompra(item),
       notaDeCompra: item.produto?.notaDeCompra ?? null,
       categoria: item.produto?.categoria.nome ?? null,
       deCatalogo: item.produtoId !== null,
@@ -118,6 +116,19 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
       status: s.status,
     })),
   )
+}
+
+/**
+ * Onde comprar um item. O link do presente específico foi escolhido pelo
+ * consultor para aquele item; o do produto de catálogo é onde a área sempre
+ * compra aquilo. Vale para a fila e para o detalhe, que o Financeiro abre a
+ * partir dela: sem isso, o produto de catálogo chegava lá sem link.
+ */
+export function siteDeCompra(item: {
+  urlExterna: string | null
+  produto?: { urlCompra: string | null } | null
+}): string | null {
+  return item.urlExterna ?? item.produto?.urlCompra ?? null
 }
 
 /** Total da fila, para o cabeçalho da tela do Financeiro. */

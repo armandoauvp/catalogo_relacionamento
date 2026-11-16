@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Prisma } from '@prisma/client'
 import { formatarBRL, subtotal } from '@/lib/money'
+import { siteDeCompra } from '@/lib/compras'
 import { formatarCpf, formatarTelefone } from '@/lib/cpf'
 import { formatarCep } from '@/lib/cep'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
@@ -29,7 +30,7 @@ export type SolicitacaoDetalhada = Prisma.SolicitacaoGetPayload<{
   include: {
     cliente: true
     consultor: { select: { nome: true } }
-    itens: { include: { produto: { select: { nome: true } } } }
+    itens: { include: { produto: { select: { nome: true; urlCompra: true } } } }
     historico: { include: { usuario: { select: { nome: true } } } }
   }
 }>
@@ -61,30 +62,35 @@ export function DetalheDaSolicitacao({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {solicitacao.itens.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <span className="font-medium">{item.produto?.nome ?? item.descricaoLivre}</span>
-                    {item.urlExterna ? (
-                      <a
-                        href={item.urlExterna}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary-emphasis mt-0.5 block truncate text-xs underline-offset-4 hover:underline"
-                      >
-                        {item.urlExterna.replace(/^https?:\/\//, '')}
-                      </a>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{item.quantidade}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarBRL(item.valorUnitario)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
-                    {formatarBRL(subtotal(item.valorUnitario, item.quantidade))}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {solicitacao.itens.map((item) => {
+                const site = siteDeCompra(item)
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <span className="font-medium">
+                        {item.produto?.nome ?? item.descricaoLivre}
+                      </span>
+                      {site ? (
+                        <a
+                          href={site}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-primary-emphasis mt-0.5 block truncate text-xs underline-offset-4 hover:underline"
+                        >
+                          {site.replace(/^https?:\/\//, '')}
+                        </a>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{item.quantidade}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {formatarBRL(item.valorUnitario)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                      {formatarBRL(subtotal(item.valorUnitario, item.quantidade))}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableCell colSpan={3} className="text-right font-medium">
                   Total
