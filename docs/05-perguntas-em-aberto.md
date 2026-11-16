@@ -110,9 +110,13 @@ comparando `valor_total` com o teto do aprovador.
 O campo `limite_mensal` existe e é opcional. Quando preenchido, a tela mostra o
 consumo contra o limite.
 
-**Assumido:** estourar o limite apenas sinaliza, não bloqueia, é o que a spec
-determina para o V1.
-**Se for bloquear:** a checagem entra na criação da solicitação, usando
+**Definido em 16/11/2026:** estourar o limite só sinaliza, não bloqueia. A área
+é flexível e compensa o excesso no mês seguinte, e quer continuar assim. Por
+isso Usuários mostra, a quem define o limite, o gasto de cada consultor no mês
+contra o limite e o gasto do mês anterior, com o número de quem passou. A
+ferramenta não carrega sobra nem excesso de um mês para o outro: a compensação
+é decisão de quem gerencia.
+**Se um dia for bloquear:** a checagem entra na criação da solicitação, usando
 `saldoDoMes`.
 
 ### A plaquinha do primeiro milhão é produto de catálogo?

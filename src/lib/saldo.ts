@@ -65,7 +65,18 @@ export async function saldoDoMes(
   }
 }
 
-/** Saldo de todos os consultores no mês, visão de Admin e Financeiro. */
+/** A data de referência do mês anterior ao de `referencia`, no fuso local. */
+export function mesAnterior(referencia: Date = new Date()): Date {
+  // Um instante antes do início do mês cai, por definição, no mês anterior.
+  return new Date(intervaloDoMes(referencia).inicio.getTime() - 1)
+}
+
+/**
+ * Saldo de todos os consultores no mês, visão de Admin e Financeiro.
+ *
+ * Passar do limite só sinaliza: quem gerencia é flexível e compensa no mês
+ * seguinte, por isso a tela mostra também o mês anterior.
+ */
 export async function saldoDoMesPorConsultor(referencia: Date = new Date()) {
   const { inicio, fim } = intervaloDoMes(referencia)
 
@@ -122,6 +133,8 @@ export async function saldoDoMesDoTime(referencia: Date = new Date()) {
     where: {
       dataSolicitacao: { gte: inicio, lt: fim },
       status: { notIn: [...STATUS_FORA_DO_SALDO] },
+      // Igual à conta de cada consultor: teste não gasta, senão a soma não fecha.
+      teste: false,
     },
   })
 

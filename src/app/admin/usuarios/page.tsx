@@ -4,7 +4,8 @@ import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grup
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { perfisAoAlcance, pode, ROTULO_PERFIL } from '@/lib/permissions'
-import { formatarBRL } from '@/lib/money'
+import { formatarBRL, type Dinheiro } from '@/lib/money'
+import { mesAnterior, saldoDoMesPorConsultor } from '@/lib/saldo'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -67,11 +68,25 @@ export default async function AdminUsuariosPage({
     ativo: valorDoFiltro(params, chave) === valor,
   })
 
-  const usuarios = await db.usuario.findMany({
-    where: { perfil: { in: [...alcance] } },
-    include: { _count: { select: { solicitacoes: true } } },
-    orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
-  })
+  // O gasto do mês contra o limite é de quem cuida do limite e vê o saldo de todos.
+  const verGasto = defineLimite && pode(logado.perfil, 'saldo.verTodos')
+  const agora = new Date()
+  const anterior = mesAnterior(agora)
+
+  const [usuarios, saldoAtual, saldoAnterior] = await Promise.all([
+    db.usuario.findMany({
+      where: { perfil: { in: [...alcance] } },
+      include: { _count: { select: { solicitacoes: true } } },
+      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+    }),
+    verGasto ? saldoDoMesPorConsultor(agora) : [],
+    verGasto ? saldoDoMesPorConsultor(anterior) : [],
+  ])
+  const gastoAtual = new Map(saldoAtual.map((s) => [s.usuarioId, s]))
+  const gastoAnterior = new Map(saldoAnterior.map((s) => [s.usuarioId, s.gasto]))
+  const acimaDoLimite = saldoAtual.filter((s) => s.estourou).length
+  const nomeDoMes = (d: Date) =>
+    new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' }).format(d)
   const listados = usuarios.filter(
     (u) => (!perfil || u.perfil === perfil) && (!situacao || u.ativo === (situacao === 'ativo')),
   )
@@ -98,7 +113,13 @@ export default async function AdminUsuariosPage({
           rotulo="Consultores"
           valor={usuarios.filter((u) => u.perfil === 'consultor').length}
         />
-        {defineLimite ? (
+        {verGasto ? (
+          <Stat
+            rotulo={`Acima do limite em ${nomeDoMes(agora)}`}
+            valor={acimaDoLimite}
+            apoio="Só sinaliza: o pedido não é bloqueado, e o excesso pode ser compensado no mês seguinte."
+          />
+        ) : defineLimite ? (
           <Stat
             rotulo="Com limite definido"
             valor={usuarios.filter((u) => u.limiteMensal).length}
@@ -122,7 +143,15 @@ export default async function AdminUsuariosPage({
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Perfil</TableHead>
-              {defineLimite ? <TableHead className="text-right">Limite mensal</TableHead> : null}
+              {defineLimite && !verGasto ? (
+                <TableHead className="text-right">Limite mensal</TableHead>
+              ) : null}
+              {verGasto ? (
+                <>
+                  <TableHead className="min-w-44">Gasto em {nomeDoMes(agora)}</TableHead>
+                  <TableHead className="text-right">Em {nomeDoMes(anterior)}</TableHead>
+                </>
+              ) : null}
               <TableHead className="text-right">Solicitações</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -132,7 +161,7 @@ export default async function AdminUsuariosPage({
             {listados.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={defineLimite ? 7 : 6}
+                  colSpan={6 + (verGasto ? 2 : defineLimite ? 1 : 0)}
                   className="text-muted-foreground py-10 text-center"
                 >
                   {usuarios.length ? 'Ninguém neste filtro.' : 'Nenhum usuário ainda.'}
@@ -151,10 +180,22 @@ export default async function AdminUsuariosPage({
                       <Badge variant="secondary">{ROTULO_PERFIL[u.perfil]}</Badge>
                     </FiltroDoGrupo>
                   </TableCell>
-                  {defineLimite ? (
+                  {defineLimite && !verGasto ? (
                     <TableCell className="text-right whitespace-nowrap tabular-nums">
                       {u.limiteMensal ? formatarBRL(u.limiteMensal) : '-'}
                     </TableCell>
+                  ) : null}
+                  {verGasto ? (
+                    <>
+                      <TableCell>
+                        <GastoDoMes saldo={gastoAtual.get(u.id)} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-right whitespace-nowrap tabular-nums">
+                        {gastoAnterior.get(u.id)?.isZero() === false
+                          ? formatarBRL(gastoAnterior.get(u.id)!)
+                          : '-'}
+                      </TableCell>
+                    </>
                   ) : null}
                   <TableCell className="text-right tabular-nums">{u._count.solicitacoes}</TableCell>
                   <TableCell>
@@ -191,5 +232,50 @@ export default async function AdminUsuariosPage({
         </Table>
       </Card>
     </>
+  )
+}
+
+/**
+ * Gasto do mês contra o limite. Sem limite, só o valor: não há o que comparar.
+ * Acima do limite fica em vermelho, mas é aviso, não bloqueio.
+ */
+function GastoDoMes({
+  saldo,
+}: {
+  saldo: { gasto: Dinheiro; limite: Dinheiro | null; estourou: boolean } | undefined
+}) {
+  if (!saldo || (saldo.gasto.isZero() && !saldo.limite)) {
+    return <span className="text-muted-foreground">-</span>
+  }
+  const { gasto, limite, estourou } = saldo
+  const percentual =
+    limite && !limite.isZero() ? Math.min(100, gasto.dividedBy(limite).times(100).toNumber()) : null
+
+  return (
+    <div className="space-y-1">
+      <p
+        className={
+          estourou
+            ? 'text-error text-sm font-medium whitespace-nowrap tabular-nums'
+            : 'text-sm whitespace-nowrap tabular-nums'
+        }
+      >
+        {formatarBRL(gasto)}
+        {limite ? (
+          <span className="text-muted-foreground font-normal"> de {formatarBRL(limite)}</span>
+        ) : null}
+      </p>
+      {percentual !== null ? (
+        <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+          <div
+            className={estourou ? 'bg-error h-full' : 'bg-success h-full'}
+            style={{ width: `${percentual}%` }}
+          />
+        </div>
+      ) : null}
+      {estourou && limite ? (
+        <p className="text-error text-xs">{formatarBRL(gasto.minus(limite))} acima do limite</p>
+      ) : null}
+    </div>
   )
 }
