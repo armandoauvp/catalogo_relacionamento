@@ -48,14 +48,16 @@ export default async function AdminSolicitacoesPage({
       include: {
         cliente: { select: { id: true, nome: true } },
         consultor: { select: { id: true, nome: true } },
-        _count: { select: { itens: true } },
-        // Só para a coluna "rota": ela é o que evita abrir vinte telas para
-        // saber quais pedidos têm algo a comprar.
+        // As colunas "presente" e "rota" são o que evita abrir vinte telas
+        // para aprovar: o que vai e se há algo a comprar.
         itens: {
           select: {
             produtoId: true,
             quantidade: true,
-            produto: { select: { origem: true, controlaEstoque: true, estoque: true } },
+            descricaoLivre: true,
+            produto: {
+              select: { nome: true, origem: true, controlaEstoque: true, estoque: true },
+            },
           },
         },
       },
@@ -140,7 +142,10 @@ export default async function AdminSolicitacoesPage({
     consultorId: s.consultor.id,
     cliente: s.cliente.nome,
     clienteId: s.cliente.id,
-    itens: s._count.itens,
+    presentes: s.itens.map((i) => ({
+      nome: i.produto?.nome ?? i.descricaoLivre ?? 'item',
+      quantidade: i.quantidade,
+    })),
     valor: formatarBRL(s.valorTotal),
     status: s.status,
     precisaDeCompra:

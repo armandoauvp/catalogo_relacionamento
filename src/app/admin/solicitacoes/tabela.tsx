@@ -46,7 +46,8 @@ export type LinhaDaGestao = {
   consultorId: string
   cliente: string
   clienteId: string
-  itens: number
+  /** O que vai, para aprovar sem abrir o pedido. */
+  presentes: { nome: string; quantidade: number }[]
   valor: string
   status: StatusSolicitacao
   /** Nulo quando a solicitação já passou do ponto em que a rota importa. */
@@ -152,7 +153,7 @@ export function TabelaDaGestao({
               <TableHead>Data</TableHead>
               <TableHead>Consultor</TableHead>
               <TableHead>Cliente</TableHead>
-              <TableHead className="text-right">Itens</TableHead>
+              <TableHead>Presente</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Rota</TableHead>
               <TableHead>Status</TableHead>
@@ -212,7 +213,20 @@ export function TabelaDaGestao({
                       {l.cliente}
                     </FiltroDoGrupo>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{l.itens}</TableCell>
+                  <TableCell className="min-w-48">
+                    <ul className="space-y-0.5">
+                      {l.presentes.map((p, i) => (
+                        <li key={i}>
+                          {p.quantidade > 1 ? (
+                            <span className="text-muted-foreground tabular-nums">
+                              {p.quantidade}×{' '}
+                            </span>
+                          ) : null}
+                          {p.nome}
+                        </li>
+                      ))}
+                    </ul>
+                  </TableCell>
                   <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                     {l.valor}
                   </TableCell>

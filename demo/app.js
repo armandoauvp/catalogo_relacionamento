@@ -1144,7 +1144,17 @@ function linhasDeSolicitacao(lista, comConsultor, comSelecao) {
       <td class="whitespace-nowrap px-4 py-3.5 tabular-nums text-muted-foreground">${esc(s.data)}</td>
       ${comConsultor ? `<td class="px-4 py-3.5">${esc(s.consultor)}</td>` : ''}
       <td class="px-4 py-3.5">${esc(s.cliente)}</td>
-      <td class="px-4 py-3.5 text-right tabular-nums">${s.itens.length}</td>
+      ${
+        // Na gestão, o nome do presente: aprova-se sem abrir o pedido.
+        comConsultor
+          ? `<td class="min-w-48 px-4 py-3.5">${s.itens
+              .map(
+                (i) =>
+                  `<span class="block">${i.quantidade > 1 ? `<span class="tabular-nums text-muted-foreground">${i.quantidade}× </span>` : ''}${esc(i.produto)}</span>`,
+              )
+              .join('')}</td>`
+          : `<td class="px-4 py-3.5 text-right tabular-nums">${s.itens.length}</td>`
+      }
       <td class="whitespace-nowrap px-4 py-3.5 text-right font-medium tabular-nums">${brl(totalDaSolicitacao(s))}</td>
       ${
         comSelecao
@@ -1244,7 +1254,7 @@ function telaGestao() {
             <th class="font-ui h-11 w-10 px-4"><input type="checkbox" class="size-4 accent-primary align-middle" checked /></th>
             <th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Código</th><th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Data</th>
             <th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Consultor</th><th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Cliente</th>
-            <th class="font-ui h-11 px-4 text-right text-xs font-semibold uppercase tracking-[0.08em]">Itens</th><th class="font-ui h-11 px-4 text-right text-xs font-semibold uppercase tracking-[0.08em]">Valor</th>
+            <th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Presente</th><th class="font-ui h-11 px-4 text-right text-xs font-semibold uppercase tracking-[0.08em]">Valor</th>
             <th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Rota</th>
             <th class="font-ui h-11 px-4 text-xs font-semibold uppercase tracking-[0.08em]">Status</th>
           </tr>
