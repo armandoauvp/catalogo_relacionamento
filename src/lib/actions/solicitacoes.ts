@@ -24,7 +24,9 @@ import {
   solicitacaoSchema,
   mudancaDeStatusSchema,
   rastreioSchema,
+  linkDeCompraSchema,
 } from '@/lib/validators/solicitacao'
+import { linkDeCompraEditavel } from '@/lib/compras'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
 import { cancelarPresenteNoTiny, enfileirarPresente, processarFila } from '@/lib/tiny/fila'
@@ -569,6 +571,40 @@ export async function encaminharEmLote(
     revalidatePath('/solicitacoes')
     revalidatePath('/logistica')
     return { ok: true, dados: resumo }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Troca o link de compra de um item: o que o consultor pediu esgotou, ou não
+ * serve. Quem aprova troca ali mesmo, sem devolver o pedido. O item continua
+ * o mesmo, e o valor congelado não muda; só muda onde o Financeiro compra.
+ */
+export async function trocarLinkDeCompra(entrada: unknown): Promise<ResultadoDaAction> {
+  try {
+    await autorizarAction('solicitacao.editar')
+
+    const validado = linkDeCompraSchema.safeParse(entrada)
+    if (!validado.success) return primeiroErro(validado.error)
+    const { itemId, link } = validado.data
+
+    const item = await db.solicitacaoItem.findUnique({
+      where: { id: itemId },
+      select: { solicitacao: { select: { id: true, status: true } } },
+    })
+    if (!item) return { ok: false, erro: 'Item não encontrado.' }
+
+    if (!linkDeCompraEditavel(item.solicitacao.status)) {
+      return { ok: false, erro: 'Depois de comprado, o link não muda mais.' }
+    }
+
+    await db.solicitacaoItem.update({ where: { id: itemId }, data: { linkDeCompra: link } })
+
+    revalidatePath(`/admin/solicitacoes/${item.solicitacao.id}`)
+    revalidatePath(`/solicitacoes/${item.solicitacao.id}`)
+    revalidatePath('/financeiro/compras')
+    return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)
   }

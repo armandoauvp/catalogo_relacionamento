@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { formatarCpf } from '@/lib/cpf'
 import { formatarISO } from '@/lib/datas'
 import { subtotal, paraNumero } from '@/lib/money'
+import { linkDoItem } from '@/lib/compras'
 import { ROTULO_STATUS } from '@/lib/status'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
 import { whereDaGestao } from '@/lib/solicitacoes-filtradas'
@@ -86,7 +87,7 @@ export async function linhasParaExportar(filtro: FiltroSolicitacoes): Promise<Li
     include: {
       consultor: { select: { nome: true } },
       cliente: { select: { nome: true, cpf: true, telefone: true } },
-      itens: { include: { produto: { select: { nome: true } } } },
+      itens: { include: { produto: { select: { nome: true, urlCompra: true } } } },
       historico: { orderBy: { criadoEm: 'desc' }, take: 1 },
     },
     orderBy: { dataSolicitacao: 'desc' },
@@ -103,7 +104,7 @@ export async function linhasParaExportar(filtro: FiltroSolicitacoes): Promise<Li
       cpf: formatarCpf(s.cliente.cpf),
       telefone: s.cliente.telefone,
       produto: item.produto?.nome ?? item.descricaoLivre ?? '',
-      site: item.urlExterna,
+      site: linkDoItem(item),
       quantidade: item.quantidade,
       valorUnitario: paraNumero(item.valorUnitario),
       valorItem: paraNumero(subtotal(item.valorUnitario, item.quantidade)),

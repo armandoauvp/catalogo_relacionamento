@@ -81,6 +81,7 @@ export default async function DetalheSolicitacaoPage({
       <DetalheDaSolicitacao
         solicitacao={solicitacao}
         verDadosSensiveis={pode(usuario.perfil, 'cliente.verDadosSensiveis')}
+        trocarLink={pode(usuario.perfil, 'solicitacao.editar')}
         acoes={
           <Card>
             <CardHeader className="pb-3">

@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { MotivoEnvio } from '@prisma/client'
-import { itemSchema, solicitacaoSchema } from './solicitacao'
+import { itemSchema, linkDeCompraSchema, solicitacaoSchema } from './solicitacao'
+
+describe('troca do link de compra', () => {
+  it('aceita http e https', () => {
+    expect(linkDeCompraSchema.safeParse({ itemId: 'i1', link: 'https://loja.com/x' }).success).toBe(
+      true,
+    )
+    expect(linkDeCompraSchema.safeParse({ itemId: 'i1', link: 'http://loja.com/x' }).success).toBe(
+      true,
+    )
+  })
+
+  it('vazio volta ao link original', () => {
+    const r = linkDeCompraSchema.safeParse({ itemId: 'i1', link: '  ' })
+    expect(r.success && r.data.link).toBe(null)
+  })
+
+  it('recusa o que não é página da web', () => {
+    for (const link of ['javascript:alert(1)', 'loja.com', 'ftp://loja.com/x']) {
+      expect(linkDeCompraSchema.safeParse({ itemId: 'i1', link }).success, link).toBe(false)
+    }
+  })
+})
 
 const enderecoValido = {
   entregaCep: '01310-100',

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Prisma } from '@prisma/client'
 import { formatarBRL, subtotal } from '@/lib/money'
-import { siteDeCompra } from '@/lib/compras'
+import { linkDeCompraEditavel, linkDoItem } from '@/lib/compras'
+import { LinkDeCompra } from '@/components/link-de-compra'
 import { formatarCpf, formatarTelefone } from '@/lib/cpf'
 import { formatarCep } from '@/lib/cep'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
@@ -39,12 +40,17 @@ export function DetalheDaSolicitacao({
   solicitacao,
   verDadosSensiveis,
   acoes,
+  trocarLink = false,
 }: {
   solicitacao: SolicitacaoDetalhada
   verDadosSensiveis: boolean
   /** Cartões extras da coluna da direita, a mudança de status, no Admin. */
   acoes?: ReactNode
+  /** Quem aprova pode trocar o link de compra; a ação confere de novo. */
+  trocarLink?: boolean
 }) {
+  const podeTrocarLink = trocarLink && linkDeCompraEditavel(solicitacao.status)
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
@@ -63,14 +69,21 @@ export function DetalheDaSolicitacao({
             </TableHeader>
             <TableBody>
               {solicitacao.itens.map((item) => {
-                const site = siteDeCompra(item)
+                const site = linkDoItem(item)
                 return (
                   <TableRow key={item.id}>
                     <TableCell>
                       <span className="font-medium">
                         {item.produto?.nome ?? item.descricaoLivre}
                       </span>
-                      {site ? (
+                      {podeTrocarLink ? (
+                        <LinkDeCompra
+                          itemId={item.id}
+                          site={site}
+                          trocado={item.linkDeCompra !== null}
+                          editavel
+                        />
+                      ) : site ? (
                         <a
                           href={site}
                           target="_blank"

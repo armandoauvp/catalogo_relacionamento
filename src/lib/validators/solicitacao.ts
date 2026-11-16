@@ -4,6 +4,18 @@ import { cepSchema, textoOpcional, ufSchema, urlOpcional, valorSchema } from './
 import { LIMITE_DA_SAUDACAO } from '@/lib/carta'
 
 /**
+ * Troca do link de compra de um item. Vazio volta ao link original. Só http e
+ * https: o link vira um `<a href>` na tela do Financeiro, e `javascript:` passa
+ * no `url()` do zod.
+ */
+export const linkDeCompraSchema = z.object({
+  itemId: z.string().min(1),
+  link: urlOpcional.refine((v) => v === null || /^https?:\/\//i.test(v), {
+    message: 'O link precisa começar com http:// ou https://.',
+  }),
+})
+
+/**
  * Um item é de catálogo ou é específico, nunca os dois nem nenhum.
  * A mesma regra existe como CHECK constraint no banco; aqui ela existe para
  * que o consultor receba uma mensagem em vez de um erro de constraint.

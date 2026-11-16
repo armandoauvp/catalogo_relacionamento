@@ -106,7 +106,7 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
       consultorNome: s.consultor.nome,
       clienteNome: s.cliente.nome,
       produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
-      site: siteDeCompra(item),
+      site: linkDoItem(item),
       notaDeCompra: item.produto?.notaDeCompra ?? null,
       categoria: item.produto?.categoria.nome ?? null,
       deCatalogo: item.produtoId !== null,
@@ -119,16 +119,31 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
 }
 
 /**
- * Onde comprar um item. O link do presente específico foi escolhido pelo
- * consultor para aquele item; o do produto de catálogo é onde a área sempre
- * compra aquilo. Vale para a fila e para o detalhe, que o Financeiro abre a
- * partir dela: sem isso, o produto de catálogo chegava lá sem link.
+ * Onde comprar um item. Primeiro o link que quem aprova trocou, quando o
+ * pedido esgotou ou não serve; depois o do presente específico, escolhido pelo
+ * consultor; por último o do produto de catálogo, onde a área sempre compra
+ * aquilo. Vale para a fila e para o detalhe, que o Financeiro abre a partir dela.
  */
-export function siteDeCompra(item: {
+export function linkDoItem(item: {
+  linkDeCompra?: string | null
   urlExterna: string | null
   produto?: { urlCompra: string | null } | null
 }): string | null {
-  return item.urlExterna ?? item.produto?.urlCompra ?? null
+  return item.linkDeCompra ?? item.urlExterna ?? item.produto?.urlCompra ?? null
+}
+
+/**
+ * Até quando o link de compra pode ser trocado: enquanto ninguém comprou. Depois
+ * de comprado, o link é registro do que foi feito, não instrução.
+ */
+const STATUS_COM_LINK_EDITAVEL: readonly StatusSolicitacao[] = [
+  StatusSolicitacao.pendente,
+  StatusSolicitacao.aguardando_aprovacao,
+  StatusSolicitacao.aguardando_compra,
+]
+
+export function linkDeCompraEditavel(status: StatusSolicitacao): boolean {
+  return STATUS_COM_LINK_EDITAVEL.includes(status)
 }
 
 /** Total da fila, para o cabeçalho da tela do Financeiro. */
