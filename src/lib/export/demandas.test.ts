@@ -19,6 +19,7 @@ const demanda: DemandaNaTrilha = {
   departamento: 'Produto & CX',
   produto: 'AUVP Escola',
   responsavel: 'Ana',
+  solicitante: null,
   observacoes: 'Entregar na portaria',
   solicitadaEm: new Date('2026-08-17T15:00:00Z'),
   previsaoInicio: null,

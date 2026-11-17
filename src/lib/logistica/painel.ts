@@ -71,6 +71,8 @@ export type DemandaNaTrilha = {
   departamento: string | null
   produto: string | null
   responsavel: string | null
+  /** Quem pediu, quando a demanda veio de "Pedir à Logística". */
+  solicitante: string | null
   /** Nulo também quando quem lê não pode ver observações. */
   observacoes: string | null
   solicitadaEm: Date
@@ -133,6 +135,7 @@ export async function trilhaDoPeriodo(
   const linhas = await db.demandaLogistica.findMany({
     where: { AND: [whereDaTrilha(periodo), whereDoRecorte(opcoes.recorte ?? {})] },
     include: {
+      solicitante: { select: { nome: true } },
       envios: {
         orderBy: [{ enviadoEm: 'desc' }, { criadoEm: 'desc' }],
         include: {
@@ -164,6 +167,7 @@ export async function trilhaDoPeriodo(
       departamento: d.departamento,
       produto: d.produto,
       responsavel: d.responsavel,
+      solicitante: d.solicitante?.nome ?? null,
       // Filtrado aqui, no servidor: o que não pode ser lido não chega ao navegador.
       observacoes: opcoes.verObservacoes ? d.observacoes : null,
       solicitadaEm: d.solicitadaEm,

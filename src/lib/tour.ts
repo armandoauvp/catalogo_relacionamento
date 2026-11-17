@@ -28,7 +28,8 @@ const CONTA: PassoDoTour = {
   alvo: 'conta',
   titulo: 'Para rever depois',
   texto: 'Este tour fica no menu da sua conta, em "Ver o tour". Pode abrir quando quiser.',
-  acao: 'catalogo.ver',
+  // O painel é o que todos os perfis leem, o Colaborador inclusive.
+  acao: 'logistica.ver',
 }
 
 /** O caminho do presente: é o mesmo para o Admin geral e o de Relacionamento. */
@@ -124,7 +125,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       alvo: 'lista-usuarios',
       titulo: 'Quem faz o quê',
       texto:
-        'Quem entra pela primeira vez vira Consultor. Aqui você define o perfil e o limite mensal de cada um.',
+        'Quem entra pela primeira vez vira Colaborador AUVP. Aqui você define o perfil e o limite mensal de cada um.',
       acao: 'usuario.gerenciar',
     },
     CONTA,
@@ -136,7 +137,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       alvo: 'lista-usuarios',
       titulo: 'Os seus consultores',
       texto:
-        'Quem entra pela primeira vez já aparece aqui como Consultor. Defina o limite mensal e desative quem saiu do time.',
+        'Quem entra pela primeira vez aparece aqui como Colaborador AUVP: faça Consultor quem é do time, defina o limite mensal e desative quem saiu.',
       acao: 'usuario.definirLimite',
     },
     CONTA,
@@ -156,7 +157,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       alvo: 'lista-usuarios',
       titulo: 'O seu time',
       texto:
-        'Quem entra pela primeira vez vira Consultor. Aqui você põe a pessoa na Logística, devolve a Consultor e desativa quem saiu.',
+        'Quem entra pela primeira vez vira Colaborador AUVP. Aqui você põe a pessoa na Logística e desativa quem saiu.',
       acao: 'usuario.gerenciar',
     },
     CONTA,
@@ -236,6 +237,39 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
     CONTA,
   ],
   logistica: [...OPERACAO_DA_LOGISTICA, CONTA],
+  colaborador: [
+    {
+      rota: '/logistica',
+      alvo: 'nav-pedidos',
+      titulo: 'Pedir à Logística',
+      texto:
+        'Precisa de um envio, um kit ou um brinde? É por "Meus pedidos": você diz o que precisa, para qual departamento e para quando.',
+      acao: 'logistica.pedir',
+    },
+    {
+      rota: '/logistica/pedidos',
+      alvo: 'pedir-logistica',
+      titulo: 'Fazer um pedido',
+      texto:
+        'O pedido entra direto na fila da Logística, que define a prioridade e quem cuida. Endereço e contato vão nos detalhes.',
+      acao: 'logistica.pedir',
+    },
+    {
+      rota: '/logistica/pedidos',
+      alvo: 'meus-pedidos',
+      titulo: 'Acompanhar',
+      texto: 'A fase de cada pedido, a previsão e quem está cuidando, sem precisar perguntar.',
+      acao: 'logistica.pedir',
+    },
+    {
+      rota: '/logistica',
+      alvo: 'status-semana',
+      titulo: 'Como está a operação',
+      texto: 'O painel da Logística: a situação da semana, o volume e as demandas em andamento.',
+      acao: 'logistica.ver',
+    },
+    CONTA,
+  ],
 }
 
 /** Os passos do perfil, só os que ele pode de fato usar. */

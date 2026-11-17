@@ -119,7 +119,7 @@ quem manda é o cadastro em `/admin/catalogo`.
 - [ ] O catálogo mostra os 49 presentes com foto.
 - [ ] Cadastrar um produto com foto de celular funciona: a foto é reduzida no
       navegador antes de subir.
-- [ ] Os demais entram, nascem consultores, e o Admin ajusta perfil e limite
+- [ ] Os demais entram, nascem Colaborador AUVP, e o Admin ajusta perfil e limite
       em `/admin/usuarios`.
 
 Depois, a carga inicial é da área: clientes por CSV em `/admin/clientes`,

@@ -54,7 +54,7 @@ segundos, porque o modo de desenvolvimento compila sob demanda.
 
 Com `AUTH_DEV_BYPASS="true"` a tela de login mostra "Entrar sem SSO", que
 aceita um e-mail direto. O e-mail listado em `BOOTSTRAP_ADMIN_EMAILS` entra
-como Admin; sem isso, o primeiro usuário do ambiente entraria como consultor e
+como Admin; sem isso, o primeiro usuário do ambiente entraria como Colaborador AUVP e
 não haveria ninguém com poder de promover.
 
 O bypass é recusado fora de `NODE_ENV=development`: `env.ts` derruba o boot se

@@ -350,8 +350,8 @@ No Keycloak, devolve se a TI criar um mapper "Group Membership" no client.
 O mapeamento de grupo para perfil ainda não está escrito: a variável está
 reservada, o código não a lê.
 
-**Assumido:** não devolve. O primeiro login cria o usuário como `consultor` e o
-Admin promove. `BOOTSTRAP_ADMIN_EMAILS` resolve o problema do primeiro Admin.
+**Assumido:** não devolve. O primeiro login cria o usuário como `colaborador` (desde
+17/11/2026; antes era `consultor`) e o admin da área promove. `BOOTSTRAP_ADMIN_EMAILS` resolve o problema do primeiro Admin.
 
 ### O que cada admin de área pode?
 

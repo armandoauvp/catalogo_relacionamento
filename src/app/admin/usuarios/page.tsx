@@ -23,22 +23,22 @@ import { EditorDeUsuario } from './editor-de-usuario'
 const TEXTOS: Record<'geral' | 'relacionamento' | 'logistica', [string, string]> = {
   geral: [
     'Perfil e limite mensal são geridos aqui, dentro da ferramenta, sem passar por TI.',
-    'Usuários não são criados aqui: entram sozinhos no primeiro login pelo SSO, como consultor. Esta tela promove, define o teto mensal e desativa quem saiu do time.',
+    'Usuários não são criados aqui: entram sozinhos no primeiro login pelo SSO, como Colaborador AUVP. Esta tela promove, define o teto mensal e desativa quem saiu do time.',
   ],
   relacionamento: [
     'Os consultores: limite mensal e quem está ativo.',
-    'Consultores não são criados aqui: entram sozinhos no primeiro login pelo SSO. Esta tela define o teto mensal e desativa quem saiu do time.',
+    'Ninguém é criado aqui: a pessoa entra sozinha no primeiro login pelo SSO, como Colaborador AUVP. Esta tela faz Consultor quem é do time, define o teto mensal e desativa quem saiu.',
   ],
   logistica: [
     'Quem faz parte do time da Logística e quem está ativo.',
-    'Ninguém é criado aqui: a pessoa entra sozinha no primeiro login pelo SSO, como consultor. Esta tela a coloca no time da Logística, a devolve a Consultor e desativa quem saiu.',
+    'Ninguém é criado aqui: a pessoa entra sozinha no primeiro login pelo SSO, como Colaborador AUVP. Esta tela a coloca no time da Logística e desativa quem saiu.',
   ],
 }
 
 /**
  * CRUD de usuários: perfil e limite mensal.
  *
- * O usuário é criado no primeiro login pelo SSO, com perfil `consultor`. Esta
+ * O usuário é criado no primeiro login pelo SSO, com perfil `colaborador`. Esta
  * tela é onde o Admin promove e define limite, sem passar por TI. Cada admin só
  * recebe quem está ao seu alcance: o recorte é na consulta, não na tela.
  */

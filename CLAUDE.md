@@ -121,11 +121,18 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   o perfil no menu da conta; a escolha mora no token, nunca na coluna
   `perfil`, para que apagar a variável devolva a delimitação sem migrar nada.
   O domínio continua conferido.
+- **Quem entra pela primeira vez é Colaborador AUVP** (`PERFIL_DE_ENTRADA`, em
+  `auth.ts`): o perfil de menos acesso, que só pede trabalho à Logística e lê o
+  painel. Na falta de perfil no token, vale ele também, nunca um com mais.
 - **Admin por área não sai do próprio alcance.** Só o Admin geral promove a
-  admin. O de Relacionamento gerencia consultores sem trocar perfil; o de
-  Logística só transforma em Consultor ou Logística, e nenhum mexe em quem está
+  admin. O de Relacionamento alterna entre Colaborador e Consultor; o de
+  Logística, entre Colaborador, Consultor e Logística, e nenhum mexe em quem está
   fora de `perfisAoAlcance`, conferido no servidor contra o perfil gravado. Ver
   `docs/02-perfis-e-permissoes.md`.
+- **Pedido à Logística sabe quem pediu.** `pedirALogistica` grava a demanda
+  com `origem: 'pedido'` e `solicitanteId`, e uma CHECK garante os dois juntos.
+  "Meus pedidos" filtra por quem pediu no `where`; prioridade, complexidade e
+  responsável são da Logística, nunca de quem pede.
 - **Foto é reduzida no navegador** (`src/lib/arquivos-no-navegador.ts`) antes
   de subir: a Vercel recusa requisição acima de 4,5 MB, e o teto da aplicação
   é 4 MB.

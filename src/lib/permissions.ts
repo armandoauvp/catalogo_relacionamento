@@ -33,6 +33,9 @@ import { Perfil } from '@prisma/client'
  * único que promove alguém a admin. O de Relacionamento aprova, cuida do catálogo
  * e gerencia os consultores; o de Logística opera como o time e vê as solicitações
  * sem alterá-las. Até onde cada um mexe em Usuários é `perfisAoAlcance`.
+ *
+ * O Colaborador AUVP é quem não é de nenhuma dessas áreas: pede trabalho à
+ * Logística (`logistica.pedir`, que todos os perfis têm) e lê o painel.
  */
 
 export const ACOES = [
@@ -61,6 +64,7 @@ export const ACOES = [
   'logistica.verObservacoes',
   'logistica.verCustos',
   'logistica.gerenciar',
+  'logistica.pedir',
   'tiny.operar',
 ] as const
 
@@ -121,6 +125,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
     'logistica.verCustos': false,
     'logistica.gerenciar': false,
+    'logistica.pedir': true,
     'tiny.operar': false,
   },
   [Perfil.admin]: {
@@ -150,6 +155,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': true,
     'logistica.verCustos': true,
     'logistica.gerenciar': true,
+    'logistica.pedir': true,
     'tiny.operar': true,
   },
   [Perfil.admin_relacionamento]: {
@@ -179,6 +185,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
     'logistica.verCustos': true,
     'logistica.gerenciar': false,
+    'logistica.pedir': true,
     'tiny.operar': false,
   },
   [Perfil.admin_logistica]: {
@@ -209,6 +216,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': true,
     'logistica.verCustos': true,
     'logistica.gerenciar': true,
+    'logistica.pedir': true,
     'tiny.operar': true,
   },
   [Perfil.financeiro]: {
@@ -238,6 +246,7 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
     'logistica.verCustos': true,
     'logistica.gerenciar': false,
+    'logistica.pedir': true,
     'tiny.operar': false,
   },
   [Perfil.logistica]: {
@@ -268,8 +277,40 @@ const MATRIZ: Record<Perfil, Record<Acao, boolean>> = {
     'logistica.verObservacoes': true,
     'logistica.verCustos': true,
     'logistica.gerenciar': true,
+    'logistica.pedir': true,
     // Quem expede é quem acompanha os pedidos no Tiny e importa os lotes.
     'tiny.operar': true,
+  },
+  // Pede trabalho à Logística e acompanha o painel, e nada além disso. É o
+  // perfil de quem entra pela primeira vez: o mínimo, até alguém promover.
+  [Perfil.colaborador]: {
+    'catalogo.ver': false,
+    'catalogo.gerenciar': false,
+    'carta.gerenciarModelos': false,
+    'compras.verFila': false,
+    'compras.operar': false,
+    'expedicao.verFila': false,
+    'expedicao.registrarRastreio': false,
+    'solicitacao.criar': false,
+    'solicitacao.verProprias': false,
+    'solicitacao.verTodas': false,
+    'solicitacao.editar': false,
+    'solicitacao.alterarStatus': false,
+    'solicitacao.confirmarRecebimento': false,
+    'solicitacao.aprovar': false,
+    'cliente.verDadosSensiveis': false,
+    'cliente.gerenciar': false,
+    'usuario.gerenciar': false,
+    'usuario.definirLimite': false,
+    exportar: false,
+    'saldo.verProprio': false,
+    'saldo.verTodos': false,
+    'logistica.ver': true,
+    'logistica.verObservacoes': PENDENTE_CONFIRMACAO.todosVeemObservacoesDaLogistica,
+    'logistica.verCustos': false,
+    'logistica.gerenciar': false,
+    'logistica.pedir': true,
+    'tiny.operar': false,
   },
 }
 
@@ -325,13 +366,14 @@ export function comecaNaLogistica(perfil: Perfil): boolean {
  * só mexe em quem está num destes perfis, e só pode pôr a pessoa num deles. Por
  * isso o Admin de Logística não rebaixa um admin nem tira alguém do Financeiro.
  *
- * Ao Relacionamento cabe um perfil só: gerencia consultores sem mudar o perfil
- * deles.
+ * Quem entra pela primeira vez é Colaborador, então cada admin de área alcança
+ * o Colaborador para trazer a pessoa ao próprio time: o de Relacionamento a faz
+ * Consultor, o de Logística a põe na Logística.
  */
 const PERFIS_AO_ALCANCE: Partial<Record<Perfil, readonly Perfil[]>> = {
   [Perfil.admin]: Object.values(Perfil),
-  [Perfil.admin_relacionamento]: [Perfil.consultor],
-  [Perfil.admin_logistica]: [Perfil.consultor, Perfil.logistica],
+  [Perfil.admin_relacionamento]: [Perfil.consultor, Perfil.colaborador],
+  [Perfil.admin_logistica]: [Perfil.consultor, Perfil.logistica, Perfil.colaborador],
 }
 
 export function perfisAoAlcance(perfil: Perfil): readonly Perfil[] {
@@ -361,6 +403,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   admin_logistica: 'Admin Logística',
   financeiro: 'Financeiro',
   logistica: 'Logística',
+  colaborador: 'Colaborador AUVP',
 }
 
 /**

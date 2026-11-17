@@ -5,6 +5,7 @@ import {
   ExternalLink,
   FileText,
   Flame,
+  ClipboardList,
   Gift,
   Info,
   Repeat,
@@ -311,6 +312,14 @@ function LinhaDaTrilha({
                 <Badge variant="outline" className="gap-1">
                   <Gift className="size-3" aria-hidden="true" />
                   Presente
+                </Badge>
+              </FiltroDoGrupo>
+            ) : null}
+            {d.origem === 'pedido' ? (
+              <FiltroDoGrupo {...grupo('origem', 'pedido')} rotulo="demandas pedidas pela AUVP">
+                <Badge variant="outline" className="gap-1">
+                  <ClipboardList className="size-3" aria-hidden="true" />
+                  {d.solicitante ? `Pedido por ${d.solicitante}` : 'Pedido'}
                 </Badge>
               </FiltroDoGrupo>
             ) : null}

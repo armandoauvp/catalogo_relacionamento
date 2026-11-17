@@ -117,14 +117,18 @@ function montarProviders(): Provider[] {
   return providers
 }
 
+/** O perfil de quem entra pela primeira vez. */
+export const PERFIL_DE_ENTRADA = Perfil.colaborador
+
 /**
  * Cria ou atualiza o espelho local do usuário do SSO.
  *
- * O primeiro login cria com perfil `consultor`. A exceção é
- * `BOOTSTRAP_ADMIN_EMAILS`: sem ela o primeiro usuário do ambiente entraria
- * como consultor e não haveria ninguém com poder de promover ninguém. Só promove
- * quem ainda é consultor: quem já recebeu outro perfil na tela de Usuários não
- * pode voltar a Admin geral no login seguinte.
+ * O primeiro login cria com perfil `colaborador`, o de menos acesso: quem é do
+ * Relacionamento ou da Logística é trazido ao time pelo admin da área. A exceção
+ * é `BOOTSTRAP_ADMIN_EMAILS`: sem ela o primeiro usuário do ambiente entraria
+ * sem poder promover ninguém. Só promove quem ainda está no perfil de entrada
+ * (ou no antigo, Consultor): quem já recebeu outro perfil na tela de Usuários
+ * não pode voltar a Admin geral no login seguinte.
  */
 export async function sincronizarUsuario(dados: {
   email: string
@@ -145,14 +149,17 @@ export async function sincronizarUsuario(dados: {
       email,
       nome: dados.nome || email,
       ssoSubject: dados.ssoSubject ?? null,
-      perfil: ehBootstrapAdmin ? Perfil.admin : (dados.perfilInicial ?? Perfil.consultor),
+      perfil: ehBootstrapAdmin ? Perfil.admin : (dados.perfilInicial ?? PERFIL_DE_ENTRADA),
     },
     update: {
       // O nome acompanha o provedor de identidade. Perfil e limite mensal, não:
       // são geridos pelo Admin dentro da ferramenta.
       nome: dados.nome || undefined,
       ssoSubject: dados.ssoSubject ?? undefined,
-      ...(existente?.perfil === Perfil.consultor ? { perfil: Perfil.admin } : {}),
+      ...(existente &&
+      (existente.perfil === PERFIL_DE_ENTRADA || existente.perfil === Perfil.consultor)
+        ? { perfil: Perfil.admin }
+        : {}),
     },
     select: { id: true, perfil: true, ativo: true, nome: true, email: true },
   })
@@ -218,7 +225,8 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       if (token.usuarioId) {
         session.user.id = token.usuarioId
-        session.user.perfil = token.perfil ?? Perfil.consultor
+        // Sem perfil no token, o de menos acesso, nunca um com mais.
+        session.user.perfil = token.perfil ?? PERFIL_DE_ENTRADA
         session.user.ativo = token.ativo ?? true
       }
       return session

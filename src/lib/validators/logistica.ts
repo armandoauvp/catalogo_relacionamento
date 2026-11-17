@@ -77,6 +77,31 @@ const textoCurto = (rotulo: string) =>
     .max(80)
 
 /**
+ * Pedido de trabalho à Logística, feito por qualquer pessoa da AUVP. Só o que
+ * quem pede sabe: o que precisa, para quem (empresa e departamento) e para
+ * quando. Prioridade, complexidade, responsável e previsão são da Logística, na
+ * triagem. "Para quando" vira a previsão de conclusão até ela ajustar.
+ */
+export const pedidoALogisticaSchema = z.object({
+  titulo: z.string().trim().min(3, 'Diga o que você precisa.').max(160),
+  itens: z.preprocess(
+    (v) =>
+      String(v ?? '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean),
+    z.array(z.string().max(120, 'Item com mais de 120 caracteres.')).max(30),
+  ),
+  subsidiaria: textoCurto('a empresa'),
+  departamento: textoCurto('o departamento'),
+  // O fim do dia escolhido: hoje vale até meia-noite, ontem já passou.
+  paraQuando: diaObrigatorio('Informe para quando precisa.').refine((d) => d >= new Date(), {
+    message: 'Escolha hoje ou uma data futura.',
+  }),
+  observacoes: z.preprocess(vazioViraNulo, z.string().trim().max(2000).nullable()),
+})
+
+/**
  * Cadastro de demanda na trilha. A Logística cadastra à mão (os áudios de
  * 09/10/2026): subsidiária e departamento alimentam o gráfico, complexidade
  * pesa no prazo, e a previsão de conclusão é obrigatória pelo relatório.

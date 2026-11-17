@@ -21,6 +21,7 @@ import {
   despachoDaConclusaoSchema,
   envioSchema,
   membroSchema,
+  pedidoALogisticaSchema,
   perguntaSchema,
   statusDaSemanaSchema,
 } from '@/lib/validators/logistica'
@@ -309,6 +310,45 @@ export async function salvarDemanda(dados: FormData): Promise<ResultadoDaAction>
 
     revalidarLogistica()
     return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Pedido de trabalho à Logística, de qualquer pessoa da AUVP.
+ *
+ * Entra na trilha em "Recebido", com quem pediu, para a Logística triar:
+ * prioridade e responsável ficam no padrão até ela ajustar, e o "para quando"
+ * de quem pediu vira a previsão de conclusão. Quem pediu acompanha a fase em
+ * "Meus pedidos".
+ */
+export async function pedirALogistica(dados: FormData): Promise<ResultadoDaAction<{ id: string }>> {
+  try {
+    const usuario = await autorizarAction('logistica.pedir')
+
+    const validado = pedidoALogisticaSchema.safeParse(Object.fromEntries(dados.entries()))
+    if (!validado.success) return primeiroErro(validado.error)
+    const { paraQuando, ...campos } = validado.data
+
+    // Quem pede escolhe só da lista: não há valor antigo a preservar.
+    const classificacao = problemaDaClassificacao(campos, null)
+    if (classificacao) return { ok: false, erro: classificacao.erro, campo: classificacao.campo }
+
+    const criada = await db.demandaLogistica.create({
+      data: {
+        ...campos,
+        origem: 'pedido',
+        solicitanteId: usuario.id,
+        fase: 'recebido',
+        solicitadaEm: new Date(),
+        previsaoConclusao: paraQuando,
+      },
+      select: { id: true },
+    })
+
+    revalidarLogistica()
+    return { ok: true, dados: criada }
   } catch (e) {
     return comoErro(e)
   }

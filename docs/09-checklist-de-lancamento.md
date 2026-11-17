@@ -26,7 +26,7 @@ Não precisa de nada de ninguém:
   produto, categoria, cliente, usuário e modelos de carta;
 - os 49 presentes da planilha da área, carregados sozinhos no primeiro deploy
   com o banco vazio;
-- perfis Consultor, Financeiro, Logística, Admin geral e os admins por área
+- perfis Colaborador AUVP, Consultor, Financeiro, Logística, Admin geral e os admins por área
   (Relacionamento e Logística), com tour guiado em cada um;
 - o módulo de Logística: Dashboard em `/logistica`, trilha manual de demandas,
   recorrentes, custo de envio em percentual e o presente aprovado entrando
@@ -66,10 +66,12 @@ Quem faz: quem tem acesso à Vercel, ao GitHub e ao Tiny. Passo a passo em
 
 ## Etapa 3: o time entra
 
-Cada pessoa entra uma vez pelo Google, o que a cria como **consultor**. Quem
+Cada pessoa entra uma vez pelo Google, o que a cria como **Colaborador AUVP**: pode pedir à Logística e ler o painel, e nada além. Quem
 está em `BOOTSTRAP_ADMIN_EMAILS` já entra como Admin e ajusta em
 `/admin/usuarios`:
 
+- quem é Consultor: quem pede presente precisa ser promovido, e o Admin de
+  Relacionamento faz isso. Os consultores que já existiam não mudaram;
 - quem é Admin geral, Admin de Relacionamento, Admin de Logística, Financeiro
   ou Logística. Só o Admin geral promove a admin
   ([perfis e permissões](02-perfis-e-permissoes.md));
@@ -115,7 +117,7 @@ Nenhuma bloqueia o uso, todas têm uma suposição registrada em
 | ---------------------------------------------- | --------------------------------------------- | ------------------------------------- |
 | Quantos pedidos fazem a semana "crítica"?      | 3 atrasadas, ou 2 sendo um quarto das abertas | `LIMIARES` em `status-operacional.ts` |
 | Em que departamento entra o presente?          | Relacionamento, fora da lista do Financeiro   | uma linha em `PONTE` (`ponte.ts`)     |
-| Quem vê o custo dos envios?                    | todos menos o Consultor                       | uma linha em `permissions.ts`         |
+| Quem vê o custo dos envios?                    | todos menos Consultor e Colaborador           | uma linha em `permissions.ts`         |
 | Quem lê as observações das demandas?           | só Logística e Admin                          | uma linha em `permissions.ts`         |
 | O lote do Tiny pode ser recorrente?            | não; proposta é tarefa na trilha confirmada   | regra nova                            |
 | Como entram os pedidos do e-commerce no fluxo? | não entram, nascem direto no Tiny             | depende da resposta                   |

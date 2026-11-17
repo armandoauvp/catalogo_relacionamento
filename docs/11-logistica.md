@@ -173,6 +173,21 @@ uma previsão de 7 dias (15 quando ainda há compra). O endereço não vai para 
 trilha: ele está na Expedição. Subsidiária, departamento e prazos são
 suposição, em `PONTE`.
 
+## Pedidos da AUVP
+
+Qualquer pessoa da AUVP pede trabalho à Logística em `/logistica/pedidos`
+("Meus pedidos"): o que precisa, os itens, empresa e departamento (das mesmas
+listas do formulário do Financeiro), para quando e detalhes. É o caminho do
+perfil Colaborador AUVP, e vale para todos os perfis.
+
+O pedido entra na trilha em "Recebido", com o selo "Pedido por" e o nome de
+quem pediu (`origem: 'pedido'`, `solicitanteId`). Prioridade fica normal e
+responsável vazio até a Logística triar; o "para quando" vira a previsão de
+conclusão, que ela confirma ou ajusta. Os detalhes vão para as observações,
+que só a Logística lê. Quem pediu acompanha fase, previsão e responsável na
+mesma tela; o recorte é por quem pediu, no servidor (`pedirALogistica`, em
+`src/lib/actions/logistica.ts`).
+
 ## Dados de exemplo
 
 `npm run db:seed` cria meio ano **fictício** de Logística
@@ -226,8 +241,9 @@ filtro. A regra mora em `src/lib/logistica/filtro-da-trilha.ts`.
 ## Perfis
 
 Ver [perfis e permissões](02-perfis-e-permissoes.md#perfil-logística). Todo
-perfil lê o dashboard; Logística e Admin cadastram e editam as demandas, cuidam
-do status manual, da equipe e do FAQ, e são os únicos que leem as observações.
+perfil lê o dashboard e pede trabalho em "Meus pedidos"; Logística e Admin
+cadastram e editam as demandas, cuidam do status manual, da equipe e do FAQ, e
+são os únicos que leem as observações.
 
 ## O que depende da área
 

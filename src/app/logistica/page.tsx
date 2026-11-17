@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ClipboardList } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
@@ -57,6 +58,7 @@ export default async function LogisticaPage({
   const verObservacoes = pode(usuario.perfil, 'logistica.verObservacoes')
   const verCustos = pode(usuario.perfil, 'logistica.verCustos')
   const podeGerenciar = pode(usuario.perfil, 'logistica.gerenciar')
+  const podePedir = pode(usuario.perfil, 'logistica.pedir')
 
   const [painel, equipe, perguntas, sugestoes, emEstoque] = await Promise.all([
     painelLogistico(periodo, { verObservacoes, verCustos }),
@@ -113,7 +115,12 @@ export default async function LogisticaPage({
     },
     recorte.origem && {
       coluna: 'Origem',
-      valor: recorte.origem === 'solicitacao' ? 'Presente' : recorte.origem,
+      valor:
+        recorte.origem === 'solicitacao'
+          ? 'Presente'
+          : recorte.origem === 'pedido'
+            ? 'Pedido da AUVP'
+            : recorte.origem,
       semEle: hrefSemFiltro(caminho, params, 'origem'),
     },
     recorte.recorrente && {
@@ -155,6 +162,19 @@ export default async function LogisticaPage({
       <CabecalhoDaPagina
         titulo="Dashboard Logístico"
         descricao="Status da operação, volume dos envios e a trilha de demandas do período."
+        acoes={
+          // Quem opera cadastra direto na trilha; os demais pedem e acompanham.
+          // Fora do celular: lá o botão quebraria para outra linha e empurraria
+          // a página, que o esqueleto não tem como prever; o menu já leva até lá.
+          podePedir && !podeGerenciar ? (
+            <Button asChild className="hidden sm:inline-flex">
+              <Link href={'/logistica/pedidos' as Route}>
+                <ClipboardList aria-hidden="true" />
+                Pedir à Logística
+              </Link>
+            </Button>
+          ) : null
+        }
       />
 
       <SeletorDePeriodo periodo={periodo} />

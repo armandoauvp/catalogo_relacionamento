@@ -40,22 +40,22 @@ admins com `logistica.gerenciar` lançam.
 A coluna Admin acima é o **Admin geral**, o único que promove alguém a admin. Ao
 lado dele há um admin para cada área:
 
-| Ação                                  | Admin Relacionamento |    Admin Logística    |
-| ------------------------------------- | :------------------: | :-------------------: |
-| Aprovar e mudar status de solicitação |          ✓           |           -           |
-| Criar solicitação                     |          ✓           |           -           |
-| Ver todas as solicitações             |          ✓           |      só leitura       |
-| Catálogo, modelos e guia da carta     |          ✓           |           -           |
-| Clientes                              |          ✓           |           -           |
-| Ver o saldo de todos e exportar       |          ✓           |           -           |
-| Fila de compras                       |      só leitura      |           -           |
-| Fila da expedição                     |      só leitura      |   ✓, anota rastreio   |
-| Dashboard Logístico                   |      só leitura      |      ✓, gerencia      |
-| Tiny                                  |          -           |           ✓           |
-| Em Usuários, alcança quem é           |      Consultor       | Consultor e Logística |
-| Trocar perfil de quem alcança         |          -           | Consultor ↔ Logística |
-| Definir o limite mensal               |          ✓           |           -           |
-| Ativar e desativar quem alcança       |          ✓           |           ✓           |
+| Ação                                  |  Admin Relacionamento   |          Admin Logística           |
+| ------------------------------------- | :---------------------: | :--------------------------------: |
+| Aprovar e mudar status de solicitação |            ✓            |                 -                  |
+| Criar solicitação                     |            ✓            |                 -                  |
+| Ver todas as solicitações             |            ✓            |             só leitura             |
+| Catálogo, modelos e guia da carta     |            ✓            |                 -                  |
+| Clientes                              |            ✓            |                 -                  |
+| Ver o saldo de todos e exportar       |            ✓            |                 -                  |
+| Fila de compras                       |       só leitura        |                 -                  |
+| Fila da expedição                     |       só leitura        |         ✓, anota rastreio          |
+| Dashboard Logístico                   |       só leitura        |            ✓, gerencia             |
+| Tiny                                  |            -            |                 ✓                  |
+| Em Usuários, alcança quem é           | Colaborador e Consultor | Colaborador, Consultor e Logística |
+| Trocar perfil de quem alcança         | Colaborador ↔ Consultor |           entre os três            |
+| Definir o limite mensal               |            ✓            |                 -                  |
+| Ativar e desativar quem alcança       |            ✓            |                 ✓                  |
 
 O alcance vale nos dois sentidos (`perfisAoAlcance`): o admin só mexe em quem
 está num dos perfis dele e só atribui um deles. É isso que impede o Admin de
@@ -66,10 +66,23 @@ Marcar como comprado e liberar o que foi comprado pedem `compras.operar`
 (`ehPassoDeCompra`), do Financeiro e do Admin geral. O Admin de Relacionamento
 continua podendo aprovar, cancelar e registrar problema.
 
-`BOOTSTRAP_ADMIN_EMAILS` só promove quem ainda é Consultor: quem recebeu um perfil
+`BOOTSTRAP_ADMIN_EMAILS` só promove quem ainda é Colaborador (ou Consultor, o perfil de entrada antigo): quem recebeu um perfil
 de área na tela de Usuários não volta a Admin geral no login seguinte. Com
 `PERFIL_LIVRE` ligado, qualquer pessoa ainda escolhe qualquer perfil no menu da
 conta, então a separação só vale de verdade com a variável desligada.
+
+## Perfil Colaborador AUVP
+
+É quem não é de nenhuma área com perfil próprio, e é o perfil de **quem entra pela primeira vez** (`PERFIL_DE_ENTRADA`, em `src/lib/auth.ts`). O admin da área traz a pessoa ao time: o de Relacionamento a faz Consultor, o de Logística a põe na Logística.
+
+O Colaborador faz duas coisas:
+
+- **pede trabalho à Logística** em `/logistica/pedidos`: o que precisa, empresa, departamento, para quando e detalhes. O pedido entra na trilha em `Recebido`, com quem pediu, e a Logística define prioridade, complexidade e responsável;
+- **acompanha** a fase de cada pedido na mesma tela, e lê o Dashboard Logístico como todos os perfis.
+
+Não vê catálogo, solicitação de presente, cliente, saldo nem custo de envio. O escopo de solicitações é **nenhum**, então a home o leva a `/logistica`.
+
+Pedir à Logística (`logistica.pedir`) vale para todos os perfis. O item `Meus pedidos` só some do menu de quem opera a Logística, que cadastra a demanda direto na trilha.
 
 ## Perfil Financeiro
 

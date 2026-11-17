@@ -3,9 +3,54 @@ import {
   demandaSchema,
   envioSchema,
   membroSchema,
+  pedidoALogisticaSchema,
   perguntaSchema,
   statusDaSemanaSchema,
 } from './logistica'
+import { formatarISO } from '@/lib/datas'
+
+describe('pedido à Logística', () => {
+  const hoje = formatarISO(new Date())
+  const valido = {
+    titulo: 'Kit de boas-vindas',
+    itens: '20 canecas\n\n  20 camisetas ',
+    subsidiaria: 'AUVP Assessoria',
+    departamento: 'Capital Humano',
+    paraQuando: hoje,
+    observacoes: '  ',
+  }
+
+  it('aceita o pedido de hoje, com os itens um por linha', () => {
+    const r = pedidoALogisticaSchema.safeParse(valido)
+    expect(r.success).toBe(true)
+    if (!r.success) return
+    expect(r.data.itens).toEqual(['20 canecas', '20 camisetas'])
+    expect(r.data.observacoes).toBeNull()
+  })
+
+  it('recusa data que já passou', () => {
+    const ontem = formatarISO(new Date(Date.now() - 36 * 3_600_000))
+    expect(pedidoALogisticaSchema.safeParse({ ...valido, paraQuando: ontem }).success).toBe(false)
+  })
+
+  it('exige o que precisa, a empresa, o departamento e a data', () => {
+    for (const campo of ['titulo', 'subsidiaria', 'departamento', 'paraQuando'] as const) {
+      expect(pedidoALogisticaSchema.safeParse({ ...valido, [campo]: '' }).success, campo).toBe(
+        false,
+      )
+    }
+  })
+
+  it('não aceita prioridade nem responsável de quem pede: são da Logística', () => {
+    const r = pedidoALogisticaSchema.safeParse({
+      ...valido,
+      prioridade: 'urgente',
+      responsavel: 'Eu',
+    })
+    expect(r.success && 'prioridade' in r.data).toBe(false)
+    expect(r.success && 'responsavel' in r.data).toBe(false)
+  })
+})
 
 describe('custo do envio', () => {
   const envio = (custo: unknown) => ({

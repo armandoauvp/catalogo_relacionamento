@@ -163,7 +163,9 @@ export function EditorDeDemanda({
         descricao={
           demanda?.origem === 'solicitacao'
             ? 'Veio de um presente aprovado. A fase acompanha o status do presente; o resto pode ser ajustado aqui.'
-            : 'Entra na trilha e nos números do dashboard assim que salvar.'
+            : demanda?.origem === 'pedido'
+              ? `Pedido por ${demanda.solicitante ?? 'alguém da AUVP'}, que acompanha a fase em "Meus pedidos". Defina prioridade, complexidade e responsável.`
+              : 'Entra na trilha e nos números do dashboard assim que salvar.'
         }
         className="w-[min(46rem,calc(100vw-2rem))]"
       >

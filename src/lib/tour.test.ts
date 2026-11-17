@@ -25,6 +25,7 @@ describe('tour guiado', () => {
       consultor: 6,
       financeiro: 5,
       logistica: 6,
+      colaborador: 5,
     })
     for (const perfil of PERFIS) {
       for (const passo of passosDoTour(perfil)) {

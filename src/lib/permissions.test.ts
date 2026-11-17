@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Perfil } from '@prisma/client'
 import {
+  ACOES,
   comecaNaLogistica,
   escopoDeDadosSensiveis,
   escopoDeSolicitacoes,
@@ -205,8 +206,13 @@ describe('custo dos envios', () => {
     expect(pode(Perfil.consultor, 'logistica.verCustos')).toBe(false)
   })
 
+  it('o Colaborador AUVP também não, como o Consultor: é a empresa inteira', () => {
+    expect(pode(Perfil.colaborador, 'logistica.verCustos')).toBe(false)
+  })
+
   it('os demais perfis veem', () => {
-    for (const perfil of Object.values(Perfil).filter((p) => p !== Perfil.consultor)) {
+    const semCusto: Perfil[] = [Perfil.consultor, Perfil.colaborador]
+    for (const perfil of Object.values(Perfil).filter((p) => !semCusto.includes(p))) {
       expect(pode(perfil, 'logistica.verCustos'), perfil).toBe(true)
     }
   })
@@ -251,11 +257,21 @@ describe('quem cada admin alcança em Usuários', () => {
     expect(problemaAoMudarPerfil(Perfil.admin, Perfil.admin, Perfil.financeiro)).toBeNull()
   })
 
-  it('o de Relacionamento gerencia consultores, sem trocar o perfil deles', () => {
-    expect(perfisAoAlcance(Perfil.admin_relacionamento)).toEqual([Perfil.consultor])
+  it('o de Relacionamento gerencia consultores e traz o Colaborador para o time', () => {
+    expect(perfisAoAlcance(Perfil.admin_relacionamento)).toEqual([
+      Perfil.consultor,
+      Perfil.colaborador,
+    ])
     expect(
       problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.consultor, Perfil.consultor),
     ).toBeNull()
+    // Quem entra pela primeira vez é Colaborador: é assim que vira Consultor.
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.colaborador, Perfil.consultor),
+    ).toBeNull()
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.colaborador, Perfil.financeiro),
+    ).not.toBeNull()
     expect(
       problemaAoMudarPerfil(Perfil.admin_relacionamento, Perfil.consultor, Perfil.logistica),
     ).not.toBeNull()
@@ -352,5 +368,36 @@ describe('confirmar o recebimento', () => {
     for (const perfil of [Perfil.logistica, Perfil.admin_logistica]) {
       expect(pode(perfil, 'solicitacao.confirmarRecebimento'), perfil).toBe(false)
     }
+  })
+})
+
+describe('Colaborador AUVP', () => {
+  it('só pede à Logística e lê o painel', () => {
+    const permitidas = ACOES.filter((acao) => pode(Perfil.colaborador, acao))
+    // As observações seguem a decisão pendente que vale para todos os leitores.
+    expect(permitidas.filter((a) => a !== 'logistica.verObservacoes')).toEqual([
+      'logistica.ver',
+      'logistica.pedir',
+    ])
+  })
+
+  it('não enxerga solicitação de presente nenhuma, e começa pelo painel', () => {
+    expect(filtroDeSolicitacoes(Perfil.colaborador, 'u1')).toBeNull()
+    expect(escopoDeDadosSensiveis(Perfil.colaborador)).toBe('nenhum')
+  })
+
+  it('todos os perfis podem pedir trabalho à Logística', () => {
+    for (const perfil of Object.values(Perfil)) {
+      expect(pode(perfil, 'logistica.pedir'), perfil).toBe(true)
+    }
+  })
+
+  it('o admin de cada área traz o Colaborador para o próprio time', () => {
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_logistica, Perfil.colaborador, Perfil.logistica),
+    ).toBeNull()
+    expect(
+      problemaAoMudarPerfil(Perfil.admin_logistica, Perfil.colaborador, Perfil.admin),
+    ).not.toBeNull()
   })
 })

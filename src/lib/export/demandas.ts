@@ -57,7 +57,12 @@ export function colunasDaTrilha(verObservacoes: boolean): readonly ColunaExport[
 type Chave = (typeof COLUNAS_BASE)[number]['chave'] | typeof COLUNA_OBSERVACOES.chave
 export type LinhaDaTrilha = Record<Chave, string | number | null>
 
-const ROTULO_ORIGEM = { manual: 'Manual', solicitacao: 'Presente', clickup: 'ClickUp' } as const
+const ROTULO_ORIGEM = {
+  manual: 'Manual',
+  solicitacao: 'Presente',
+  clickup: 'ClickUp',
+  pedido: 'Pedido',
+} as const
 
 const data = (d: Date | null) => (d ? formatarISO(d) : null)
 
@@ -73,7 +78,10 @@ export function linhasDaTrilha(demandas: readonly DemandaNaTrilha[]): LinhaDaTri
     departamento: d.departamento,
     produto: d.produto,
     complexidade: d.complexidade ? ROTULO_COMPLEXIDADE[d.complexidade] : null,
-    origem: ROTULO_ORIGEM[d.origem],
+    origem:
+      d.origem === 'pedido' && d.solicitante
+        ? `Pedido de ${d.solicitante}`
+        : ROTULO_ORIGEM[d.origem],
     recorrencia: d.recorrente
       ? `Recorrente${d.periodicidade ? ` · ${rotuloDaRecorrencia(d.periodicidade, d.intervaloDias)}` : ''}${
           d.recorrenteAte ? ` até ${data(d.recorrenteAte)}` : ''

@@ -35,6 +35,9 @@ enum Perfil {
   /// Admin da Logística: opera como o time e move pessoas entre Consultor e
   /// Logística.
   admin_logistica
+  /// Colaborador AUVP: pede trabalho à Logística e acompanha o painel e os
+  /// próprios pedidos. É o perfil de quem entra pela primeira vez.
+  colaborador
 }
 
 /// De onde o presente sai quando alguém pede.
@@ -111,18 +114,19 @@ model Usuario {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  solicitacoes    Solicitacao[]             @relation("SolicitacoesDoConsultor")
-  historicos      SolicitacaoHistorico[]
-  clientesCriados Cliente[]                 @relation("ClientesCriadosPor")
-  statusDefinidos StatusOperacionalSemana[]
-  lotesTiny       LoteTiny[]
-  pedidosTiny     PedidoTiny[]
-  contatosTiny    ContatoTiny[]
-  eventosTiny     EventoTiny[]
+  solicitacoes      Solicitacao[]             @relation("SolicitacoesDoConsultor")
+  historicos        SolicitacaoHistorico[]
+  clientesCriados   Cliente[]                 @relation("ClientesCriadosPor")
+  statusDefinidos   StatusOperacionalSemana[]
+  lotesTiny         LoteTiny[]
+  pedidosTiny       PedidoTiny[]
+  contatosTiny      ContatoTiny[]
+  eventosTiny       EventoTiny[]
   /// Os perfis cujo tour guiado a pessoa já viu, para não reabrir sozinho.
-  toursVistos     String[]                  @default([]) @map("tours_vistos")
-  enviosDemanda   EnvioDaDemanda[]          @relation("EnviosRegistrados")
-  enviosAnulados  EnvioDaDemanda[]          @relation("EnviosAnulados")
+  toursVistos       String[]                  @default([]) @map("tours_vistos")
+  enviosDemanda     EnvioDaDemanda[]          @relation("EnviosRegistrados")
+  enviosAnulados    EnvioDaDemanda[]          @relation("EnviosAnulados")
+  pedidosALogistica DemandaLogistica[]        @relation("PedidosALogistica")
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -459,6 +463,8 @@ enum OrigemDemanda {
   manual
   clickup
   solicitacao
+  /// Pedida por alguém da AUVP pela tela "Pedir à Logística".
+  pedido
 }
 
 /// De quanto em quanto tempo uma demanda recorrente volta.
@@ -545,6 +551,9 @@ model DemandaLogistica {
   ocorrenciaAnteriorId String?              @unique @map("ocorrencia_anterior_id")
   /// O presente aprovado que virou esta demanda (ADR 0009).
   solicitacaoId        String?              @unique @map("solicitacao_id")
+  /// Quem pediu, quando a demanda veio de "Pedir à Logística". É por ele que a
+  /// pessoa acompanha os próprios pedidos.
+  solicitanteId        String?              @map("solicitante_id")
   /// Arquivada some do dashboard sem ser apagada: é o caminho para o que foi
   /// cadastrado por engano e para o presente cancelado.
   ativa                Boolean              @default(true)
@@ -561,6 +570,7 @@ model DemandaLogistica {
   ocorrenciaAnterior DemandaLogistica? @relation("Recorrencia", fields: [ocorrenciaAnteriorId], references: [id], onDelete: SetNull)
   proximaOcorrencia  DemandaLogistica? @relation("Recorrencia")
   solicitacao        Solicitacao?      @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
+  solicitante        Usuario?          @relation("PedidosALogistica", fields: [solicitanteId], references: [id], onDelete: Restrict)
   /// O lote de envio que esta demanda representa na trilha.
   loteTiny           LoteTiny?
   envios             EnvioDaDemanda[]
@@ -569,6 +579,7 @@ model DemandaLogistica {
   @@index([concluidaEm])
   @@index([previsaoConclusao])
   @@index([ativa])
+  @@index([solicitanteId])
   @@map("demandas_logistica")
 }
 

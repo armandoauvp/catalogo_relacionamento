@@ -8,6 +8,7 @@ import type { Perfil } from '@prisma/client'
 import {
   Check,
   ChevronDown,
+  ClipboardList,
   Compass,
   Gift,
   ListChecks,
@@ -61,6 +62,8 @@ type ItemDeMenu = {
   descricao: string
   icone: LucideIcon
   acao: Acao
+  /** Some para quem tem esta permissão: já faz o mesmo por outro caminho. */
+  excetoQuem?: Acao
 }
 
 /** Itens de primeiro nível. */
@@ -104,6 +107,16 @@ const PRINCIPAIS: readonly ItemDeMenu[] = [
     descricao: 'Status da operação, volume, demandas e equipe',
     icone: Warehouse,
     acao: 'logistica.ver',
+  },
+  {
+    id: 'pedidos',
+    href: '/logistica/pedidos' as Route,
+    rotulo: 'Meus pedidos',
+    descricao: 'Peça um envio, kit ou brinde à Logística e acompanhe a fase',
+    icone: ClipboardList,
+    acao: 'logistica.pedir',
+    // Quem opera a Logística cadastra a demanda direto na trilha.
+    excetoQuem: 'logistica.gerenciar',
   },
   {
     id: 'tiny',
@@ -237,6 +250,7 @@ const PERFIS: Perfil[] = [
   'consultor',
   'financeiro',
   'logistica',
+  'colaborador',
 ]
 
 export function Nav({
@@ -253,11 +267,20 @@ export function Nav({
   const [emHover, setEmHover] = useState<string | null>(null)
   const [trocando, iniciarTroca] = useTransition()
 
-  const ativo = (href: Route) => caminho === href || caminho.startsWith(`${href}/`)
-
-  const principais = PRINCIPAIS.filter((item) => pode(perfil, item.acao))
+  const principais = PRINCIPAIS.filter(
+    (item) => pode(perfil, item.acao) && !(item.excetoQuem && pode(perfil, item.excetoQuem)),
+  )
   const administracao = ADMINISTRACAO.filter((item) => pode(perfil, item.acao))
   const todos = [...principais, ...administracao]
+
+  // Só o item mais específico fica ativo: em /logistica/pedidos é "Meus
+  // pedidos", e não também "Logística".
+  const contem = (href: Route) => caminho === href || caminho.startsWith(`${href}/`)
+  const hrefAtivo = todos
+    .map((item) => item.href)
+    .filter(contem)
+    .sort((a, b) => b.length - a.length)[0]
+  const ativo = (href: Route) => href === hrefAtivo
 
   const atual = todos.find((item) => ativo(item.href))
   const adminAtivo = administracao.some((item) => ativo(item.href))

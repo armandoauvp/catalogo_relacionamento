@@ -67,6 +67,12 @@ export const USUARIOS_DA_DEMONSTRACAO: readonly UsuarioDaDemonstracao[] = [
     perfil: Perfil.logistica,
     oQueVe: 'O Dashboard Logístico e a expedição.',
   },
+  {
+    nome: 'Caio Colaborador',
+    email: 'colaborador@auvp.com.br',
+    perfil: Perfil.colaborador,
+    oQueVe: 'Pede trabalho à Logística e acompanha o painel e os próprios pedidos.',
+  },
 ]
 
 /** O usuário da demonstração com este e-mail, ou nulo. Nada fora da lista entra. */

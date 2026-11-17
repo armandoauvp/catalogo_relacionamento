@@ -184,7 +184,7 @@ cifrado com `AUTH_SECRET`, e as fotos ficam no Postgres.
    e pedidos fictícios.
 
 3. **Primeiro Admin.** Quem estiver em `BOOTSTRAP_ADMIN_EMAILS` entra pelo SSO
-   e já nasce Admin. Os demais nascem Consultor e são promovidos por esse Admin
+   e já nasce Admin. Os demais nascem Colaborador AUVP e são promovidos por esse Admin
    em `/admin/usuarios`, sem passar pela TI. Sem essa variável, ninguém
    conseguiria promover ninguém.
 
