@@ -5,6 +5,8 @@ import { modoDemonstracao, perfilLivre } from '@/lib/env'
 import { db } from '@/lib/db'
 import { Nav } from '@/components/nav'
 import { Tour } from '@/components/tour'
+import { Assistente } from '@/components/assistente'
+import { faqDoPerfil } from '@/lib/assistente/faq'
 import { Transicao } from '@/components/transicao'
 import './globals.css'
 
@@ -93,6 +95,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             perfil={usuario.perfil}
             jaViu={vistos?.toursVistos.includes(usuario.perfil) ?? false}
           />
+        ) : null}
+        {usuario ? (
+          // As perguntas saem filtradas daqui: o navegador só recebe as do perfil.
+          <Assistente key={`caixinha-${usuario.perfil}`} itens={faqDoPerfil(usuario.perfil)} />
         ) : null}
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 md:px-8">

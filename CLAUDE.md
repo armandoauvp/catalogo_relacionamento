@@ -31,6 +31,7 @@ duplique numa tela.
 | Kit que exige bebida junto       | `src/lib/acompanhamentos.ts`              |
 | Modelos e montagem da carta      | `src/lib/carta.ts`                        |
 | Tour guiado de cada perfil       | `src/lib/tour.ts`                         |
+| Perguntas da Caixinha (FAQ)      | `src/lib/assistente/faq.ts`               |
 | Fornecedor padrão por categoria  | `src/lib/fornecedores.ts`                 |
 | Upload e leitura de foto         | `src/lib/arquivos.ts`                     |
 | Redução da foto antes do envio   | `src/lib/arquivos-no-navegador.ts`        |
@@ -217,6 +218,11 @@ aprovar" (`?fila=aprovar`) abre esse caminho na tela inicial e na gestão. O
 passo seguinte de cada status vira um botão, no detalhe e na fila de compras, e
 uma frase para quem pediu; os dois moram em `src/lib/status.ts` (`proximoPasso`
 e `oQueAconteceAgora`).
+
+A Caixinha, o mascote, fica num botão fixo no canto da tela e abre uma FAQ
+pesquisável, sem IA, filtrada pelo perfil e com o link da tela certa
+([docs/14-caixinha.md](docs/14-caixinha.md)). Ao mudar uma tela ou regra de
+fluxo, revise a resposta correspondente em `src/lib/assistente/faq.ts`.
 
 Cada perfil tem um tour guiado (`src/components/tour.tsx`, a partir do `Tour` do
 Design System), que abre sozinho no primeiro acesso e fica no menu da conta. Os

@@ -7,3 +7,26 @@
  * A identidade visual (cores, tipografia, raio) vive em
  * `src/styles/auvp-tokens.css`, compartilhada com a vitrine estática.
  */
+
+/*
+ * A Caixinha pisca de vez em quando (`<Caixinha piscando />`). Só `transform`,
+ * que não mexe no layout, e só para quem não pediu menos movimento no sistema.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .caixinha-pisca {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: caixinha-pisca 5s infinite;
+  }
+}
+
+@keyframes caixinha-pisca {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
