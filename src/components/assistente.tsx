@@ -11,6 +11,38 @@ import { buscarNaFaq } from '@/lib/assistente/busca'
 import { cn } from '@/lib/utils'
 
 /**
+ * Para onde a Caixinha olha: a direção do ponteiro a partir do centro do
+ * botão, de -1 a 1 em cada eixo, mais intensa quanto mais longe (até ~300 px).
+ * Só ouve o mouse: no toque não há ponteiro para seguir, e ela olha para a
+ * frente. Uma atualização por quadro, para o movimento não pesar.
+ */
+function useOlharDoMouse(alvo: React.RefObject<HTMLElement | null>) {
+  const [olhar, setOlhar] = useState({ x: 0, y: 0 })
+  useEffect(() => {
+    let quadro = 0
+    const aoMover = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || quadro) return
+      quadro = requestAnimationFrame(() => {
+        quadro = 0
+        const r = alvo.current?.getBoundingClientRect()
+        if (!r) return
+        const dx = e.clientX - (r.left + r.width / 2)
+        const dy = e.clientY - (r.top + r.height / 2)
+        const distancia = Math.hypot(dx, dy) || 1
+        const forca = Math.min(1, distancia / 300)
+        setOlhar({ x: (dx / distancia) * forca, y: (dy / distancia) * forca })
+      })
+    }
+    window.addEventListener('pointermove', aoMover, { passive: true })
+    return () => {
+      window.removeEventListener('pointermove', aoMover)
+      cancelAnimationFrame(quadro)
+    }
+  }, [alvo])
+  return olhar
+}
+
+/**
  * A Caixinha: o botão fixo no canto da tela e o painel de perguntas.
  *
  * Recebe só as perguntas do perfil, já filtradas no servidor (`faqDoPerfil`).
@@ -29,6 +61,7 @@ export function Assistente({ itens }: { itens: ItemDaFaq[] }) {
   const botao = useRef<HTMLButtonElement>(null)
   const idPainel = useId()
 
+  const olhar = useOlharDoMouse(botao)
   const resultados = useMemo(() => buscarNaFaq(itens, termo), [itens, termo])
   const sugestoes = termo.trim() === ''
 
@@ -61,10 +94,10 @@ export function Assistente({ itens }: { itens: ItemDaFaq[] }) {
           id={idPainel}
           role="dialog"
           aria-label="Caixinha, perguntas sobre a plataforma"
-          className="bg-card text-card-foreground fixed inset-x-3 bottom-24 z-[55] flex max-h-[min(70vh,calc(100dvh-7rem))] flex-col overflow-hidden rounded-lg border shadow-[0_24px_60px_-24px_rgba(11,41,5,0.45)] sm:inset-x-auto sm:right-6 sm:w-[400px]"
+          className="bg-card text-card-foreground fixed inset-x-3 bottom-28 z-[55] flex max-h-[min(70vh,calc(100dvh-8rem))] flex-col overflow-hidden rounded-lg border shadow-[0_24px_60px_-24px_rgba(11,41,5,0.45)] sm:inset-x-auto sm:right-6 sm:w-[400px]"
         >
           <header className="flex items-start gap-3 border-b p-4">
-            <Caixinha className="w-11 shrink-0" piscando />
+            <Caixinha className="w-11 shrink-0" piscando olhar={olhar} />
             <div className="min-w-0 flex-1">
               <p className="font-display text-lg leading-tight font-semibold">
                 Oi! Sou a Caixinha.
@@ -178,9 +211,15 @@ export function Assistente({ itens }: { itens: ItemDaFaq[] }) {
         aria-controls={aberto ? idPainel : undefined}
         aria-label={aberto ? 'Fechar a Caixinha' : 'Abrir a Caixinha: dúvidas sobre a plataforma'}
         title="Dúvidas? Pergunte à Caixinha"
-        className="bg-card hover:border-primary focus-visible:ring-ring fixed right-4 bottom-4 z-[55] grid size-16 place-items-center rounded-full border shadow-[0_12px_30px_-12px_rgba(11,41,5,0.45)] transition-colors focus-visible:ring-2 focus-visible:outline-none sm:right-6 sm:bottom-6"
+        // Sem o círculo de fundo: a Caixinha é o próprio botão. A sombra no pé
+        // do desenho já a apoia na tela; o hover sobe um pouco, só por transform.
+        className="focus-visible:ring-ring fixed right-3 bottom-3 z-[55] grid size-20 place-items-center rounded-2xl transition-transform duration-200 ease-out hover:-translate-y-1 focus-visible:ring-2 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:right-5 sm:bottom-5"
       >
-        <Caixinha className="w-10" piscando={!aberto} />
+        <Caixinha
+          className="w-[4.5rem] drop-shadow-[0_6px_10px_rgba(11,41,5,0.25)]"
+          piscando={!aberto}
+          olhar={olhar}
+        />
       </button>
     </>
   )

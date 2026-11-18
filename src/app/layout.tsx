@@ -56,6 +56,12 @@ export const metadata: Metadata = {
   description: 'Catálogo e solicitação de presentes da área de Relacionamento da AUVP',
 }
 
+/*
+ * A classe `.dark`, e não só a media query, porque é o contrato dos tokens da
+ * Central: se um dia houver alternador, ele só passa a escrever esta classe.
+ */
+const TEMA_DO_SISTEMA = `(function(){var m=matchMedia('(prefers-color-scheme: dark)');function a(){document.documentElement.classList.toggle('dark',m.matches)}a();m.addEventListener('change',a)})()`
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // A navegação depende do perfil, então é montada no servidor a cada request.
   const usuario = await usuarioAtual()
@@ -72,7 +78,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       : {}
 
   return (
-    <html lang="pt-BR" className={`${anek.variable} ${roboto.variable} ${sora.variable}`}>
+    // O script muda a classe do <html> antes da hidratação; daí o suppress.
+    <html
+      lang="pt-BR"
+      className={`${anek.variable} ${roboto.variable} ${sora.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* O tema segue o computador da pessoa, sem alternador: roda antes da
+            primeira pintura, para não piscar claro, e acompanha a troca ao vivo. */}
+        <script dangerouslySetInnerHTML={{ __html: TEMA_DO_SISTEMA }} />
+      </head>
       {/* Mesma casca da Central: fundo liso, header sticky, conteúdo em 7xl e
           rodapé. Os cards se separam pela borda, não por contraste de fundo. */}
       <body className="bg-background flex min-h-screen flex-col antialiased">

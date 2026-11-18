@@ -11,15 +11,24 @@ import { cn } from '@/lib/utils'
  *
  * `piscando` liga uma piscada de vez em quando (classe `caixinha-pisca`, em
  * globals.css), que respeita "reduzir movimento".
+ *
+ * `olhar` move as pupilas para onde a Caixinha olha, de -1 a 1 em cada eixo.
+ * As pupilas têm grupo próprio, dentro do da piscada: piscar e olhar não
+ * brigam pelo mesmo `transform`.
  */
 export function Caixinha({
   className,
   piscando = false,
+  olhar,
 }: {
   className?: string
   piscando?: boolean
+  olhar?: { x: number; y: number }
 }) {
   const tinta = '#0B2905'
+  // Até onde a pupila anda sem sair do branco do olho (raio 15 × 17, pupila 8,5).
+  const dx = (olhar?.x ?? 0) * 5
+  const dy = (olhar?.y ?? 0) * 6
   return (
     <svg
       viewBox="0 0 240 250"
@@ -50,10 +59,12 @@ export function Caixinha({
       <g className={piscando ? 'caixinha-pisca' : undefined}>
         <ellipse cx="84" cy="150" rx="15" ry="17" fill="#fff" />
         <ellipse cx="156" cy="150" rx="15" ry="17" fill="#fff" />
-        <circle cx="86" cy="153" r="8.5" fill={tinta} />
-        <circle cx="158" cy="153" r="8.5" fill={tinta} />
-        <circle cx="89.5" cy="148.5" r="3" fill="#fff" />
-        <circle cx="161.5" cy="148.5" r="3" fill="#fff" />
+        <g className="caixinha-olhar" style={{ transform: `translate(${dx - 2}px, ${dy - 3}px)` }}>
+          <circle cx="86" cy="153" r="8.5" fill={tinta} />
+          <circle cx="158" cy="153" r="8.5" fill={tinta} />
+          <circle cx="89.5" cy="148.5" r="3" fill="#fff" />
+          <circle cx="161.5" cy="148.5" r="3" fill="#fff" />
+        </g>
       </g>
       <g fill="#F07D97" opacity=".7">
         <ellipse cx="64" cy="178" rx="11" ry="6.5" />

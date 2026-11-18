@@ -159,6 +159,9 @@
   }
 
   .dark {
+    /* Caixa de seleção, calendário e barra de rolagem nativos no escuro. */
+    color-scheme: dark;
+
     /* === AUVP Capital: tema escuro (fundo preto) ===
        Base preto/branco/cinza. O verde #5A8770 fica reservado para acentos
        pontuais, não para superfícies inteiras. */

@@ -22,8 +22,10 @@ const buttonVariants = cva(
           'border border-primary bg-primary text-primary-foreground hover:border-primary-emphasis hover:bg-transparent hover:text-primary-emphasis',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        // No escuro, cheio de branco: é o "selecionado" das alternâncias, e
+        // vazado ficava igual ao `outline` ao lado.
         secondary:
-          'border border-secondary bg-secondary text-secondary-foreground hover:border-secondary-emphasis hover:bg-transparent hover:text-secondary-emphasis dark:border-foreground dark:bg-transparent dark:text-foreground dark:hover:bg-foreground dark:hover:text-background',
+          'border border-secondary bg-secondary text-secondary-foreground hover:border-secondary-emphasis hover:bg-transparent hover:text-secondary-emphasis dark:border-foreground dark:bg-foreground dark:text-background dark:hover:bg-transparent dark:hover:text-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary-emphasis underline-offset-4 hover:underline',
       },

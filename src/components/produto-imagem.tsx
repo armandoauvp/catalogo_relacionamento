@@ -114,7 +114,7 @@ export function ProdutoImagem({
               unoptimized={semOtimizador(fotoUrl)}
               onError={() => setFalhou(true)}
               sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 90vw"
-              className="absolute inset-0 h-full w-full object-cover [backface-visibility:hidden]"
+              className="absolute inset-0 h-full w-full object-cover [backface-visibility:hidden] dark:brightness-90"
             />
             <Image
               src={fotoVersoUrl!}
@@ -124,7 +124,7 @@ export function ProdutoImagem({
               unoptimized={semOtimizador(fotoVersoUrl!)}
               onError={() => setFalhou(true)}
               sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 90vw"
-              className="absolute inset-0 h-full w-full [transform:rotateY(180deg)] object-cover [backface-visibility:hidden]"
+              className="absolute inset-0 h-full w-full [transform:rotateY(180deg)] object-cover [backface-visibility:hidden] dark:brightness-90"
             />
           </div>
 
@@ -153,7 +153,7 @@ export function ProdutoImagem({
           unoptimized={semOtimizador(fotoUrl)}
           onError={() => setFalhou(true)}
           sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 90vw"
-          className="ease-apple h-full w-full object-cover transition-transform duration-500 sm:group-hover:scale-105"
+          className="ease-apple h-full w-full object-cover transition-transform duration-500 sm:group-hover:scale-105 dark:brightness-90"
         />
       )}
       {children}

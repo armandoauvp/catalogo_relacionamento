@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import '../styles/auvp-tokens.css';
 
+/* `dark:` segue a classe que o script do layout liga, a mesma dos tokens. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Estilos globais da aplicação.
  *
@@ -17,6 +20,13 @@
     transform-box: fill-box;
     transform-origin: center;
     animation: caixinha-pisca 5s infinite;
+  }
+}
+
+/* As pupilas seguem o mouse com um leve atraso, que dá peso ao olhar. */
+@media (prefers-reduced-motion: no-preference) {
+  .caixinha-olhar {
+    transition: transform 120ms ease-out;
   }
 }
 

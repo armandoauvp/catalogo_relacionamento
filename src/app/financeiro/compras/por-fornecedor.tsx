@@ -245,7 +245,7 @@ export function PorFornecedor({ grupos, opera }: { grupos: GrupoNaTela[]; opera:
       {/* A barra da seleção: fixa embaixo, só com algo marcado, acima do botão
           da Caixinha, que ocupa o canto inferior direito. */}
       {opera && escolhidos.length > 0 ? (
-        <div className="bg-card fixed inset-x-3 bottom-24 z-40 mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 shadow-[0_18px_40px_-18px_rgba(11,41,5,0.45)] sm:inset-x-6">
+        <div className="bg-card fixed inset-x-3 bottom-28 z-40 mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 shadow-[0_18px_40px_-18px_rgba(11,41,5,0.45)] sm:inset-x-6">
           <p className="text-sm font-medium">
             {escolhidos.length}{' '}
             {escolhidos.length === 1 ? 'item selecionado' : 'itens selecionados'}

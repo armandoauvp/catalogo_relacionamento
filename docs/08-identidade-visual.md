@@ -44,6 +44,22 @@ Escola. Esta é uma ferramenta interna da Capital; o tema Escola entraria como
 peso morto. Se um dia fizer sentido, o caminho é copiar o bloco `.escola` da
 Central para o arquivo de tokens.
 
+**O tema segue o computador, sem alternador.** A Central guarda a escolha no
+`localStorage` e tem um botão de tema; aqui não há escolha a guardar. Um
+script curto no `<head>` (`TEMA_DO_SISTEMA`, em `src/app/layout.tsx`) liga a
+classe `.dark` do `<html>` conforme `prefers-color-scheme`, antes da primeira
+pintura, e troca ao vivo quando a pessoa muda o tema do sistema. Usar a mesma
+classe da Central, e não só a media query, mantém o contrato dos tokens: um
+alternador futuro só passaria a escrever essa classe. O `dark:` do Tailwind
+segue a classe (`@custom-variant` em `globals.css`), e `.dark` declara
+`color-scheme: dark`, que escurece caixa de seleção, calendário e barra de
+rolagem nativos. A vitrine (`demo/`) continua só no claro.
+
+No escuro, o botão `secondary` é cheio de branco: é o "selecionado" das
+alternâncias (Por fornecedor/Por item, Semanal/Mensal), e vazado ficava igual
+ao `outline` ao lado. O login perde o fundo verde e fica preto, pela regra do
+DS de reservar o verde a acentos.
+
 ## Paleta
 
 Verde AUVP `hsl(155 93% 11%)` como primária no tema claro. No escuro a base é
@@ -154,6 +170,9 @@ sem faixa de fundo sobrando.
 A caneca AUPO11 tem os dois lados desenhados e gira em 3D no hover, como na
 Central. A convenção é a mesma: nenhum campo novo no banco, basta existir
 `<slug>-verso.webp` ao lado da foto da frente (`src/lib/fotos.ts`).
+
+No tema escuro a foto perde 10% de brilho (`dark:brightness-90`): o fundo
+branco de estúdio ofuscava sobre o preto. É só filtro, não mexe no layout.
 
 ## Ilustrações de produto
 

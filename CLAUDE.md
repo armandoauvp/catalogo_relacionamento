@@ -42,6 +42,7 @@ duplique numa tela.
 | Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
 | Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
+| Tarefas trazidas do ClickUp      | `src/lib/importacao-clickup.ts`           |
 | Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
 | Filtro por clique nos grupos     | `src/lib/filtro-por-grupo.ts`             |
 | Recorte da gestão (com a rota)   | `src/lib/solicitacoes-filtradas.ts`       |
@@ -172,6 +173,11 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   nunca a paleta crua do Tailwind (`bg-amber-100`), ela não passa pelas travas
   de contraste do DS nem acompanha o tema escuro. Ver
   `docs/08-identidade-visual.md`.
+- **O tema segue o computador da pessoa**, sem alternador: o script
+  `TEMA_DO_SISTEMA` do layout liga `.dark` no `<html>` antes da primeira
+  pintura e acompanha a troca do sistema. `dark:` segue essa classe
+  (`@custom-variant`), nunca a media query solta, e toda tela nova é conferida
+  nos dois temas.
 
 ## Convenções
 
