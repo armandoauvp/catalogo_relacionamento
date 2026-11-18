@@ -44,13 +44,16 @@ Escola. Esta é uma ferramenta interna da Capital; o tema Escola entraria como
 peso morto. Se um dia fizer sentido, o caminho é copiar o bloco `.escola` da
 Central para o arquivo de tokens.
 
-**O tema segue o computador, sem alternador.** A Central guarda a escolha no
-`localStorage` e tem um botão de tema; aqui não há escolha a guardar. Um
-script curto no `<head>` (`TEMA_DO_SISTEMA`, em `src/app/layout.tsx`) liga a
-classe `.dark` do `<html>` conforme `prefers-color-scheme`, antes da primeira
-pintura, e troca ao vivo quando a pessoa muda o tema do sistema. Usar a mesma
-classe da Central, e não só a media query, mantém o contrato dos tokens: um
-alternador futuro só passaria a escrever essa classe. O `dark:` do Tailwind
+**O tema segue o computador até a pessoa escolher.** Sem escolha, um script
+curto no `<head>` (`SCRIPT_DO_TEMA`, em `src/lib/tema.ts`) liga a classe
+`.dark` do `<html>` conforme `prefers-color-scheme`, antes da primeira
+pintura, e troca ao vivo quando a pessoa muda o tema do sistema. O botão de
+sol/lua no menu superior grava claro ou escuro no `localStorage` deste
+navegador (como a Central faz), e a escolha vale por cima do sistema, também
+nas outras abas abertas; "Tema do computador", no menu da conta, apaga a
+escolha. Fica no navegador e não no banco porque precisa ser lida antes da
+primeira pintura. O ícone do botão troca por `dark:`, e não por estado: o
+servidor não sabe o tema, e o HTML dele tem de bater com a hidratação. O `dark:` do Tailwind
 segue a classe (`@custom-variant` em `globals.css`), e `.dark` declara
 `color-scheme: dark`, que escurece caixa de seleção, calendário e barra de
 rolagem nativos. A vitrine (`demo/`) continua só no claro.

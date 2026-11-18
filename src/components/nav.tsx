@@ -14,6 +14,7 @@ import {
   ListChecks,
   LogOut,
   MailOpen,
+  Monitor,
   Package,
   Send,
   Settings2,
@@ -36,6 +37,8 @@ import { sair, verComoPerfil } from '@/lib/actions/sessao'
 import { pode, ROTULO_PERFIL, type Acao } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import { EVENTO_ABRIR_TOUR } from '@/components/tour'
+import { TrocaDeTema } from '@/components/troca-de-tema'
+import { escolherTema } from '@/lib/tema'
 
 /**
  * Navegação superior, no padrão do `GlobalNav` da Central: barra clara com
@@ -460,6 +463,7 @@ export function Nav({
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
+          <TrocaDeTema />
           <div className="bg-border mx-0.5 hidden h-4 w-px lg:block" />
 
           {/* O form fica fora do menu: o conteúdo do dropdown desmonta ao
@@ -511,6 +515,10 @@ export function Nav({
               <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event(EVENTO_ABRIR_TOUR))}>
                 <Compass className="h-4 w-4" aria-hidden="true" />
                 Ver o tour
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => escolherTema(null)}>
+                <Monitor className="h-4 w-4" aria-hidden="true" />
+                Tema do computador
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <button type="submit" form="form-sair" className="w-full items-center">

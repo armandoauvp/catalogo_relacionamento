@@ -173,9 +173,12 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   nunca a paleta crua do Tailwind (`bg-amber-100`), ela não passa pelas travas
   de contraste do DS nem acompanha o tema escuro. Ver
   `docs/08-identidade-visual.md`.
-- **O tema segue o computador da pessoa**, sem alternador: o script
-  `TEMA_DO_SISTEMA` do layout liga `.dark` no `<html>` antes da primeira
-  pintura e acompanha a troca do sistema. `dark:` segue essa classe
+- **O tema segue o computador da pessoa** até ela escolher: o botão de
+  sol/lua do menu grava claro ou escuro neste navegador, e "Tema do
+  computador", no menu da conta, apaga a escolha (`src/lib/tema.ts`). O
+  `SCRIPT_DO_TEMA` do layout liga `.dark` no `<html>` antes da primeira
+  pintura. O ícone troca por `dark:`, nunca por estado, que divergiria da
+  hidratação. `dark:` segue essa classe
   (`@custom-variant`), nunca a media query solta, e toda tela nova é conferida
   nos dois temas.
 

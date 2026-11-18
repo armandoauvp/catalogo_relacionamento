@@ -54,6 +54,13 @@ export const FAQ: ItemDaFaq[] = [
     termos: ['tutorial', 'passo a passo', 'guia', 'apresentacao'],
   },
   {
+    id: 'tema',
+    pergunta: 'Como deixo a tela clara ou escura?',
+    resposta:
+      'Pelo botão de sol e lua no menu superior, ao lado do seu nome. A escolha fica guardada neste navegador. Para voltar a seguir o tema do computador, use "Tema do computador" no menu da sua conta.',
+    termos: ['modo escuro', 'tema', 'dark', 'claro', 'escuro', 'noturno', 'cor'],
+  },
+  {
     id: 'painel-logistica',
     pergunta: 'O que mostra o Dashboard Logístico?',
     resposta:
