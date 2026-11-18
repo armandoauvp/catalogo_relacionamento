@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { StatusSolicitacao } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 import {
+  chegouAgora,
+  diasDesde,
   pendenciaDoEnvio,
   pecasASeparar,
   linhasDaExpedicao,
@@ -132,5 +134,32 @@ describe('pendenciaDoEnvio', () => {
     expect(pendenciaDoEnvio(pedido(), { envio: 'enviado', situacao: 'aberto' }, agora)?.texto).toBe(
       'Na expedição há 3 dias, ainda sem rastreio.',
     )
+  })
+})
+
+describe('o que acabou de ficar pronto', () => {
+  const agora = new Date('2026-11-18T15:00:00Z')
+  const pronto = (horas: number, rastreio: string | null = null) => ({
+    status: StatusSolicitacao.organizando_envio,
+    rastreio,
+    naExpedicaoDesde: new Date(agora.getTime() - horas * 3_600_000),
+  })
+
+  it('é novo nas primeiras 24 horas, até ganhar rastreio', () => {
+    expect(chegouAgora(pronto(1), agora)).toBe(true)
+    expect(chegouAgora(pronto(23), agora)).toBe(true)
+    expect(chegouAgora(pronto(25), agora)).toBe(false)
+    expect(chegouAgora(pronto(1, 'AA123456789BR'), agora)).toBe(false)
+  })
+
+  it('só o que está na expedição conta como novo', () => {
+    expect(chegouAgora({ ...pronto(1), status: StatusSolicitacao.comprado }, agora)).toBe(false)
+    expect(chegouAgora({ ...pronto(1), status: StatusSolicitacao.entregue }, agora)).toBe(false)
+  })
+
+  it('conta os dias inteiros desde a compra', () => {
+    expect(diasDesde(new Date(agora.getTime() - 3_600_000), agora)).toBe(0)
+    expect(diasDesde(new Date(agora.getTime() - 50 * 3_600_000), agora)).toBe(2)
+    expect(diasDesde(new Date(agora.getTime() + 3_600_000), agora)).toBe(0)
   })
 })

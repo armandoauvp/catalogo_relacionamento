@@ -18,9 +18,14 @@ import type { ColunaExport } from './export/linhas'
  *
  * Duas coisas mandam uma solicitação para cá:
  *
- * - o caminho normal, depois que o Financeiro compra;
+ * - o caminho normal: o Financeiro compra, e a Logística confirma que o item
+ *   chegou (`confirmarChegada`). Comprado não é chegado, e a Logística só
+ *   processa o que está com ela, por isso o pedido só vai ao Tiny daí;
  * - o atalho: itens que já estão em estoque não passam pelo Financeiro, e a
  *   aprovação já os libera para envio.
+ *
+ * O que foi comprado e ainda não chegou fica "a caminho", na mesma tela, para a
+ * Logística saber o que vem e ter onde voltar quando o pacote chegar.
  */
 
 export type ItemDoPedido = {
@@ -95,6 +100,100 @@ export function pendenciaDoEnvio(
     return { texto: `Na expedição${ha}, ainda sem rastreio.`, tom: 'warning' }
   }
   return null
+}
+
+/** Por quanto tempo um pedido pronto aparece como "Novo" na fila. */
+const HORAS_DE_NOVO = 24
+
+/**
+ * O pedido acabou de ficar pronto para processar? É o aviso de que há algo para
+ * voltar a olhar: um presente de estoque recém-aprovado, ou um comprado que
+ * acabou de chegar.
+ */
+export function chegouAgora(
+  pedido: Pick<PedidoDeExpedicao, 'status' | 'rastreio' | 'naExpedicaoDesde'>,
+  agora: Date = new Date(),
+): boolean {
+  if (pedido.status !== StatusSolicitacao.organizando_envio || pedido.rastreio) return false
+  return agora.getTime() - pedido.naExpedicaoDesde.getTime() < HORAS_DE_NOVO * 3_600_000
+}
+
+/** Dias inteiros entre a data e agora. */
+export function diasDesde(data: Date, agora: Date = new Date()): number {
+  return Math.max(0, Math.floor((agora.getTime() - data.getTime()) / 86_400_000))
+}
+
+export type PedidoACaminho = {
+  id: string
+  codigo: string
+  consultor: string
+  destinatario: string
+  cidade: string
+  uf: string
+  itens: { produto: string; quantidade: number }[]
+  /** Quando o Financeiro marcou como comprado: a base do "comprado há N dias". */
+  compradoEm: Date
+  teste: boolean
+}
+
+/** O que o Financeiro comprou e ainda não chegou à Logística, mais antigo primeiro. */
+export async function pedidosACaminho(): Promise<PedidoACaminho[]> {
+  const solicitacoes = await db.solicitacao.findMany({
+    where: { status: StatusSolicitacao.comprado },
+    select: {
+      id: true,
+      codigo: true,
+      dataSolicitacao: true,
+      entregaDestinatario: true,
+      entregaCidade: true,
+      entregaUf: true,
+      teste: true,
+      consultor: { select: { nome: true } },
+      itens: {
+        select: {
+          quantidade: true,
+          descricaoLivre: true,
+          produto: { select: { nome: true } },
+        },
+      },
+      historico: {
+        where: { statusNovo: StatusSolicitacao.comprado },
+        orderBy: { criadoEm: 'desc' },
+        take: 1,
+        select: { criadoEm: true },
+      },
+    },
+  })
+  return solicitacoes
+    .map((s) => ({
+      id: s.id,
+      codigo: s.codigo,
+      consultor: s.consultor.nome,
+      destinatario: s.entregaDestinatario,
+      cidade: s.entregaCidade,
+      uf: s.entregaUf,
+      itens: s.itens.map((i) => ({
+        produto: i.produto?.nome ?? i.descricaoLivre ?? '-',
+        quantidade: i.quantidade,
+      })),
+      compradoEm: s.historico[0]?.criadoEm ?? s.dataSolicitacao,
+      teste: s.teste,
+    }))
+    .sort((a, b) => a.compradoEm.getTime() - b.compradoEm.getTime())
+}
+
+/**
+ * Os números do aviso no menu e no painel: o que está pronto para a Logística
+ * processar (na expedição, ainda sem rastreio) e o que está a caminho.
+ */
+export async function avisosDaExpedicao(): Promise<{ prontos: number; aCaminho: number }> {
+  const [prontos, aCaminho] = await Promise.all([
+    db.solicitacao.count({
+      where: { status: StatusSolicitacao.organizando_envio, rastreio: null },
+    }),
+    db.solicitacao.count({ where: { status: StatusSolicitacao.comprado } }),
+  ])
+  return { prontos, aCaminho }
 }
 
 /** Status em que a solicitação está sob responsabilidade da expedição. */

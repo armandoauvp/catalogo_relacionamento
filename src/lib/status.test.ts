@@ -5,6 +5,7 @@ import {
   STATUS_PARA_APROVAR,
   caminhoDeEncaminhamento,
   contaNoSaldo,
+  ehChegadaDoItem,
   ehPassoDeCompra,
   ehTerminal,
   oQueAconteceAgora,
@@ -349,7 +350,7 @@ describe('próximo passo', () => {
     expect(proximoPasso(StatusSolicitacao.aguardando_compra, [])?.rotulo).toBe(
       'Marcar como comprado',
     )
-    expect(proximoPasso(StatusSolicitacao.comprado, [])?.rotulo).toBe('Liberar para envio')
+    expect(proximoPasso(StatusSolicitacao.comprado, [])?.rotulo).toBe('Confirmar que chegou')
     expect(proximoPasso(StatusSolicitacao.organizando_envio, [])?.destino).toBe(
       StatusSolicitacao.entregue,
     )
@@ -396,9 +397,10 @@ describe('marcar como entregue pela expedição', () => {
 })
 
 describe('passo de compra', () => {
-  it('são os dois passos de quem compra', () => {
+  it('quem compra só marca como comprado', () => {
     expect(ehPassoDeCompra('aguardando_compra', 'comprado')).toBe(true)
-    expect(ehPassoDeCompra('comprado', 'organizando_envio')).toBe(true)
+    // Comprado não é chegado: mandar para a expedição deixou de ser da compra.
+    expect(ehPassoDeCompra('comprado', 'organizando_envio')).toBe(false)
   })
 
   it('a aprovação não é passo de compra, nem quando já sai para a expedição', () => {
@@ -413,6 +415,27 @@ describe('passo de compra', () => {
 
   it('voltar de um problema para a expedição não é passo de compra', () => {
     expect(ehPassoDeCompra('deu_problema', 'organizando_envio')).toBe(false)
+  })
+})
+
+describe('chegada do item à Logística', () => {
+  it('é o passo de comprado para a expedição, e só ele', () => {
+    expect(ehChegadaDoItem('comprado', 'organizando_envio')).toBe(true)
+    expect(transicaoPermitida('comprado', 'organizando_envio')).toBe(true)
+  })
+
+  it('o atalho do estoque não é chegada: o item já estava com a Logística', () => {
+    expect(ehChegadaDoItem('aguardando_aprovacao', 'organizando_envio')).toBe(false)
+  })
+
+  it('marcar como comprado, cancelar ou registrar problema não é chegada', () => {
+    expect(ehChegadaDoItem('aguardando_compra', 'comprado')).toBe(false)
+    expect(ehChegadaDoItem('comprado', 'cancelado')).toBe(false)
+    expect(ehChegadaDoItem('comprado', 'deu_problema')).toBe(false)
+  })
+
+  it('a frase de "comprado" diz que falta chegar', () => {
+    expect(oQueAconteceAgora('comprado')).toMatch(/chegarem à Logística/)
   })
 })
 

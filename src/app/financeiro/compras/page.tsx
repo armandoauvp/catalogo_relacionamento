@@ -5,7 +5,7 @@ import { filaDeCompras, totalDaFila, STATUS_DA_FILA_DE_COMPRAS } from '@/lib/com
 import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
-import { ROTULO_STATUS, proximoPasso } from '@/lib/status'
+import { ROTULO_STATUS, ehPassoDeCompra, proximoPasso } from '@/lib/status'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -31,6 +31,15 @@ import { CancelarNaFila, PassoDaFila } from './passo-da-fila'
  * compra acontece item a item: um pedido com três presentes pode ter três
  * origens diferentes.
  */
+/**
+ * Na fila, o Financeiro só marca como comprado. Comprado não é chegado: quem
+ * dá o item como recebido, e manda para o Tiny, é a Logística, na Expedição.
+ */
+function passoDoFinanceiro(status: Parameters<typeof proximoPasso>[0], operaCompra: boolean) {
+  const passo = proximoPasso(status, [])
+  return operaCompra && passo && ehPassoDeCompra(status, passo.destino) ? passo : null
+}
+
 export default async function FilaDeComprasPage({
   searchParams,
 }: {
@@ -87,7 +96,7 @@ export default async function FilaDeComprasPage({
         <Stat
           rotulo="Já comprados"
           valor={itens.length - aguardando.length}
-          apoio="Seguem visíveis até saírem para envio."
+          apoio="Seguem visíveis até a Logística confirmar a chegada."
         />
       </div>
 
@@ -158,8 +167,13 @@ export default async function FilaDeComprasPage({
                           solicitacaoId={item.solicitacaoId}
                           codigo={item.codigo}
                           itensDoPedido={itensPorPedido.get(item.solicitacaoId) ?? 1}
-                          passo={operaCompra ? proximoPasso(item.status, []) : null}
+                          passo={passoDoFinanceiro(item.status, operaCompra)}
                         />
+                        {item.status === 'comprado' ? (
+                          <span className="text-muted-foreground w-28 text-right text-xs leading-snug">
+                            Aguarda chegar à Logística
+                          </span>
+                        ) : null}
                         {cancela ? (
                           <CancelarNaFila
                             solicitacaoId={item.solicitacaoId}

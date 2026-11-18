@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
-import { ArrowRight, ClipboardList } from 'lucide-react'
+import { ArrowRight, ClipboardList, PackageCheck } from 'lucide-react'
+import { avisosDaExpedicao } from '@/lib/expedicao'
 import { Button } from '@/components/ui/button'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
@@ -59,6 +60,7 @@ export default async function LogisticaPage({
   const verCustos = pode(usuario.perfil, 'logistica.verCustos')
   const podeGerenciar = pode(usuario.perfil, 'logistica.gerenciar')
   const podePedir = pode(usuario.perfil, 'logistica.pedir')
+  const avisos = pode(usuario.perfil, 'expedicao.receberItem') ? await avisosDaExpedicao() : null
 
   const [painel, equipe, perguntas, sugestoes, emEstoque] = await Promise.all([
     painelLogistico(periodo, { verObservacoes, verCustos }),
@@ -171,6 +173,15 @@ export default async function LogisticaPage({
               <Link href={'/logistica/pedidos' as Route}>
                 <ClipboardList aria-hidden="true" />
                 Pedir à Logística
+              </Link>
+            </Button>
+          ) : avisos ? (
+            // Para quem processa os presentes: o que está pronto e o que vem.
+            <Button asChild variant="outline" className="hidden sm:inline-flex">
+              <Link href="/expedicao">
+                <PackageCheck aria-hidden="true" />
+                Presentes: {avisos.prontos} {avisos.prontos === 1 ? 'pronto' : 'prontos'} para
+                processar · {avisos.aCaminho} a caminho
               </Link>
             </Button>
           ) : null

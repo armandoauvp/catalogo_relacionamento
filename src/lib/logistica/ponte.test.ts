@@ -32,6 +32,8 @@ describe('fase da demanda para cada status do presente', () => {
 
   it('aprovado entra na trilha: esperando compra, ou já em execução com estoque', () => {
     expect(faseDoPresente('aguardando_compra')).toBe('aguardando_suprimentos')
+    // Comprado ainda não chegou: só o "Chegou" põe a demanda em execução.
+    expect(faseDoPresente('comprado')).toBe('aguardando_suprimentos')
     expect(faseDoPresente('organizando_envio')).toBe('em_execucao')
   })
 

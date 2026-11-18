@@ -6,9 +6,13 @@ do AUVP-Eventos, com as correções listadas no fim.
 
 | De onde vem o pedido | Quando                                          | Tela                     |
 | -------------------- | ----------------------------------------------- | ------------------------ |
-| Presente aprovado    | a solicitação chega a "Organizando envio"       | `/tiny`, e a solicitação |
+| Presente aprovado    | a solicitação chega a "Organizando envio" ¹     | `/tiny`, e a solicitação |
 | Envio em lote        | alguém importa uma planilha em `/tiny/importar` | `/tiny/lotes/<lote>`     |
 | Nova venda (avulso)  | alguém monta o pedido em `/tiny/nova-venda`     | `/tiny`                  |
+
+¹ Do estoque, na aprovação. Comprado, só quando a Logística confirma que o item
+chegou ("Chegou", na Expedição): o pedido não entra no Tiny antes de o item
+estar com quem vai processá-lo. Ver [fluxo de status](03-fluxo-de-status.md).
 
 Quem opera: **Admin e Logística** (`tiny.operar` em `src/lib/permissions.ts`).
 

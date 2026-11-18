@@ -99,6 +99,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   liberada para envio na própria aprovação (`proximoDepoisDaAprovacao`). O
   atalho pula o Financeiro, nunca a aprovação, nada vai do pedido do consultor
   para a expedição sem o OK do Admin.
+- **Comprado não é chegado.** O Financeiro só marca "Comprado"; quem leva o
+  pedido para a expedição, e para o Tiny, é quem recebe o pacote, pelo "Chegou"
+  da Expedição (`confirmarChegada`, `expedicao.receberItem`, `ehChegadaDoItem`).
+  A Logística só processa o que está com ela.
 - **`Produto.valor` nulo não é zero.** Seis produtos vieram sem preço; a tela
   diz "valor a definir". `SolicitacaoItem.valorUnitario` continua obrigatório e
   congela como zero nesses casos.
@@ -230,7 +234,8 @@ passos apontam para o atributo `data-tour` das telas: ao mudar uma delas de
 forma relevante, confira o passo; sem o alvo, ele só aparece centralizado.
 
 O Tiny está integrado ([docs/13-tiny.md](docs/13-tiny.md)): o presente que
-chega a "Organizando envio" vira pedido lá pela fila, a importação em lote do
+chega a "Organizando envio" (do estoque, na aprovação; comprado, no "Chegou" da
+Logística) vira pedido lá pela fila, a importação em lote do
 AUVP-Eventos mora em `/tiny/importar`, e situação e rastreio voltam sozinhos.
 
 O que continua fora, por decisão registrada em

@@ -5,7 +5,13 @@ import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { formatarData } from '@/lib/datas'
-import { ROTULO_STATUS, ehPassoDeCompra, transicoesPermitidas, proximoPasso } from '@/lib/status'
+import {
+  ROTULO_STATUS,
+  ehChegadaDoItem,
+  ehPassoDeCompra,
+  transicoesPermitidas,
+  proximoPasso,
+} from '@/lib/status'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -49,9 +55,11 @@ export default async function DetalheSolicitacaoPage({
 
   if (!solicitacao) notFound()
 
-  // O passo da compra é de quem compra: os outros perfis nem recebem a opção.
+  // O passo da compra é de quem compra, e a chegada do item é de quem recebe:
+  // os outros perfis nem recebem a opção.
   const cabe = (destino: StatusSolicitacao) =>
-    pode(usuario.perfil, 'compras.operar') || !ehPassoDeCompra(solicitacao.status, destino)
+    (pode(usuario.perfil, 'compras.operar') || !ehPassoDeCompra(solicitacao.status, destino)) &&
+    (pode(usuario.perfil, 'expedicao.receberItem') || !ehChegadaDoItem(solicitacao.status, destino))
   const proximos = transicoesPermitidas(solicitacao.status).filter(cabe)
   const podeAlterar = pode(usuario.perfil, 'solicitacao.alterarStatus')
 

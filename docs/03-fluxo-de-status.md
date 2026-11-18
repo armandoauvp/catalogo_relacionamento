@@ -18,6 +18,22 @@ Pendente
 Avança uma etapa por vez. Não é possível pular etapa nem voltar pelo caminho
 linear: voltar acontece por "Deu problema".
 
+### Comprado não é chegado
+
+O Financeiro marca **Comprado** quando faz a compra, mas o item ainda vai
+chegar. A Logística só processa o que está com ela, então o passo seguinte,
+**Comprado → Organizando envio**, é dela: na Expedição, o pedido fica "a
+caminho" até alguém clicar em "Chegou" com o item na mão (confirmarChegada,
+permissão xpedicao.receberItem). É esse clique que manda o presente para a
+fila da expedição e para o Tiny. Antes, o Financeiro "liberava para envio" no
+momento da compra, e o pedido entrava no Tiny sem o item, sem nenhum aviso de
+quando voltar nele.
+
+O aviso agora existe: o que acabou de ficar pronto ganha o selo "Novo" na
+Expedição por 24 horas, o item "Expedição" do menu mostra quantos estão prontos
+para processar, e o painel da Logística mostra prontos e a caminho. Na trilha,
+o presente comprado fica em "Aguardando suprimentos" até chegar.
+
 ### Atalho: estoque não passa pelo Financeiro
 
 Há uma exceção declarada em `ATALHOS`: de **Aguardando aprovação** a
@@ -49,7 +65,9 @@ continua sendo do Admin, e as duas transições são válidas.
 O Admin trabalha por pilha: chegam vinte pedidos e ele decide de uma vez quais
 vão comprar e quais já podem ser separados. A tela de gestão tem seleção por
 linha e três ações, "Aprovar e encaminhar" (roteia pelo estoque), "Mandar
-comprar" e "Liberar para envio".
+comprar" e "Liberar para envio". O lote também não pula a chegada: o que está em
+"Comprado" só vai para a expedição pelas mãos de quem pode confirmar que o item
+chegou; para os demais, volta na lista de ignoradas com o motivo.
 
 Quem monta o caminho é `caminhoDeEncaminhamento`, e ela não afrouxa nada:
 

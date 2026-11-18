@@ -274,14 +274,35 @@ export const FAQ: ItemDaFaq[] = [
     id: 'marcar-comprado',
     pergunta: 'Comprei. O que faço agora?',
     resposta:
-      'Na Fila de compras, marque como comprado e, depois, libere para o envio: a solicitação vai para "Organizando envio" e chega à expedição.',
+      'Na Fila de compras, marque como comprado. O pedido fica "a caminho" até a Logística receber o item e confirmar a chegada; só então ele vai para a expedição e para o Tiny.',
     href: '/financeiro/compras',
     rotuloDoLink: 'Abrir a Fila de compras',
     exige: 'compras.operar',
-    termos: ['comprado', 'liberar', 'envio', 'expedicao', 'proximo passo'],
+    termos: ['comprado', 'liberar', 'envio', 'expedicao', 'proximo passo', 'chegou'],
   },
 
   // --- Logística --------------------------------------------------------------
+  {
+    id: 'confirmar-chegada',
+    pergunta: 'O item comprado chegou. O que faço?',
+    resposta:
+      'Na Expedição, no fim da tela, fica o que está "a caminho": o que o Financeiro comprou e ainda não chegou. Com o item na mão, clique em "Chegou". O pedido passa a "Pronto para processar", com o selo "Novo", e vira pedido no Tiny. O número no item "Expedição" do menu mostra quantos estão prontos.',
+    href: '/expedicao#a-caminho',
+    rotuloDoLink: 'Ver o que está a caminho',
+    exige: 'expedicao.receberItem',
+    termos: ['chegou', 'chegada', 'recebi', 'pacote', 'a caminho', 'comprado', 'tiny', 'novo'],
+    destaque: true,
+  },
+  {
+    id: 'em-comprado',
+    pergunta: 'Meu pedido está em "Comprado". O que falta?',
+    resposta:
+      'O Financeiro já comprou, e o item está a caminho da Logística. Quando ele chegar, a Logística confirma e o pedido segue para o envio.',
+    href: '/solicitacoes',
+    rotuloDoLink: 'Minhas solicitações',
+    exige: 'solicitacao.verProprias',
+    termos: ['comprado', 'parado', 'demorando', 'chegar', 'logistica'],
+  },
   {
     id: 'expedicao',
     pergunta: 'Como registro o rastreio e marco como entregue?',
@@ -328,7 +349,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'tiny',
     pergunta: 'Como funciona a integração com o Tiny?',
     resposta:
-      'O presente que chega a "Organizando envio" vira pedido no Tiny sozinho, pela fila. Situação e rastreio voltam de lá. Pedido em "Falhou" quase sempre é produto sem SKU: preencha o SKU e use Reenviar.',
+      'O presente vira pedido no Tiny sozinho, pela fila, quando fica pronto para processar: na aprovação, se é de estoque, ou quando a Logística confirma que o item comprado chegou. Situação e rastreio voltam de lá. Pedido em "Falhou" quase sempre é produto sem SKU: preencha o SKU e use Reenviar.',
     href: '/tiny',
     rotuloDoLink: 'Abrir o Tiny',
     exige: 'tiny.operar',

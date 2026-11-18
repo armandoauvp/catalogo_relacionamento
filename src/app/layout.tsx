@@ -7,6 +7,8 @@ import { Nav } from '@/components/nav'
 import { Tour } from '@/components/tour'
 import { Assistente } from '@/components/assistente'
 import { faqDoPerfil } from '@/lib/assistente/faq'
+import { avisosDaExpedicao } from '@/lib/expedicao'
+import { pode } from '@/lib/permissions'
 import { Transicao } from '@/components/transicao'
 import './globals.css'
 
@@ -63,6 +65,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         select: { toursVistos: true },
       })
     : null
+  // O aviso de que há presente pronto para processar, no item "Expedição".
+  const avisos =
+    usuario && pode(usuario.perfil, 'expedicao.verFila')
+      ? { expedicao: (await avisosDaExpedicao()).prontos }
+      : {}
 
   return (
     <html lang="pt-BR" className={`${anek.variable} ${roboto.variable} ${sora.variable}`}>
@@ -85,7 +92,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         ) : null}
         {usuario ? (
-          <Nav perfil={usuario.perfil} nome={usuario.nome} perfilLivre={perfilLivre} />
+          <Nav
+            perfil={usuario.perfil}
+            nome={usuario.nome}
+            perfilLivre={perfilLivre}
+            avisos={avisos}
+          />
         ) : null}
         {usuario ? (
           // Por perfil, e com `key`: quem troca de perfil na fase de testes vê o

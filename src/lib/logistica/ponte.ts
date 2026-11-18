@@ -42,11 +42,11 @@ export function faseDoPresente(status: StatusSolicitacao): FaseOperacional | 'ar
     case 'pendente':
     case 'aguardando_aprovacao':
       return null
+    // Comprado não é chegado: até a Logística confirmar a chegada, a demanda
+    // espera o item como esperava a compra. O "Chegou" a põe em execução.
     case 'aguardando_compra':
-      return 'aguardando_suprimentos'
-    // Comprado: o item chegou ou está chegando, a demanda é da Logística.
     case 'comprado':
-      return 'recebido'
+      return 'aguardando_suprimentos'
     case 'organizando_envio':
       return 'em_execucao'
     case 'entregue':

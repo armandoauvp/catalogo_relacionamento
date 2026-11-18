@@ -2,8 +2,11 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { AlertTriangle } from 'lucide-react'
 import {
+  chegouAgora,
+  diasDesde,
   filaDeExpedicao,
   pecasASeparar,
+  pedidosACaminho,
   pendenciaDoEnvio,
   STATUS_DA_EXPEDICAO,
   type PendenciaDoEnvio,
@@ -29,14 +32,20 @@ import { codigoDaSituacao } from '@/lib/tiny/leitura'
 import { BotaoConcluir, BotaoFecharExpedicao } from '@/app/tiny/acoes-da-fila'
 import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
 import { Rastreio } from './rastreio'
+import { Chegou } from './chegou'
 
 /**
  * Fila de expedição: a planilha que a área monta à mão hoje.
  *
- * Duas portas levam uma solicitação até aqui: o caminho normal, depois que o
- * Financeiro compra; e o atalho, quando os itens já estão em estoque e não há o
- * que comprar. Por isso a coluna "origem" existe em cada item: quem separa
- * precisa saber o que vem da prateleira e o que chegou de uma compra.
+ * Duas portas levam uma solicitação até aqui: o caminho normal, quando o item
+ * que o Financeiro comprou chega e a Logística confirma; e o atalho, quando os
+ * itens já estão em estoque e não há o que comprar. Por isso a coluna "origem"
+ * existe em cada item: quem separa precisa saber o que vem da prateleira e o
+ * que chegou de uma compra.
+ *
+ * O que foi comprado e ainda não chegou fica "a caminho", no fim da tela, com o
+ * "Chegou". O que acabou de ficar pronto ganha o selo "Novo": é o aviso de que
+ * há o que voltar a olhar.
  *
  * O endereço aparece inteiro, e não atrás de um clique: a tela é usada com o
  * pacote na mão, e um dado de envio escondido é um dado redigitado errado.
@@ -92,6 +101,7 @@ export default async function ExpedicaoPage({
 }) {
   const usuario = await exigirPermissao('expedicao.verFila')
   const podeRegistrarRastreio = pode(usuario.perfil, 'expedicao.registrarRastreio')
+  const recebeItem = pode(usuario.perfil, 'expedicao.receberItem')
   const operaTiny = pode(usuario.perfil, 'tiny.operar')
   const params = await searchParams
   const incluirEnviadas = params.enviadas === '1'
@@ -107,13 +117,14 @@ export default async function ExpedicaoPage({
     ativo: valorDoFiltro(params, chave) === valor,
   })
 
-  const pedidos = await filaDeExpedicao({ incluirEnviadas })
+  const [pedidos, aCaminho] = await Promise.all([
+    filaDeExpedicao({ incluirEnviadas }),
+    pedidosACaminho(),
+  ])
+  const agora = new Date()
   const aSeparar = pedidos.filter((p) => p.status !== 'entregue')
   const pecas = pecasASeparar(aSeparar)
-  const doEstoque = aSeparar.reduce(
-    (acc, p) => acc + p.itens.filter((i) => i.jaEmEstoque).reduce((s, i) => s + i.quantidade, 0),
-    0,
-  )
+  const novos = aSeparar.filter((p) => chegouAgora(p, agora)).length
 
   // O pedido de cada presente no Tiny: a situação de lá e os passos da
   // expedição (pauta de 22/10/2026): fechar a lista e concluir o pacote.
@@ -202,11 +213,15 @@ export default async function ExpedicaoPage({
           valor={pecas}
           apoio={`Em ${aSeparar.length} ${aSeparar.length === 1 ? 'pedido' : 'pedidos'}.`}
         />
-        <Stat rotulo="Direto do estoque" valor={doEstoque} apoio="Não passaram pelo Financeiro." />
         <Stat
-          rotulo="Compradas"
-          valor={pecas - doEstoque}
-          apoio="Chegaram por uma compra do Financeiro."
+          rotulo="Novos nas últimas 24 h"
+          valor={novos}
+          apoio="Acabaram de ficar prontos para processar."
+        />
+        <Stat
+          rotulo="A caminho"
+          valor={aCaminho.length}
+          apoio="Comprados, ainda não chegaram à Logística."
         />
       </div>
 
@@ -237,7 +252,7 @@ export default async function ExpedicaoPage({
       {pedidos.length === 0 ? (
         <EstadoVazio
           titulo="Nada para separar agora"
-          descricao="Os pedidos aparecem aqui quando a solicitação vai para organizando envio, seja depois da compra, seja direto da aprovação quando já há estoque."
+          descricao="Os pedidos aparecem aqui quando ficam prontos para processar: direto da aprovação, quando já há estoque, ou quando o item comprado chega e alguém confirma."
         />
       ) : listados.length === 0 ? (
         <EstadoVazio
@@ -253,6 +268,7 @@ export default async function ExpedicaoPage({
                   <CardTitle className="flex items-center gap-2 text-base tabular-nums">
                     {pedido.codigo}
                     {pedido.teste ? <Badge variant="warning">teste</Badge> : null}
+                    {chegouAgora(pedido, agora) ? <Badge variant="info">Novo</Badge> : null}
                   </CardTitle>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {formatarData(pedido.data)} ·{' '}
@@ -357,6 +373,50 @@ export default async function ExpedicaoPage({
           ))}
         </div>
       )}
+
+      {aCaminho.length > 0 ? (
+        <section id="a-caminho" className="mt-10" aria-labelledby="a-caminho-titulo">
+          <h2 id="a-caminho-titulo" className="font-display text-lg font-semibold">
+            A caminho
+          </h2>
+          <p className="text-muted-foreground mt-1 mb-4 text-sm text-pretty">
+            O Financeiro comprou e o item ainda não chegou. Quando chegar, confirme: só então o
+            pedido vai para a fila acima e para o Tiny.
+          </p>
+          <Card className="divide-y">
+            {aCaminho.map((p) => {
+              const dias = diasDesde(p.compradoEm, agora)
+              return (
+                // O lado direito não quebra: com uma lista longa de itens, o
+                // "Chegou" ficava solto embaixo, fora do alinhamento das outras.
+                <div
+                  key={p.id}
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 sm:flex-1">
+                    <p className="flex items-center gap-2 text-sm font-medium tabular-nums">
+                      {p.codigo}
+                      {p.teste ? <Badge variant="warning">teste</Badge> : null}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-sm">
+                      {p.itens.map((i) => `${i.quantidade}× ${i.produto}`).join(', ')} · para{' '}
+                      {p.destinatario}, {p.cidade}/{p.uf}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-muted-foreground text-xs whitespace-nowrap">
+                      {dias === 0
+                        ? 'Comprado hoje'
+                        : `Comprado há ${dias} ${dias === 1 ? 'dia' : 'dias'}`}
+                    </span>
+                    {recebeItem ? <Chegou solicitacaoId={p.id} codigo={p.codigo} /> : null}
+                  </div>
+                </div>
+              )
+            })}
+          </Card>
+        </section>
+      ) : null}
 
       <p className="text-muted-foreground mt-6 text-xs">
         A fila mostra as solicitações em{' '}

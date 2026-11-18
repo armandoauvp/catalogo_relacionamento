@@ -11,12 +11,13 @@ import { alterarStatus } from '@/lib/actions/solicitacoes'
 import type { ProximoPasso } from '@/lib/status'
 
 /**
- * O passo do Financeiro na própria fila: marcar como comprado e liberar para
- * envio, sem abrir a solicitação.
+ * O passo do Financeiro na própria fila: marcar como comprado, sem abrir a
+ * solicitação. Liberar para envio deixou de ser daqui: é a Logística que
+ * confirma a chegada do item, na Expedição.
  *
- * Pede confirmação porque nenhum dos dois tem volta na lista de status, e
- * liberar para envio ainda gera o pedido no Tiny. A fila é por item, e o status
- * é da solicitação: a confirmação diz quantos itens andam juntos.
+ * Pede confirmação porque o passo não tem volta na lista de status. A fila é
+ * por item, e o status é da solicitação: a confirmação diz quantos itens andam
+ * juntos.
  */
 export function PassoDaFila({
   solicitacaoId,

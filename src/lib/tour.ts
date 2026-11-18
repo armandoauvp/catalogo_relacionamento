@@ -105,7 +105,7 @@ const OPERACAO_DA_LOGISTICA: readonly PassoDoTour[] = [
     alvo: 'lista-expedicao',
     titulo: 'Separar e postar',
     texto:
-      'Os pedidos liberados, com itens e endereço. Registre o rastreio aqui, que o consultor lê na solicitação dele, e marque como entregue quando chegar.',
+      'O que está pronto para processar, com itens e endereço; o novo vem com selo. No fim, o que foi comprado e está a caminho: confirme "Chegou" com o item na mão. Registre o rastreio aqui e marque como entregue quando chegar.',
     acao: 'expedicao.registrarRastreio',
   },
   {
@@ -223,7 +223,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       alvo: 'passo-fila',
       titulo: 'Comprou? Marque aqui',
       texto:
-        'Primeiro "Marcar como comprado", depois "Liberar para envio", que manda para a expedição e gera o pedido no Tiny.',
+        'Comprou, marque aqui. O item fica "a caminho" até a Logística confirmar que chegou: só então vai para a expedição e para o Tiny.',
       acao: 'compras.operar',
     },
     {

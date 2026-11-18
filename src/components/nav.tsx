@@ -179,6 +179,22 @@ const ADMINISTRACAO: readonly ItemDeMenu[] = [
  * que o contém. Ocupa largura fixa em todo estado, para que acender e apagar
  * não empurre os vizinhos.
  */
+/**
+ * Quantos itens esperam alguém naquela tela (hoje, a Expedição: o que está
+ * pronto para processar). Fora do fluxo, sobre o canto do item, para que o
+ * número aparecer, mudar ou sumir não empurre os vizinhos.
+ */
+function Contador({ n }: { n: number }) {
+  return (
+    <span
+      aria-label={`${n} para processar`}
+      className="bg-primary text-primary-foreground font-roboto absolute -top-1 -right-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] leading-none font-bold tabular-nums"
+    >
+      {n > 99 ? '99+' : n}
+    </span>
+  )
+}
+
 function Pendente() {
   const { pending } = useLinkStatus()
 
@@ -221,14 +237,22 @@ function IconeDoItem({ Icone, ativo }: { Icone: LucideIcon; ativo: boolean }) {
  */
 const ItemDeLista = forwardRef<
   HTMLAnchorElement,
-  { item: ItemDeMenu; ativo: boolean } & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'href'>
->(function ItemDeLista({ item, ativo, ...props }, ref) {
+  { item: ItemDeMenu; ativo: boolean; aviso?: number } & Omit<
+    React.ComponentPropsWithoutRef<typeof Link>,
+    'href'
+  >
+>(function ItemDeLista({ item, ativo, aviso, ...props }, ref) {
   return (
     <Link {...props} ref={ref} href={item.href}>
       <IconeDoItem Icone={item.icone} ativo={ativo} />
       <span className="min-w-0 flex-1">
         <span className="font-display text-foreground block text-sm leading-tight font-bold">
           {item.rotulo}
+          {aviso ? (
+            <span className="bg-primary text-primary-foreground font-roboto ml-1.5 rounded-full px-1.5 py-px align-middle text-[10px] font-bold tabular-nums">
+              {aviso}
+            </span>
+          ) : null}
         </span>
         <span className="text-muted-foreground font-roboto mt-0.5 block text-xs leading-snug">
           {item.descricao}
@@ -257,9 +281,12 @@ export function Nav({
   perfil,
   nome,
   perfilLivre = false,
+  avisos = {},
 }: {
   perfil: Perfil
   nome: string
+  /** Contador por item do menu (pelo id), calculado no servidor. */
+  avisos?: Partial<Record<string, number>>
   /** Fase de testes: o menu da conta troca o perfil com que se vê a ferramenta. */
   perfilLivre?: boolean
 }) {
@@ -329,7 +356,7 @@ export function Nav({
               <DropdownMenuContent align="start" className="w-72">
                 {todos.map((item) => (
                   <DropdownMenuItem key={item.id} asChild>
-                    <ItemDeLista item={item} ativo={ativo(item.href)} />
+                    <ItemDeLista item={item} ativo={ativo(item.href)} aviso={avisos[item.id]} />
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -362,6 +389,7 @@ export function Nav({
                   >
                     {item.rotulo}
                     <Pendente />
+                    {avisos[item.id] ? <Contador n={avisos[item.id]!} /> : null}
                     {estaAtivo ? (
                       <span className="bg-foreground/30 absolute right-3 bottom-1 left-3 h-px rounded-full" />
                     ) : null}
@@ -422,7 +450,7 @@ export function Nav({
                 <DropdownMenuContent align="start" className="w-72">
                   {administracao.map((item) => (
                     <DropdownMenuItem key={item.id} asChild>
-                      <ItemDeLista item={item} ativo={ativo(item.href)} />
+                      <ItemDeLista item={item} ativo={ativo(item.href)} aviso={avisos[item.id]} />
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>

@@ -123,6 +123,16 @@ describe('logística: dashboard e expedição', () => {
   it('opera a expedição: vê a fila, o endereço e registra o rastreio', () => {
     expect(pode(Perfil.logistica, 'expedicao.verFila')).toBe(true)
     expect(pode(Perfil.logistica, 'expedicao.registrarRastreio')).toBe(true)
+  })
+
+  it('confirmar que o item chegou é de quem recebe o pacote, e não do Financeiro', () => {
+    expect(pode(Perfil.logistica, 'expedicao.receberItem')).toBe(true)
+    expect(pode(Perfil.admin_logistica, 'expedicao.receberItem')).toBe(true)
+    expect(pode(Perfil.admin, 'expedicao.receberItem')).toBe(true)
+    expect(pode(Perfil.financeiro, 'expedicao.receberItem')).toBe(false)
+    expect(pode(Perfil.admin_relacionamento, 'expedicao.receberItem')).toBe(false)
+    expect(pode(Perfil.consultor, 'expedicao.receberItem')).toBe(false)
+    expect(pode(Perfil.colaborador, 'expedicao.receberItem')).toBe(false)
     expect(escopoDeDadosSensiveis(Perfil.logistica)).toBe('todas')
   })
 

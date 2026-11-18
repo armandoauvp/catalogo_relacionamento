@@ -144,15 +144,23 @@ export function transicaoPermitida(atual: StatusSolicitacao, novo: StatusSolicit
 }
 
 /**
- * Os dois passos de quem compra, que pedem `compras.operar`: marcar como comprado
- * e liberar o que foi comprado para envio. A saída direta da aprovação para a
- * expedição não está aqui, porque o que está em estoque não passa pela compra.
+ * O passo de quem compra, que pede `compras.operar`: marcar como comprado. A
+ * saída direta da aprovação para a expedição não está aqui, porque o que está
+ * em estoque não passa pela compra.
  */
 export function ehPassoDeCompra(atual: StatusSolicitacao, novo: StatusSolicitacao): boolean {
-  return (
-    (atual === StatusSolicitacao.aguardando_compra && novo === StatusSolicitacao.comprado) ||
-    (atual === StatusSolicitacao.comprado && novo === StatusSolicitacao.organizando_envio)
-  )
+  return atual === StatusSolicitacao.aguardando_compra && novo === StatusSolicitacao.comprado
+}
+
+/**
+ * O passo de quem recebe o pacote, que pede `expedicao.receberItem`: o item
+ * comprado chegou à Logística. Comprado não é chegado, e a Logística só
+ * processa o que está com ela: é aqui, e não na compra, que o presente vai para
+ * a expedição e vira pedido no Tiny. Antes, o pedido entrava no Tiny sem o
+ * item, e ninguém sabia quando voltar nele.
+ */
+export function ehChegadaDoItem(atual: StatusSolicitacao, novo: StatusSolicitacao): boolean {
+  return atual === StatusSolicitacao.comprado && novo === StatusSolicitacao.organizando_envio
 }
 
 /**
@@ -367,8 +375,9 @@ export function proximoPasso(
     case StatusSolicitacao.comprado:
       return {
         destino: StatusSolicitacao.organizando_envio,
-        rotulo: 'Liberar para envio',
-        explicacao: 'Vai para a fila da expedição e vira pedido no Tiny.',
+        rotulo: 'Confirmar que chegou',
+        explicacao:
+          'O item está com a Logística: vai para a fila da expedição e vira pedido no Tiny.',
         aprovacao: false,
       }
     case StatusSolicitacao.organizando_envio:
@@ -396,7 +405,7 @@ const O_QUE_ACONTECE_AGORA: Record<StatusSolicitacao, string> = {
   aguardando_aprovacao:
     'Aguardando a aprovação do Relacionamento. Nada foi comprado nem enviado ainda.',
   aguardando_compra: 'Aprovada. Agora o Financeiro compra os itens.',
-  comprado: 'Itens comprados. Falta liberar para a expedição.',
+  comprado: 'Itens comprados. Falta chegarem à Logística, que confirma o recebimento.',
   organizando_envio:
     'Na expedição: a Logística separa e posta. O rastreio aparece aqui quando sair.',
   entregue: 'Entregue. Falta confirmar o recebimento com o cliente.',

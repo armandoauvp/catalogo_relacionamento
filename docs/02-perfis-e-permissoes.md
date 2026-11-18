@@ -14,6 +14,7 @@ botão e bloquear a ação nunca divirjam.
 | Ver todas as solicitações                 |        -        |   ✓   |     ✓      |     -     |
 | Ver a fila de compras                     |        -        |   ✓   |     ✓      |     -     |
 | Fila da expedição: rastreio e entregue    |        -        |   ✓   |     ✓      |     ✓     |
+| Confirmar que o item comprado chegou      |        -        |   ✓   |     -      |     ✓     |
 | Ver dados sensíveis do cliente            | só das próprias |   ✓   |    ✓ ¹     |     ✓     |
 | Alterar status                            |        -        |   ✓   |     ✓      |     -     |
 | Confirmar que o cliente recebeu           | só das próprias |   ✓   |     ✓      |     -     |
@@ -49,7 +50,7 @@ lado dele há um admin para cada área:
 | Clientes                              |            ✓            |                 -                  |
 | Ver o saldo de todos e exportar       |            ✓            |                 -                  |
 | Fila de compras                       |       só leitura        |                 -                  |
-| Fila da expedição                     |       só leitura        |         ✓, anota rastreio          |
+| Fila da expedição                     |       só leitura        |   ✓, anota rastreio e a chegada    |
 | Dashboard Logístico                   |       só leitura        |            ✓, gerencia             |
 | Tiny                                  |            -            |                 ✓                  |
 | Em Usuários, alcança quem é           | Colaborador e Consultor | Colaborador, Consultor e Logística |
@@ -62,8 +63,12 @@ está num dos perfis dele e só atribui um deles. É isso que impede o Admin de
 Logística de rebaixar outro admin ou tirar alguém do Financeiro. `salvarUsuario`
 confere contra o perfil gravado, e a consulta da tela nem traz os demais.
 
-Marcar como comprado e liberar o que foi comprado pedem `compras.operar`
-(`ehPassoDeCompra`), do Financeiro e do Admin geral. O Admin de Relacionamento
+Marcar como comprado pede `compras.operar` (`ehPassoDeCompra`), do Financeiro e
+do Admin geral. Confirmar que o item comprado **chegou** pede
+`expedicao.receberItem` (`ehChegadaDoItem`), de quem recebe o pacote: Logística,
+Admin de Logística e Admin geral. Comprado não é chegado, e a Logística só
+processa o que está com ela; é nesse passo, e não na compra, que o presente vai
+para a expedição e para o Tiny (`confirmarChegada`). O Admin de Relacionamento
 continua podendo aprovar, cancelar e registrar problema.
 
 `BOOTSTRAP_ADMIN_EMAILS` só promove quem ainda é Colaborador (ou Consultor, o perfil de entrada antigo): quem recebeu um perfil

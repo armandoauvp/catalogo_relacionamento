@@ -14,6 +14,7 @@ import { acompanhamentosFaltando, mensagemDePendencia } from '@/lib/acompanhamen
 import {
   ROTULO_STATUS,
   caminhoDeEncaminhamento,
+  ehChegadaDoItem,
   ehPassoDeCompra,
   podeConfirmarRecebimento,
   podeMarcarEntregue,
@@ -314,6 +315,9 @@ export async function alterarStatus(entrada: unknown): Promise<ResultadoDaAction
     if (!checagem.ok) return { ok: false, erro: checagem.erro }
 
     if (ehPassoDeCompra(solicitacao.status, statusNovo)) await autorizarAction('compras.operar')
+    if (ehChegadaDoItem(solicitacao.status, statusNovo)) {
+      await autorizarAction('expedicao.receberItem')
+    }
 
     await gravarMudancaDeStatus(usuario.id, solicitacao, statusNovo, motivo)
     return { ok: true, dados: undefined }
@@ -346,6 +350,34 @@ export async function marcarEntregue(solicitacaoId: string): Promise<ResultadoDa
     }
 
     await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.entregue)
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * O item comprado chegou à Logística: vai para a expedição e vira pedido no Tiny.
+ *
+ * Separada de `alterarStatus` pelo mesmo motivo de `marcarEntregue`: quem
+ * recebe o pacote confirma a chegada e nenhum outro status. O pedido só entra
+ * no Tiny a partir daqui, porque antes disso a Logística não tem o que processar.
+ */
+export async function confirmarChegada(solicitacaoId: string): Promise<ResultadoDaAction> {
+  try {
+    const usuario = await autorizarAction('expedicao.receberItem')
+
+    const solicitacao = await db.solicitacao.findUnique({
+      where: { id: solicitacaoId },
+      select: { id: true, status: true },
+    })
+    if (!solicitacao) return { ok: false, erro: 'Solicitação não encontrada.' }
+
+    if (!ehChegadaDoItem(solicitacao.status, StatusSolicitacao.organizando_envio)) {
+      return { ok: false, erro: 'Só dá para confirmar a chegada de um pedido em "Comprado".' }
+    }
+
+    await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.organizando_envio)
     return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)
@@ -483,6 +515,7 @@ export async function encaminharEmLote(
   try {
     const usuario = await autorizarAction('solicitacao.alterarStatus')
     const operaCompra = pode(usuario.perfil, 'compras.operar')
+    const recebeItem = pode(usuario.perfil, 'expedicao.receberItem')
 
     if (ids.length === 0) {
       return { ok: false, erro: 'Selecione pelo menos uma solicitação.' }
@@ -524,7 +557,20 @@ export async function encaminharEmLote(
       ) {
         resumo.ignoradas.push({
           codigo: solicitacao.codigo,
-          motivo: 'Marcar a compra e liberar o que foi comprado é do Financeiro.',
+          motivo: 'Marcar a compra é do Financeiro.',
+        })
+        continue
+      }
+
+      if (
+        !recebeItem &&
+        caminho.passos.some((passo, i) =>
+          ehChegadaDoItem(caminho.passos[i - 1] ?? solicitacao.status, passo),
+        )
+      ) {
+        resumo.ignoradas.push({
+          codigo: solicitacao.codigo,
+          motivo: 'Confirmar que o item chegou é da Logística.',
         })
         continue
       }
