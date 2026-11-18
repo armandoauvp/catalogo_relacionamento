@@ -153,3 +153,49 @@ export function EsqueletoDeDetalhe({ acoes = false }: { acoes?: boolean }) {
     </div>
   )
 }
+
+/**
+ * Fila de compras por fornecedor: o resumo das lojas e a lista de cada uma.
+ *
+ * Medidas da tela real (cartão do resumo 106 px, cabeçalho da loja 48 px,
+ * "selecionar tudo" 37 px, item 63 px). Duas lojas já passam da dobra, e é
+ * isso que importa: o rodapé começa fora da tela e não salta quando a fila,
+ * que costuma ser mais longa, chega.
+ */
+export function EsqueletoDeFornecedores({
+  lojas = 2,
+  itens = 3,
+}: {
+  lojas?: number
+  itens?: number
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-[106px] rounded-lg" />
+        ))}
+      </div>
+      {Array.from({ length: lojas }).map((_, i) => (
+        <div key={i}>
+          <div className="mb-3 flex h-12 items-center justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-56" />
+            </div>
+            <Skeleton className="h-9 w-36" />
+          </div>
+          <div className="bg-card divide-y overflow-hidden rounded-lg border">
+            <div className="bg-muted/40 h-[37px]" />
+            {Array.from({ length: itens }).map((_, j) => (
+              <div key={j} className="flex h-[63px] items-center gap-4 px-4">
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

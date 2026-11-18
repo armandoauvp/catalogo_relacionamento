@@ -1,4 +1,8 @@
-import { EsqueletoDeCabecalho, EsqueletoDeStats, EsqueletoDeTabela } from '@/components/esqueletos'
+import {
+  EsqueletoDeCabecalho,
+  EsqueletoDeFornecedores,
+  EsqueletoDeStats,
+} from '@/components/esqueletos'
 
 export default function Carregando() {
   return (
@@ -7,8 +11,8 @@ export default function Carregando() {
       <EsqueletoDeStats />
       {/* A linha dos botões de visão (por fornecedor / por item). */}
       <div className="mb-6 h-10" aria-hidden="true" />
-      {/* A fila de compras é curta e drena; sete linhas é o tamanho comum. */}
-      <EsqueletoDeTabela linhas={7} />
+      {/* A visão que abre é por fornecedor, não a tabela por item. */}
+      <EsqueletoDeFornecedores />
     </>
   )
 }
