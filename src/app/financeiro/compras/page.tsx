@@ -1,7 +1,17 @@
 import Link from 'next/link'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
-import { filaDeCompras, totalDaFila, STATUS_DA_FILA_DE_COMPRAS } from '@/lib/compras'
+import type { Route } from 'next'
+import {
+  agruparPorFornecedor,
+  falta,
+  filaDeCompras,
+  totalDaFila,
+  STATUS_DA_FILA_DE_COMPRAS,
+} from '@/lib/compras'
+import { Button } from '@/components/ui/button'
+import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { PorFornecedor, type GrupoNaTela } from './por-fornecedor'
 import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
@@ -53,8 +63,35 @@ export default async function FilaDeComprasPage({
   const caminho = '/financeiro/compras'
   const status = STATUS_DA_FILA_DE_COMPRAS.find((s) => s === params.status)
 
+  // Por fornecedor é a visão de trabalho do Financeiro: comprar de uma loja de
+  // uma vez e juntar o frete. Por item é a lista completa, com o que já foi.
+  const porItem = params.visao === 'item'
+
   const itens = await filaDeCompras()
   const total = totalDaFila(itens)
+  const pendentes = itens.filter(falta)
+  const grupos: GrupoNaTela[] = agruparPorFornecedor(itens).map((g) => ({
+    chave: g.fornecedor.chave.replace(/[^a-z0-9-]/gi, '-'),
+    nome: g.fornecedor.nome,
+    site: g.fornecedor.site,
+    solicitacoes: g.solicitacoes,
+    valor: formatarBRL(g.valor),
+    itens: g.itens.map((i) => ({
+      itemId: i.itemId,
+      solicitacaoId: i.solicitacaoId,
+      codigo: i.codigo,
+      data: formatarData(i.data),
+      produto: i.produto,
+      quantidade: i.quantidade,
+      valor: formatarBRL(i.valor),
+      link: siteDeCompra(i.site, i.categoria)?.url ?? null,
+      consultor: i.consultorNome,
+      cliente: i.clienteNome,
+      emOutrasLojas: pendentes.filter(
+        (o) => o.solicitacaoId === i.solicitacaoId && o.fornecedor.chave !== i.fornecedor.chave,
+      ).length,
+    })),
+  }))
   const aguardando = itens.filter((i) => i.status === 'aguardando_compra')
   // Os números de cima são da fila inteira; o clique no status recorta a lista.
   const listados = status ? itens.filter((i) => i.status === status) : itens
@@ -92,12 +129,32 @@ export default async function FilaDeComprasPage({
           valor={formatarBRL(total)}
           apoio={`${itens.length} ${itens.length === 1 ? 'item' : 'itens'} no total.`}
         />
-        <Stat rotulo="Aguardando compra" valor={aguardando.length} apoio="Ainda não comprados." />
         <Stat
-          rotulo="Já comprados"
-          valor={itens.length - aguardando.length}
-          apoio="Seguem visíveis até a Logística confirmar a chegada."
+          rotulo="Falta comprar"
+          valor={pendentes.length}
+          apoio={`${pendentes.length === 1 ? 'Item' : 'Itens'} em ${grupos.length} ${grupos.length === 1 ? 'fornecedor' : 'fornecedores'}.`}
         />
+        <Stat
+          rotulo="Solicitações na compra"
+          valor={aguardando.length === 0 ? 0 : new Set(aguardando.map((i) => i.solicitacaoId)).size}
+          apoio="Vão a Comprado quando o último item delas é comprado."
+        />
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {/* Troca de visão é filtro da mesma tela: sem recarregar a aplicação. */}
+        <Button variant={porItem ? 'outline' : 'secondary'} asChild>
+          <LinkDeFiltro href={hrefSemFiltro(caminho, params, 'visao') as Route}>
+            Por fornecedor
+          </LinkDeFiltro>
+        </Button>
+        <Button variant={porItem ? 'secondary' : 'outline'} asChild>
+          <LinkDeFiltro
+            href={hrefDoGrupo(caminho, { ...params, visao: undefined }, 'visao', 'item') as Route}
+          >
+            Por item
+          </LinkDeFiltro>
+        </Button>
       </div>
 
       {itens.length === 0 ? (
@@ -105,6 +162,8 @@ export default async function FilaDeComprasPage({
           titulo="Nada para comprar agora"
           descricao="As solicitações aparecem aqui assim que o Relacionamento as aprova."
         />
+      ) : !porItem ? (
+        <PorFornecedor grupos={grupos} opera={operaCompra} />
       ) : (
         <>
           <FiltrosAtivos filtros={filtrosAtivos} />
@@ -160,6 +219,11 @@ export default async function FilaDeComprasPage({
                       >
                         <StatusBadge status={item.status} />
                       </FiltroDoGrupo>
+                      {item.compradoEm && item.status === 'aguardando_compra' ? (
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          Item comprado em {formatarData(item.compradoEm)}
+                        </p>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">

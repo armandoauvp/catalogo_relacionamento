@@ -18,6 +18,17 @@ Pendente
 Avança uma etapa por vez. Não é possível pular etapa nem voltar pelo caminho
 linear: voltar acontece por "Deu problema".
 
+### A compra é por item
+
+O Financeiro compra por fornecedor: a fila de compras abre agrupada por loja
+(`agruparPorFornecedor`, com o fornecedor tirado do link de cada item em
+`fornecedorDoItem`), para comprar de uma vez e juntar o frete. Como uma
+solicitação pode ter itens de lojas diferentes, a marca de comprado é do item
+(`SolicitacaoItem.compradoEm`, com quem comprou). A solicitação vai sozinha a
+**Comprado** quando o último item que precisa de compra é marcado
+(`compraCompleta`), com a linha no histórico; o item de estoque não conta.
+Marcar a solicitação inteira, pelo detalhe, registra os itens que faltavam.
+
 ### Comprado não é chegado
 
 O Financeiro marca **Comprado** quando faz a compra, mas o item ainda vai

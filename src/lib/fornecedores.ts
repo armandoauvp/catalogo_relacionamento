@@ -26,6 +26,68 @@ export function fornecedorDaCategoria(categoria: string | null | undefined): str
 }
 
 /**
+ * Nome de cada loja, pelo domínio do link. Os que a área usa hoje; loja nova
+ * aparece pelo próprio domínio até ganhar nome aqui. Subdomínio conta como a
+ * mesma loja (`produto.mercadolivre.com.br` é o Mercado Livre).
+ */
+const LOJAS: readonly (readonly [dominio: string, nome: string])[] = [
+  ['casadabebida.com.br', 'Casa da Bebida'],
+  ['mercadolivre.com.br', 'Mercado Livre'],
+  ['colombina-express.lojaintegrada.com.br', 'Colombina'],
+  ['robertadecoracoes.com.br', 'Roberta Decorações'],
+  ['amazon.com.br', 'Amazon'],
+  ['magazineluiza.com.br', 'Magazine Luiza'],
+]
+
+/** A nota do catálogo para o que é encomendado direto, sem loja on-line. */
+export const PEDIDO_DIRETO = 'Pedido direto ao fornecedor'
+
+export type Fornecedor = {
+  /** Agrupa os itens: o mesmo fornecedor tem sempre a mesma chave. */
+  chave: string
+  nome: string
+  /** A página da loja, quando há; o link de cada item segue no item. */
+  site: string | null
+}
+
+const SEM_FORNECEDOR: Fornecedor = { chave: 'sem', nome: 'Sem fornecedor definido', site: null }
+
+function dominio(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * De qual fornecedor sai um item, para o Financeiro comprar tudo de uma loja
+ * de uma vez. Sai do mesmo lugar que o site da fila (`siteDeCompra`): o link do
+ * item ou, sem ele, o padrão da categoria. Sem link, o que é encomendado direto
+ * fica junto; o resto, em "Sem fornecedor definido", para não sumir da vista.
+ */
+export function fornecedorDoItem(item: {
+  site: string | null | undefined
+  notaDeCompra: string | null | undefined
+  categoria: string | null | undefined
+}): Fornecedor {
+  const onde = siteDeCompra(item.site, item.categoria)
+  const host = onde ? dominio(onde.url) : null
+  if (host) {
+    const loja = LOJAS.find(([d]) => host === d || host.endsWith(`.${d}`))
+    return {
+      chave: `site:${loja?.[0] ?? host}`,
+      nome: loja?.[1] ?? host,
+      site: `https://${loja?.[0] ?? host}`,
+    }
+  }
+  if (item.notaDeCompra?.startsWith(PEDIDO_DIRETO)) {
+    return { chave: 'direto', nome: PEDIDO_DIRETO, site: null }
+  }
+  return SEM_FORNECEDOR
+}
+
+/**
  * Site que o Financeiro usa para comprar um item.
  *
  * O link do presente específico vence o padrão da categoria: ele foi escolhido

@@ -215,15 +215,16 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       rota: '/financeiro/compras',
       alvo: 'lista-compras',
       titulo: 'O que comprar e onde',
-      texto: 'Um item por linha, com o valor e o site. O código abre a solicitação inteira.',
+      texto:
+        'O que falta comprar, agrupado por loja: quantas solicitações e quanto em cada uma. "Copiar lista" leva os itens e os links para o carrinho. "Por item" mostra a lista completa.',
       acao: 'compras.verFila',
     },
     {
       rota: '/financeiro/compras',
       alvo: 'passo-fila',
-      titulo: 'Comprou? Marque aqui',
+      titulo: 'Comprou? Marque os itens',
       texto:
-        'Comprou, marque aqui. O item fica "a caminho" até a Logística confirmar que chegou: só então vai para a expedição e para o Tiny.',
+        'Selecione o que comprou (ou tudo de uma loja) e marque como comprado. A solicitação vai a "Comprado" quando o último item dela é marcado, e espera a Logística confirmar a chegada.',
       acao: 'compras.operar',
     },
     {

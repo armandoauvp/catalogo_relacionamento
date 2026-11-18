@@ -32,7 +32,7 @@ duplique numa tela.
 | Modelos e montagem da carta      | `src/lib/carta.ts`                        |
 | Tour guiado de cada perfil       | `src/lib/tour.ts`                         |
 | Perguntas da Caixinha (FAQ)      | `src/lib/assistente/faq.ts`               |
-| Fornecedor padrão por categoria  | `src/lib/fornecedores.ts`                 |
+| Fornecedor de cada item          | `src/lib/fornecedores.ts`                 |
 | Upload e leitura de foto         | `src/lib/arquivos.ts`                     |
 | Redução da foto antes do envio   | `src/lib/arquivos-no-navegador.ts`        |
 | Logins (Google e Keycloak)       | `src/lib/auth.ts` e `src/lib/env.ts`      |
@@ -99,6 +99,11 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   liberada para envio na própria aprovação (`proximoDepoisDaAprovacao`). O
   atalho pula o Financeiro, nunca a aprovação, nada vai do pedido do consultor
   para a expedição sem o OK do Admin.
+- **A compra é por item.** O Financeiro compra por fornecedor (`agruparPorFornecedor`),
+  e uma solicitação pode ter itens de lojas diferentes: cada item guarda
+  `compradoEm`/`compradoPorId` (CHECK juntos), e a solicitação vai a "Comprado"
+  quando o último item que precisa de compra é marcado (`compraCompleta`).
+  Marcar a solicitação inteira registra os itens que faltavam.
 - **Comprado não é chegado.** O Financeiro só marca "Comprado"; quem leva o
   pedido para a expedição, e para o Tiny, é quem recebe o pacote, pelo "Chegou"
   da Expedição (`confirmarChegada`, `expedicao.receberItem`, `ehChegadaDoItem`).

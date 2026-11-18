@@ -1,6 +1,8 @@
 import { StatusSolicitacao } from '@prisma/client'
 import { db } from './db'
 import { subtotal, totalDosItens, type Dinheiro } from './money'
+import { precisaDeCompra } from './status'
+import { fornecedorDoItem, type Fornecedor } from './fornecedores'
 
 /**
  * Fila de compras do perfil Financeiro.
@@ -40,6 +42,12 @@ export type ItemParaCompra = {
   quantidade: number
   valor: Dinheiro
   status: StatusSolicitacao
+  /** De que loja sai, para comprar por fornecedor (`fornecedorDoItem`). */
+  fornecedor: Fornecedor
+  /** Item de estoque numa solicitação com compra: está na prateleira, não se compra. */
+  precisaComprar: boolean
+  /** Quando o Financeiro marcou este item como comprado. */
+  compradoEm: Date | null
 }
 
 /**
@@ -87,6 +95,9 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
               nome: true,
               urlCompra: true,
               notaDeCompra: true,
+              origem: true,
+              controlaEstoque: true,
+              estoque: true,
               categoria: { select: { nome: true } },
             },
           },
@@ -98,24 +109,85 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
   })
 
   return solicitacoes.flatMap((s) =>
-    s.itens.map((item) => ({
-      itemId: item.id,
-      solicitacaoId: s.id,
-      codigo: s.codigo,
-      data: s.dataSolicitacao,
-      consultorNome: s.consultor.nome,
-      clienteNome: s.cliente.nome,
-      produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
-      site: linkDoItem(item),
-      notaDeCompra: item.produto?.notaDeCompra ?? null,
-      categoria: item.produto?.categoria.nome ?? null,
-      deCatalogo: item.produtoId !== null,
-      valorUnitario: item.valorUnitario,
-      quantidade: item.quantidade,
-      valor: subtotal(item.valorUnitario, item.quantidade),
-      status: s.status,
-    })),
+    s.itens.map((item) => {
+      const site = linkDoItem(item)
+      const notaDeCompra = item.produto?.notaDeCompra ?? null
+      const categoria = item.produto?.categoria.nome ?? null
+      return {
+        itemId: item.id,
+        solicitacaoId: s.id,
+        codigo: s.codigo,
+        data: s.dataSolicitacao,
+        consultorNome: s.consultor.nome,
+        clienteNome: s.cliente.nome,
+        produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
+        site,
+        notaDeCompra,
+        categoria,
+        deCatalogo: item.produtoId !== null,
+        valorUnitario: item.valorUnitario,
+        quantidade: item.quantidade,
+        valor: subtotal(item.valorUnitario, item.quantidade),
+        status: s.status,
+        fornecedor: fornecedorDoItem({ site, notaDeCompra, categoria }),
+        precisaComprar: precisaDeCompra([item]),
+        compradoEm: item.compradoEm,
+      }
+    }),
   )
+}
+
+/** O item ainda espera o Financeiro: a solicitação está na compra e ninguém o marcou. */
+export function falta(
+  item: Pick<ItemParaCompra, 'status' | 'precisaComprar' | 'compradoEm'>,
+): boolean {
+  return (
+    item.status === StatusSolicitacao.aguardando_compra && item.precisaComprar && !item.compradoEm
+  )
+}
+
+/**
+ * A solicitação está toda comprada? Só contam os itens que precisam de compra:
+ * o de estoque já está na prateleira. É o que leva a solicitação a "Comprado"
+ * quando o Financeiro compra por fornecedor, um item de cada vez.
+ */
+export function compraCompleta(
+  itens: readonly { precisaComprar: boolean; compradoEm: Date | null }[],
+): boolean {
+  return itens.every((i) => !i.precisaComprar || i.compradoEm !== null)
+}
+
+export type GrupoDeFornecedor = {
+  fornecedor: Fornecedor
+  itens: ItemParaCompra[]
+  /** Quantas solicitações têm item neste fornecedor. */
+  solicitacoes: number
+  valor: Dinheiro
+}
+
+/**
+ * O que falta comprar, agrupado por fornecedor: a visão que o Financeiro usa
+ * para comprar de uma loja de uma vez e juntar o frete. O fornecedor com mais
+ * solicitações vem primeiro; "Sem fornecedor definido", por último.
+ */
+export function agruparPorFornecedor(itens: readonly ItemParaCompra[]): GrupoDeFornecedor[] {
+  const grupos = new Map<string, ItemParaCompra[]>()
+  for (const item of itens.filter(falta)) {
+    grupos.set(item.fornecedor.chave, [...(grupos.get(item.fornecedor.chave) ?? []), item])
+  }
+  return [...grupos.values()]
+    .map((doGrupo) => ({
+      fornecedor: doGrupo[0]!.fornecedor,
+      itens: doGrupo,
+      solicitacoes: new Set(doGrupo.map((i) => i.solicitacaoId)).size,
+      valor: totalDosItens(doGrupo),
+    }))
+    .sort(
+      (a, b) =>
+        Number(a.fornecedor.chave === 'sem') - Number(b.fornecedor.chave === 'sem') ||
+        b.solicitacoes - a.solicitacoes ||
+        a.fornecedor.nome.localeCompare(b.fornecedor.nome, 'pt-BR'),
+    )
 }
 
 /**

@@ -127,6 +127,7 @@ model Usuario {
   enviosDemanda     EnvioDaDemanda[]          @relation("EnviosRegistrados")
   enviosAnulados    EnvioDaDemanda[]          @relation("EnviosAnulados")
   pedidosALogistica DemandaLogistica[]        @relation("PedidosALogistica")
+  itensComprados    SolicitacaoItem[]         @relation("ItensComprados")
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -341,23 +342,31 @@ model Solicitacao {
 /// copia o valor do produto, item específico usa o valor digitado. Alterar o
 /// preço do produto depois não mexe em solicitação já feita.
 model SolicitacaoItem {
-  id             String   @id @default(cuid())
-  solicitacaoId  String   @map("solicitacao_id")
-  produtoId      String?  @map("produto_id")
-  descricaoLivre String?  @map("descricao_livre")
-  urlExterna     String?  @map("url_externa")
+  id             String    @id @default(cuid())
+  solicitacaoId  String    @map("solicitacao_id")
+  produtoId      String?   @map("produto_id")
+  descricaoLivre String?   @map("descricao_livre")
+  urlExterna     String?   @map("url_externa")
   /// Link trocado por quem aprova, quando o do pedido esgotou ou não serve. Vale
   /// por cima do `urlExterna` e do link do produto; nulo volta ao original.
-  linkDeCompra   String?  @map("link_de_compra")
-  valorUnitario  Decimal  @map("valor_unitario") @db.Decimal(12, 2)
-  quantidade     Int      @default(1)
-  criadoEm       DateTime @default(now()) @map("criado_em")
+  linkDeCompra   String?   @map("link_de_compra")
+  valorUnitario  Decimal   @map("valor_unitario") @db.Decimal(12, 2)
+  quantidade     Int       @default(1)
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  /// O Financeiro compra por fornecedor, e uma solicitação pode ter itens de
+  /// lojas diferentes: a compra é marcada item a item. A solicitação vai a
+  /// "Comprado" quando o último item que precisa de compra é marcado. Uma CHECK
+  /// garante data e autor juntos.
+  compradoEm     DateTime? @map("comprado_em")
+  compradoPorId  String?   @map("comprado_por_id")
 
   solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   produto     Produto?    @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  compradoPor Usuario?    @relation("ItensComprados", fields: [compradoPorId], references: [id], onDelete: Restrict)
 
   @@index([solicitacaoId])
   @@index([produtoId])
+  @@index([compradoPorId])
   @@map("solicitacao_itens")
 }
 

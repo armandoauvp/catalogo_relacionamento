@@ -18,6 +18,7 @@ import {
   ehPassoDeCompra,
   podeConfirmarRecebimento,
   podeMarcarEntregue,
+  precisaDeCompra,
   validarMudancaDeStatus,
   type Encaminhamento,
 } from '@/lib/status'
@@ -27,7 +28,7 @@ import {
   rastreioSchema,
   linkDeCompraSchema,
 } from '@/lib/validators/solicitacao'
-import { linkDeCompraEditavel } from '@/lib/compras'
+import { compraCompleta, linkDeCompraEditavel } from '@/lib/compras'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
 import { cancelarPresenteNoTiny, enfileirarPresente, processarFila } from '@/lib/tiny/fila'
@@ -416,6 +417,118 @@ export async function confirmarRecebimento(solicitacaoId: string): Promise<Resul
   }
 }
 
+/** Itens da solicitação com o que decide se precisam de compra. */
+async function itensParaCompra(tx: Prisma.TransactionClient, solicitacaoId: string) {
+  const itens = await tx.solicitacaoItem.findMany({
+    where: { solicitacaoId },
+    select: {
+      id: true,
+      produtoId: true,
+      quantidade: true,
+      compradoEm: true,
+      produto: { select: { origem: true, controlaEstoque: true, estoque: true } },
+    },
+  })
+  return itens.map((i) => ({ ...i, precisaComprar: precisaDeCompra([i]) }))
+}
+
+/** Marca como comprados, por quem marcou, os itens que precisam de compra e ainda não foram. */
+async function registrarCompraDosItens(
+  tx: Prisma.TransactionClient,
+  solicitacaoId: string,
+  usuarioId: string,
+) {
+  const faltando = (await itensParaCompra(tx, solicitacaoId))
+    .filter((i) => i.precisaComprar && !i.compradoEm)
+    .map((i) => i.id)
+  if (faltando.length === 0) return
+  await tx.solicitacaoItem.updateMany({
+    where: { id: { in: faltando } },
+    data: { compradoEm: new Date(), compradoPorId: usuarioId },
+  })
+}
+
+export type ResumoDaCompra = {
+  itensMarcados: number
+  /** Solicitações que ficaram completas e foram para "Comprado". */
+  completas: string[]
+}
+
+/**
+ * Marca itens como comprados, da fila do Financeiro, um fornecedor de cada vez.
+ *
+ * Uma solicitação pode ter itens de lojas diferentes: comprar no Mercado Livre
+ * não compra o vinho da Casa da Bebida. Por isso a compra é por item, e a
+ * solicitação só vai a "Comprado" quando o último item que precisa de compra é
+ * marcado, com a linha no histórico e a trilha andando junto, na mesma transação.
+ * Item que já foi comprado, ou de solicitação fora da compra, é ignorado.
+ */
+export async function marcarItensComprados(
+  itemIds: string[],
+): Promise<ResultadoDaAction<ResumoDaCompra>> {
+  try {
+    const usuario = await autorizarAction('compras.operar')
+    const ids = [...new Set(itemIds.filter((id) => typeof id === 'string' && id))].slice(0, 500)
+    if (ids.length === 0) return { ok: false, erro: 'Selecione pelo menos um item.' }
+
+    const doPedido = await db.solicitacaoItem.findMany({
+      where: { id: { in: ids }, compradoEm: null },
+      select: {
+        id: true,
+        solicitacao: { select: { id: true, codigo: true, status: true } },
+      },
+    })
+    const porSolicitacao = new Map<string, { codigo: string; itens: string[] }>()
+    for (const i of doPedido) {
+      if (i.solicitacao.status !== StatusSolicitacao.aguardando_compra) continue
+      const atual = porSolicitacao.get(i.solicitacao.id) ?? {
+        codigo: i.solicitacao.codigo,
+        itens: [],
+      }
+      atual.itens.push(i.id)
+      porSolicitacao.set(i.solicitacao.id, atual)
+    }
+
+    const resumo: ResumoDaCompra = { itensMarcados: 0, completas: [] }
+    // Uma transação por solicitação: um pedido que falhar não desfaz os outros.
+    for (const [solicitacaoId, { codigo, itens }] of porSolicitacao) {
+      await db.$transaction(async (tx) => {
+        const r = await tx.solicitacaoItem.updateMany({
+          where: { id: { in: itens }, compradoEm: null },
+          data: { compradoEm: new Date(), compradoPorId: usuario.id },
+        })
+        resumo.itensMarcados += r.count
+        if (!compraCompleta(await itensParaCompra(tx, solicitacaoId))) return
+        await tx.solicitacao.update({
+          where: { id: solicitacaoId },
+          data: { status: StatusSolicitacao.comprado },
+        })
+        await tx.solicitacaoHistorico.create({
+          data: {
+            solicitacaoId,
+            statusAnterior: StatusSolicitacao.aguardando_compra,
+            statusNovo: StatusSolicitacao.comprado,
+            usuarioId: usuario.id,
+          },
+        })
+        await sincronizarDemandaDoPresente(tx, solicitacaoId, StatusSolicitacao.comprado, {
+          registradoPor: usuario.id,
+        })
+        resumo.completas.push(codigo)
+      })
+    }
+
+    revalidatePath('/financeiro/compras')
+    revalidatePath('/admin/solicitacoes')
+    revalidatePath('/expedicao')
+    revalidatePath('/solicitacoes')
+    revalidatePath('/logistica')
+    return { ok: true, dados: resumo }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
 /** Grava uma mudança já autorizada e validada, com tudo o que anda junto com ela. */
 async function gravarMudancaDeStatus(
   usuarioId: string,
@@ -434,6 +547,11 @@ async function gravarMudancaDeStatus(
         motivo,
       },
     })
+    // Comprada a solicitação inteira, os itens que faltavam ficam comprados por
+    // quem marcou: a compra por item e a por solicitação contam a mesma história.
+    if (statusNovo === StatusSolicitacao.comprado) {
+      await registrarCompraDosItens(tx, solicitacao.id, usuarioId)
+    }
     // Aprovado, o presente entra na trilha da Logística; os status seguintes
     // movem a fase. Na mesma transação: ou anda tudo, ou nada.
     await sincronizarDemandaDoPresente(tx, solicitacao.id, statusNovo, { registradoPor: usuarioId })
