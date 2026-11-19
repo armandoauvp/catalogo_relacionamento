@@ -22,6 +22,13 @@ import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pag
 import { CartaoParaAprovar } from '@/components/cartao-para-aprovar'
 import { cn } from '@/lib/utils'
 import { TabelaDaGestao, type LinhaDaGestao } from './tabela'
+import type { Route } from 'next'
+import {
+  ATALHOS_DA_GESTAO,
+  atalhoAtivo,
+  contagemDoAtalho,
+  hrefDoAtalho,
+} from '@/lib/atalhos-da-gestao'
 
 /**
  * Painel de gestão.
@@ -42,43 +49,49 @@ export default async function AdminSolicitacoesPage({
 
   const aprova = pode(usuario.perfil, 'solicitacao.aprovar')
 
-  const [solicitacoes, total, consultores, comProblema, paraAprovar, soma] = await Promise.all([
-    db.solicitacao.findMany({
-      where,
-      include: {
-        cliente: { select: { id: true, nome: true } },
-        consultor: { select: { id: true, nome: true } },
-        // As colunas "presente" e "rota" são o que evita abrir vinte telas
-        // para aprovar: o que vai e se há algo a comprar.
-        itens: {
-          select: {
-            produtoId: true,
-            quantidade: true,
-            descricaoLivre: true,
-            produto: {
-              select: { nome: true, origem: true, controlaEstoque: true, estoque: true },
+  const [solicitacoes, total, consultores, comProblema, paraAprovar, soma, porStatus] =
+    await Promise.all([
+      db.solicitacao.findMany({
+        where,
+        include: {
+          cliente: { select: { id: true, nome: true } },
+          consultor: { select: { id: true, nome: true } },
+          // As colunas "presente" e "rota" são o que evita abrir vinte telas
+          // para aprovar: o que vai e se há algo a comprar.
+          itens: {
+            select: {
+              produtoId: true,
+              quantidade: true,
+              doEstoque: true,
+              descricaoLivre: true,
+              produto: {
+                select: { nome: true, origem: true, controlaEstoque: true, estoque: true },
+              },
             },
           },
         },
-      },
-      orderBy: { dataSolicitacao: 'desc' },
-      skip: (filtro.pagina - 1) * filtro.porPagina,
-      take: filtro.porPagina,
-    }),
-    db.solicitacao.count({ where }),
-    db.usuario.findMany({
-      where: { ativo: true },
-      select: { id: true, nome: true },
-      orderBy: { nome: 'asc' },
-    }),
-    db.solicitacao.count({ where: { ...where, status: 'deu_problema' } }),
-    // A fila inteira, e não o recorte: é o aviso de que há algo esperando.
-    db.solicitacao.count({ where: { status: { in: [...STATUS_PARA_APROVAR] } } }),
-    db.solicitacao.aggregate({
-      where: { ...where, status: { notIn: [...STATUS_FORA_DO_SALDO] } },
-      _sum: { valorTotal: true },
-    }),
-  ])
+        orderBy: { dataSolicitacao: 'desc' },
+        skip: (filtro.pagina - 1) * filtro.porPagina,
+        take: filtro.porPagina,
+      }),
+      db.solicitacao.count({ where }),
+      db.usuario.findMany({
+        where: { ativo: true },
+        select: { id: true, nome: true },
+        orderBy: { nome: 'asc' },
+      }),
+      db.solicitacao.count({ where: { ...where, status: 'deu_problema' } }),
+      // A fila inteira, e não o recorte: é o aviso de que há algo esperando.
+      db.solicitacao.count({ where: { status: { in: [...STATUS_PARA_APROVAR] } } }),
+      db.solicitacao.aggregate({
+        where: { ...where, status: { notIn: [...STATUS_FORA_DO_SALDO] } },
+        _sum: { valorTotal: true },
+      }),
+      // As pilhas inteiras, como o "Para aprovar": o atalho diz quanto espera ali.
+      db.solicitacao.groupBy({ by: ['status'], _count: { _all: true } }),
+    ])
+  const contagemPorStatus = Object.fromEntries(porStatus.map((g) => [g.status, g._count._all]))
+  const atalhoLigado = atalhoAtivo(filtro)
 
   // A exportação recebe exatamente os mesmos parâmetros da tela.
   const queryAtual = new URLSearchParams(
@@ -193,6 +206,48 @@ export default async function AdminSolicitacoesPage({
           apoio={comProblema === 0 ? 'Nenhuma com problema.' : 'Com status “deu problema”.'}
         />
       </div>
+
+      <nav
+        aria-label="Pilhas para atuar"
+        className="mb-4 flex flex-wrap gap-2"
+        data-tour="atalhos-gestao"
+      >
+        {[null, ...ATALHOS_DA_GESTAO].map((atalho) => {
+          const ligado = atalho
+            ? atalhoLigado === atalho.chave
+            : atalhoLigado === null && !filtro.status?.length
+          const quantos = atalho ? contagemDoAtalho(contagemPorStatus, atalho) : null
+          return (
+            <LinkDeFiltro
+              key={atalho?.chave ?? 'todas'}
+              href={hrefDoAtalho(caminho, params, atalho) as Route}
+              aria-current={ligado ? 'page' : undefined}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                ligado
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-input bg-background hover:bg-accent',
+              )}
+            >
+              {atalho?.rotulo ?? 'Todas'}
+              {quantos !== null ? (
+                <span
+                  className={cn(
+                    'tabular-nums',
+                    ligado ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                    atalho?.chave === 'deu_problema' &&
+                      quantos > 0 &&
+                      !ligado &&
+                      'text-destructive',
+                  )}
+                >
+                  {quantos}
+                </span>
+              ) : null}
+            </LinkDeFiltro>
+          )
+        })}
+      </nav>
 
       <div data-tour="filtros-gestao">
         <BarraDeFiltros>

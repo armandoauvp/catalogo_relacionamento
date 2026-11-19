@@ -8,6 +8,7 @@ import {
   ehChegadaDoItem,
   ehPassoDeCompra,
   ehTerminal,
+  motivosProntos,
   oQueAconteceAgora,
   podeConfirmarRecebimento,
   podeMarcarEntregue,
@@ -187,6 +188,15 @@ describe('precisa de compra', () => {
 
   it('precisa quando há presente específico', () => {
     expect(precisaDeCompra([{ produtoId: null, quantidade: 1 }])).toBe(true)
+  })
+
+  it('"Deu problema" tem motivos prontos; os outros status, só texto livre', () => {
+    expect(motivosProntos(StatusSolicitacao.deu_problema)).toContain('Sem estoque')
+    expect(motivosProntos(StatusSolicitacao.cancelado)).toEqual([])
+  })
+
+  it('não precisa quando o presente específico sai do estoque da AUVP', () => {
+    expect(precisaDeCompra([{ produtoId: null, quantidade: 1, doEstoque: true }])).toBe(false)
   })
 
   it('um único item sem estoque leva a solicitação inteira ao Financeiro', () => {

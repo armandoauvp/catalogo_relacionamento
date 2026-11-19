@@ -16,6 +16,7 @@ import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
 import { ROTULO_STATUS, ehPassoDeCompra, proximoPasso } from '@/lib/status'
+import { correcaoCabe } from '@/lib/correcao'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -59,6 +60,8 @@ export default async function FilaDeComprasPage({
   const operaCompra = pode(usuario.perfil, 'compras.operar')
   // Cancelar é mudança de status como qualquer outra: quem pode mudar, cancela.
   const cancela = pode(usuario.perfil, 'solicitacao.alterarStatus')
+  // Quem aprova corrige o pedido dali mesmo, sem sair procurando a solicitação.
+  const corrige = pode(usuario.perfil, 'solicitacao.editar')
   const params = await searchParams
   const caminho = '/financeiro/compras'
   const status = STATUS_DA_FILA_DE_COMPRAS.find((s) => s === params.status)
@@ -163,7 +166,7 @@ export default async function FilaDeComprasPage({
           descricao="As solicitações aparecem aqui assim que o Relacionamento as aprova."
         />
       ) : !porItem ? (
-        <PorFornecedor grupos={grupos} opera={operaCompra} />
+        <PorFornecedor grupos={grupos} opera={operaCompra} corrige={corrige} />
       ) : (
         <>
           <FiltrosAtivos filtros={filtrosAtivos} />
@@ -199,6 +202,17 @@ export default async function FilaDeComprasPage({
                       <div className="font-medium">{item.produto}</div>
                       <div className="text-muted-foreground mt-0.5 text-xs">
                         {item.consultorNome} · para {item.clienteNome}
+                        {corrige && correcaoCabe(item.status) ? (
+                          <>
+                            {' · '}
+                            <Link
+                              href={`/admin/solicitacoes/${item.solicitacaoId}/corrigir` as Route}
+                              className="text-primary-emphasis font-medium hover:underline"
+                            >
+                              Corrigir
+                            </Link>
+                          </>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="max-w-44">

@@ -5,6 +5,7 @@ import { linkDeCompraEditavel, linkDoItem } from '@/lib/compras'
 import { LinkDeCompra } from '@/components/link-de-compra'
 import { formatarCpf, formatarTelefone } from '@/lib/cpf'
 import { formatarCep } from '@/lib/cep'
+import { formatarDataHora } from '@/lib/datas'
 import { ROTULO_MOTIVO } from '@/lib/validators/solicitacao'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -33,6 +34,7 @@ export type SolicitacaoDetalhada = Prisma.SolicitacaoGetPayload<{
     consultor: { select: { nome: true } }
     itens: { include: { produto: { select: { nome: true; urlCompra: true } } } }
     historico: { include: { usuario: { select: { nome: true } } } }
+    alteracoes: { include: { usuario: { select: { nome: true } } } }
   }
 }>
 
@@ -150,6 +152,10 @@ export function DetalheDaSolicitacao({
           </CardContent>
         </Card>
 
+        {solicitacao.alteracoes.length > 0 ? (
+          <Correcoes alteracoes={solicitacao.alteracoes} />
+        ) : null}
+
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base">Histórico</CardTitle>
@@ -221,6 +227,40 @@ export function DetalheDaSolicitacao({
         {acoes}
       </div>
     </div>
+  )
+}
+
+/**
+ * O que o Admin corrigiu depois de o pedido ser criado. O consultor vê também:
+ * é o pedido dele, e o "antes" mostra o que ele tinha pedido.
+ */
+function Correcoes({ alteracoes }: { alteracoes: SolicitacaoDetalhada['alteracoes'] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Correções do pedido</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-border divide-y text-sm">
+          {alteracoes.map((a) => (
+            <li key={a.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
+              <p>
+                <span className="font-medium">{a.campo}</span>{' '}
+                <span className="text-muted-foreground text-xs">
+                  · {a.usuario?.nome ?? 'sistema'} · {formatarDataHora(a.criadoEm)}
+                </span>
+              </p>
+              {a.antes ? (
+                <p className="text-muted-foreground line-clamp-3 whitespace-pre-wrap line-through decoration-1">
+                  {a.antes}
+                </p>
+              ) : null}
+              {a.depois ? <p className="line-clamp-3 whitespace-pre-wrap">{a.depois}</p> : null}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   )
 }
 

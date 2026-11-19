@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, ExternalLink, Loader2, ShoppingCart } from 'lucide-react'
+import { Check, Copy, ExternalLink, Loader2, PencilLine, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialogo } from '@/components/ui/dialogo'
@@ -40,7 +40,16 @@ export type GrupoNaTela = {
  * frete. A seleção marca item a item; a solicitação vai a "Comprado" sozinha
  * quando o último item dela é marcado.
  */
-export function PorFornecedor({ grupos, opera }: { grupos: GrupoNaTela[]; opera: boolean }) {
+export function PorFornecedor({
+  grupos,
+  opera,
+  corrige = false,
+}: {
+  grupos: GrupoNaTela[]
+  opera: boolean
+  /** Quem aprova corrige o pedido dali mesmo; a action confere de novo. */
+  corrige?: boolean
+}) {
   const router = useRouter()
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
@@ -221,6 +230,14 @@ export function PorFornecedor({ grupos, opera }: { grupos: GrupoNaTela[]; opera:
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-4 pl-7 sm:pl-0">
+                    {corrige ? (
+                      <Link
+                        href={`/admin/solicitacoes/${i.solicitacaoId}/corrigir`}
+                        className="text-primary-emphasis inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                      >
+                        Corrigir <PencilLine className="size-3" aria-hidden="true" />
+                      </Link>
+                    ) : null}
                     {i.link ? (
                       <a
                         href={i.link}

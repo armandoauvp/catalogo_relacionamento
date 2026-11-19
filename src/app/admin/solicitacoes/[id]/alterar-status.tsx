@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ROTULO_STATUS, exigeMotivo, type ProximoPasso } from '@/lib/status'
+import { ROTULO_STATUS, exigeMotivo, motivosProntos, type ProximoPasso } from '@/lib/status'
+import { cn } from '@/lib/utils'
+
+const OUTRO = 'Outro'
 import { alterarStatus, encaminharEmLote, marcarComoTeste } from '@/lib/actions/solicitacoes'
 
 /**
@@ -46,6 +49,8 @@ export function AlterarStatus({
   const status = escolhido && opcoes.includes(escolhido) ? escolhido : padrao
 
   const [motivo, setMotivo] = useState('')
+  // "Outro" abre o texto livre; os motivos prontos preenchem o motivo direto.
+  const [outro, setOutro] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   if (!status) return null
@@ -70,6 +75,7 @@ export function AlterarStatus({
   }
 
   const precisaDeMotivo = exigeMotivo(status)
+  const prontos = motivosProntos(status)
 
   function enviar() {
     setErro(null)
@@ -84,6 +90,7 @@ export function AlterarStatus({
         return
       }
       setMotivo('')
+      setOutro(false)
       setEscolhido(null)
       router.refresh()
     })
@@ -127,15 +134,43 @@ export function AlterarStatus({
       </div>
 
       {precisaDeMotivo ? (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="motivo-status">Motivo</Label>
-          <Textarea
-            id="motivo-status"
-            rows={3}
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Fica gravado no histórico, junto com quem mudou e quando."
-          />
+          {prontos.length > 0 ? (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Motivos prontos">
+              {[...prontos, OUTRO].map((m) => {
+                const ligado = m === OUTRO ? outro : !outro && motivo === m
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={ligado}
+                    onClick={() => {
+                      setOutro(m === OUTRO)
+                      setMotivo(m === OUTRO ? '' : m)
+                    }}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                      ligado
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-input hover:bg-accent',
+                    )}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+          {prontos.length === 0 || outro ? (
+            <Textarea
+              id="motivo-status"
+              rows={3}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Fica gravado no histórico, junto com quem mudou e quando."
+            />
+          ) : null}
         </div>
       ) : null}
 

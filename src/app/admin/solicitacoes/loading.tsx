@@ -11,6 +11,12 @@ export default function Carregando() {
           <Skeleton key={i} className="h-[150px] rounded-lg" />
         ))}
       </div>
+      {/* Os atalhos das pilhas: Todas e as cinco pilhas para atuar. */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[67, 133, 132, 181, 158, 162].map((largura, i) => (
+          <Skeleton key={i} className="h-[33px] rounded-full" style={{ width: largura }} />
+        ))}
+      </div>
       <div className="bg-card mb-6 flex flex-wrap items-center gap-2 rounded-lg border p-3">
         <Skeleton className="h-10 w-56" />
         <Skeleton className="h-10 w-40" />

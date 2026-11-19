@@ -42,6 +42,10 @@ export default async function MinhaSolicitacaoPage({
         include: { usuario: { select: { nome: true } } },
         orderBy: { criadoEm: 'desc' },
       },
+      alteracoes: {
+        include: { usuario: { select: { nome: true } } },
+        orderBy: { criadoEm: 'desc' },
+      },
     },
   })
 

@@ -23,11 +23,19 @@ import {
   type Encaminhamento,
 } from '@/lib/status'
 import {
+  ROTULO_MOTIVO,
+  correcaoSchema,
   solicitacaoSchema,
   mudancaDeStatusSchema,
   rastreioSchema,
   linkDeCompraSchema,
 } from '@/lib/validators/solicitacao'
+import {
+  alteracoesDaCorrecao,
+  compradoIntacto,
+  correcaoCabe,
+  type ItemComparavel,
+} from '@/lib/correcao'
 import { compraCompleta, linkDeCompraEditavel } from '@/lib/compras'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
@@ -426,6 +434,7 @@ async function itensParaCompra(tx: Prisma.TransactionClient, solicitacaoId: stri
       produtoId: true,
       quantidade: true,
       compradoEm: true,
+      doEstoque: true,
       produto: { select: { origem: true, controlaEstoque: true, estoque: true } },
     },
   })
@@ -649,6 +658,7 @@ export async function encaminharEmLote(
           select: {
             produtoId: true,
             quantidade: true,
+            doEstoque: true,
             produto: { select: { origem: true, controlaEstoque: true, estoque: true } },
           },
         },
@@ -769,6 +779,254 @@ export async function trocarLinkDeCompra(entrada: unknown): Promise<ResultadoDaA
     revalidatePath(`/solicitacoes/${item.solicitacao.id}`)
     revalidatePath('/financeiro/compras')
     return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Corrige o pedido depois de criado: itens, entrega e carta. É do Admin, até a
+ * compra (`correcaoCabe`), e cada campo que muda fica registrado com o antes e
+ * o depois (`alteracoesDaCorrecao`).
+ *
+ * As regras da criação valem aqui também: item do catálogo usa o preço do
+ * banco (o que já estava no pedido fica com o valor congelado), o kit que
+ * exige vinho é conferido de novo, e item já comprado não muda nem sai.
+ */
+export async function corrigirSolicitacao(
+  entrada: unknown,
+): Promise<ResultadoDaAction<{ alteracoes: number }>> {
+  try {
+    const usuario = await autorizarAction('solicitacao.editar')
+
+    const validado = correcaoSchema.safeParse(entrada)
+    if (!validado.success) return primeiroErro(validado.error)
+    const dados = validado.data
+
+    const atual = await db.solicitacao.findUnique({
+      where: { id: dados.solicitacaoId },
+      include: { itens: { include: { produto: { select: { nome: true } } } } },
+    })
+    if (!atual) return { ok: false, erro: 'Solicitação não encontrada.' }
+    if (!correcaoCabe(atual.status)) {
+      return { ok: false, erro: 'Depois de comprado, o pedido não muda mais.' }
+    }
+
+    const existentes = new Map(atual.itens.map((i) => [i.id, i]))
+    const desconhecido = dados.itens.find((i) => i.id && !existentes.has(i.id))
+    if (desconhecido)
+      return { ok: false, erro: 'Um dos itens não é deste pedido. Recarregue a tela.' }
+
+    const idsDeProdutos = [
+      ...new Set(dados.itens.map((i) => i.produtoId).filter((id): id is string => !!id)),
+    ]
+    const produtos = await db.produto.findMany({
+      where: { id: { in: idsDeProdutos } },
+      select: {
+        id: true,
+        nome: true,
+        valor: true,
+        ativo: true,
+        exigeAcompanhamento: true,
+        serveComoAcompanhamento: true,
+      },
+    })
+    const porId = new Map(produtos.map((p) => [p.id, p]))
+
+    type ItemCorrigido = Omit<(typeof dados.itens)[number], 'valorUnitario'> & {
+      produto: (typeof produtos)[number] | null
+      valorUnitario: Prisma.Decimal
+    }
+    const itens: ItemCorrigido[] = []
+    for (const item of dados.itens) {
+      const anterior = item.id ? existentes.get(item.id) : undefined
+      if (item.produtoId) {
+        const produto = porId.get(item.produtoId)
+        // O produto que já estava no pedido pode ter saído do catálogo depois;
+        // trocar para um produto inativo, não.
+        if (!produto || (!produto.ativo && anterior?.produtoId !== item.produtoId)) {
+          return { ok: false, erro: 'Um dos produtos saiu do catálogo. Revise os itens.' }
+        }
+        const valor =
+          anterior?.produtoId === item.produtoId
+            ? anterior.valorUnitario
+            : (produto.valor ?? new Prisma.Decimal(0))
+        itens.push({
+          ...item,
+          produto,
+          descricaoLivre: null,
+          urlExterna: null,
+          doEstoque: false,
+          valorUnitario: valor,
+        })
+      } else {
+        itens.push({
+          ...item,
+          produto: null,
+          valorUnitario: new Prisma.Decimal(item.valorUnitario),
+        })
+      }
+    }
+
+    const pendencias = mensagemDePendencia(
+      acompanhamentosFaltando(itens.map((i) => ({ produtoId: i.produtoId, produto: i.produto }))),
+    )
+    if (pendencias) return { ok: false, erro: pendencias, campo: 'itens' }
+
+    const comparavel = (i: {
+      id: string | null
+      produtoId: string | null
+      descricaoLivre: string | null
+      urlExterna: string | null
+      valorUnitario: Prisma.Decimal.Value
+      quantidade: number
+      doEstoque: boolean
+      produto: { nome: string } | null
+    }): ItemComparavel => ({
+      id: i.id,
+      nome: i.produto?.nome ?? i.descricaoLivre ?? 'Presente',
+      produtoId: i.produtoId,
+      urlExterna: i.urlExterna,
+      valorUnitario: new Prisma.Decimal(i.valorUnitario).toFixed(2),
+      quantidade: i.quantidade,
+      doEstoque: i.doEstoque,
+    })
+    const antesDosItens = atual.itens.map(comparavel)
+    const depoisDosItens = itens.map(comparavel)
+
+    // O que foi comprado é o que vai.
+    for (const comprado of atual.itens.filter((i) => i.compradoEm)) {
+      const depois = depoisDosItens.find((i) => i.id === comprado.id)
+      if (!compradoIntacto(comparavel(comprado), depois)) {
+        return { ok: false, erro: 'Item já comprado não muda nem sai do pedido.' }
+      }
+    }
+
+    const motivoEmTexto = (motivo: typeof dados.motivo, outro: string | null) =>
+      motivo === 'outro' ? (outro ?? 'Outro') : ROTULO_MOTIVO[motivo]
+    const alteracoes = alteracoesDaCorrecao(
+      {
+        entregaDestinatario: atual.entregaDestinatario,
+        entregaCep: atual.entregaCep,
+        entregaLogradouro: atual.entregaLogradouro,
+        entregaNumero: atual.entregaNumero,
+        entregaComplemento: atual.entregaComplemento,
+        entregaBairro: atual.entregaBairro,
+        entregaCidade: atual.entregaCidade,
+        entregaUf: atual.entregaUf,
+        motivo: motivoEmTexto(atual.motivo, atual.motivoOutro),
+        saudacaoCarta: atual.saudacaoCarta ?? '',
+        mensagemCarta: atual.mensagemCarta,
+        observacoes: atual.observacoes,
+        itens: antesDosItens,
+      },
+      {
+        entregaDestinatario: dados.entregaDestinatario,
+        entregaCep: dados.entregaCep,
+        entregaLogradouro: dados.entregaLogradouro,
+        entregaNumero: dados.entregaNumero,
+        entregaComplemento: dados.entregaComplemento,
+        entregaBairro: dados.entregaBairro,
+        entregaCidade: dados.entregaCidade,
+        entregaUf: dados.entregaUf,
+        motivo: motivoEmTexto(dados.motivo, dados.motivoOutro),
+        saudacaoCarta: dados.saudacaoCarta,
+        mensagemCarta: dados.mensagemCarta,
+        observacoes: dados.observacoes,
+        itens: depoisDosItens,
+      },
+    )
+    if (alteracoes.length === 0) return { ok: true, dados: { alteracoes: 0 } }
+
+    const ficam = new Set(itens.map((i) => i.id).filter(Boolean))
+    await db.$transaction(async (tx) => {
+      // Só sai item que ninguém comprou: o comprado foi conferido acima.
+      await tx.solicitacaoItem.deleteMany({
+        where: { solicitacaoId: atual.id, compradoEm: null, id: { notIn: [...ficam] as string[] } },
+      })
+      for (const item of itens) {
+        const campos = {
+          produtoId: item.produtoId,
+          descricaoLivre: item.produtoId ? null : item.descricaoLivre,
+          urlExterna: item.produtoId ? null : item.urlExterna,
+          valorUnitario: item.valorUnitario,
+          quantidade: item.quantidade,
+          doEstoque: item.produtoId ? false : item.doEstoque,
+        }
+        if (item.id) {
+          // O comprado ficou intacto; reescrevê-lo não muda nada, mas pulá-lo é mais claro.
+          if (existentes.get(item.id)?.compradoEm) continue
+          await tx.solicitacaoItem.update({ where: { id: item.id }, data: campos })
+        } else {
+          await tx.solicitacaoItem.create({ data: { ...campos, solicitacaoId: atual.id } })
+        }
+      }
+
+      await tx.solicitacao.update({
+        where: { id: atual.id },
+        data: {
+          entregaDestinatario: dados.entregaDestinatario,
+          entregaCep: dados.entregaCep,
+          entregaLogradouro: dados.entregaLogradouro,
+          entregaNumero: dados.entregaNumero,
+          entregaComplemento: dados.entregaComplemento,
+          entregaBairro: dados.entregaBairro,
+          entregaCidade: dados.entregaCidade,
+          entregaUf: dados.entregaUf,
+          motivo: dados.motivo,
+          motivoOutro: dados.motivo === 'outro' ? dados.motivoOutro : null,
+          saudacaoCarta: dados.saudacaoCarta,
+          mensagemCarta: dados.mensagemCarta,
+          observacoes: dados.observacoes,
+          valorTotal: totalDosItens(itens),
+        },
+      })
+      await tx.solicitacaoAlteracao.createMany({
+        data: alteracoes.map((a) => ({ ...a, solicitacaoId: atual.id, usuarioId: usuario.id })),
+      })
+
+      // A trilha da Logística mostra os itens do presente: acompanha a correção.
+      await tx.demandaLogistica.updateMany({
+        where: { solicitacaoId: atual.id },
+        data: {
+          itens: depoisDosItens.map((i) =>
+            i.quantidade > 1 ? `${i.quantidade}× ${i.nome}` : i.nome,
+          ),
+        },
+      })
+
+      // Se a correção tirou o último item que faltava comprar (ou o marcou como do
+      // estoque), a compra está completa: segue para "Comprado", como na fila.
+      if (
+        atual.status === StatusSolicitacao.aguardando_compra &&
+        compraCompleta(await itensParaCompra(tx, atual.id))
+      ) {
+        await tx.solicitacao.update({
+          where: { id: atual.id },
+          data: { status: StatusSolicitacao.comprado },
+        })
+        await tx.solicitacaoHistorico.create({
+          data: {
+            solicitacaoId: atual.id,
+            statusAnterior: StatusSolicitacao.aguardando_compra,
+            statusNovo: StatusSolicitacao.comprado,
+            usuarioId: usuario.id,
+            motivo: 'Nada mais a comprar depois da correção do pedido.',
+          },
+        })
+        await sincronizarDemandaDoPresente(tx, atual.id, StatusSolicitacao.comprado, {
+          registradoPor: usuario.id,
+        })
+      }
+    })
+
+    revalidatePath(`/admin/solicitacoes/${atual.id}`)
+    revalidatePath(`/solicitacoes/${atual.id}`)
+    revalidatePath('/admin/solicitacoes')
+    revalidatePath('/financeiro/compras')
+    revalidatePath('/expedicao')
+    revalidatePath('/logistica')
+    return { ok: true, dados: { alteracoes: alteracoes.length } }
   } catch (e) {
     return comoErro(e)
   }

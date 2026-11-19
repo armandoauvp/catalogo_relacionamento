@@ -17,6 +17,9 @@ import { StatusBadge } from '@/components/status-badge'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { DetalheDaSolicitacao } from '@/components/detalhe-da-solicitacao'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { PencilLine } from 'lucide-react'
+import { correcaoCabe } from '@/lib/correcao'
 import { AlterarStatus, MarcarComoTeste } from './alterar-status'
 
 /** Detalhe da solicitação: itens, entrega, carta, rastreio e histórico completo. */
@@ -50,6 +53,10 @@ export default async function DetalheSolicitacaoPage({
         include: { usuario: { select: { nome: true } } },
         orderBy: { criadoEm: 'desc' },
       },
+      alteracoes: {
+        include: { usuario: { select: { nome: true } } },
+        orderBy: { criadoEm: 'desc' },
+      },
     },
   })
 
@@ -65,6 +72,8 @@ export default async function DetalheSolicitacaoPage({
 
   const passo = proximoPasso(solicitacao.status, solicitacao.itens)
   const proximo = passo && cabe(passo.destino) ? passo : null
+  const podeCorrigir =
+    pode(usuario.perfil, 'solicitacao.editar') && correcaoCabe(solicitacao.status)
 
   return (
     <>
@@ -82,6 +91,13 @@ export default async function DetalheSolicitacaoPage({
           <>
             {solicitacao.teste ? <Badge variant="warning">teste</Badge> : null}
             <StatusBadge status={solicitacao.status} />
+            {podeCorrigir ? (
+              <Button asChild variant="outline" size="sm" data-tour="corrigir">
+                <Link href={`/admin/solicitacoes/${solicitacao.id}/corrigir`}>
+                  <PencilLine aria-hidden="true" /> Corrigir pedido
+                </Link>
+              </Button>
+            ) : null}
           </>
         }
       />

@@ -26,6 +26,7 @@ export async function whereDaGestao(
         select: {
           produtoId: true,
           quantidade: true,
+          doEstoque: true,
           produto: { select: { origem: true, controlaEstoque: true, estoque: true } },
         },
       },

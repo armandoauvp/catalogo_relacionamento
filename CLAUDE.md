@@ -22,6 +22,7 @@ duplique numa tela.
 | Transições, motivos e lote       | `src/lib/status.ts`                       |
 | Gasto do mês e limite            | `src/lib/saldo.ts`                        |
 | Fila de compras do Financeiro    | `src/lib/compras.ts`                      |
+| Correção do pedido pelo Admin    | `src/lib/correcao.ts`                     |
 | Fila da expedição                | `src/lib/expedicao.ts`                    |
 | Período do Dashboard Logístico   | `src/lib/periodo.ts`                      |
 | Status da semana e limiares      | `src/lib/logistica/status-operacional.ts` |
@@ -46,6 +47,7 @@ duplique numa tela.
 | Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
 | Filtro por clique nos grupos     | `src/lib/filtro-por-grupo.ts`             |
 | Recorte da gestão (com a rota)   | `src/lib/solicitacoes-filtradas.ts`       |
+| Atalhos das pilhas da gestão     | `src/lib/atalhos-da-gestao.ts`            |
 | Recorte da trilha da Logística   | `src/lib/logistica/filtro-da-trilha.ts`   |
 | Cadastro que chega do site       | `src/lib/clientes.ts`                     |
 | Leitura das respostas do Tiny    | `src/lib/tiny/leitura.ts`                 |
@@ -105,6 +107,12 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   `compradoEm`/`compradoPorId` (CHECK juntos), e a solicitação vai a "Comprado"
   quando o último item que precisa de compra é marcado (`compraCompleta`).
   Marcar a solicitação inteira registra os itens que faltavam.
+- **Pedido se corrige até a compra, e fica registrado.** O Admin ajusta itens,
+  entrega e carta (`corrigirSolicitacao`) enquanto `correcaoCabe`; item já
+  comprado não muda nem sai. Cada campo vira uma linha em
+  `SolicitacaoAlteracao`, com o antes e o depois, e o consultor também vê.
+  Presente específico da casa (cuia, vela) é `doEstoque`: não passa pela fila
+  de compras, e uma CHECK o limita ao item específico.
 - **Comprado não é chegado.** O Financeiro só marca "Comprado"; quem leva o
   pedido para a expedição, e para o Tiny, é quem recebe o pacote, pelo "Chegou"
   da Expedição (`confirmarChegada`, `expedicao.receberItem`, `ehChegadaDoItem`).

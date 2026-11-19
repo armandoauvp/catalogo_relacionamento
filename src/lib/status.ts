@@ -95,6 +95,18 @@ export function exigeMotivo(status: StatusSolicitacao): boolean {
   return STATUS_QUE_EXIGEM_MOTIVO.includes(status)
 }
 
+/**
+ * Os motivos que se repetem em "Deu problema", para o Financeiro marcar com um
+ * clique em vez de escrever (pedido da área em 19/11/2026). O texto vai para o
+ * histórico como o motivo escrito; "Outro" continua livre. Acrescente aqui.
+ */
+export const MOTIVOS_DE_PROBLEMA = ['Sem estoque', 'Não emite NF', 'Faltam informações'] as const
+
+/** Os motivos prontos de cada status; vazio quando só há texto livre. */
+export function motivosProntos(status: StatusSolicitacao): readonly string[] {
+  return status === StatusSolicitacao.deu_problema ? MOTIVOS_DE_PROBLEMA : []
+}
+
 export function contaNoSaldo(status: StatusSolicitacao): boolean {
   return !STATUS_FORA_DO_SALDO.includes(status)
 }
@@ -238,6 +250,8 @@ export function validarMudancaDeStatus(
 export type ItemParaDecisao = {
   produtoId: string | null
   quantidade: number
+  /** Presente específico que sai do estoque da AUVP: não se compra. */
+  doEstoque?: boolean
   produto?: {
     origem: OrigemProduto
     controlaEstoque: boolean
@@ -247,7 +261,7 @@ export type ItemParaDecisao = {
 
 export function precisaDeCompra(itens: readonly ItemParaDecisao[]): boolean {
   return itens.some((item) => {
-    if (!item.produtoId || !item.produto) return true
+    if (!item.produtoId || !item.produto) return !item.doEstoque
     if (item.produto.origem === OrigemProduto.mediante_pedido) return true
     if (!item.produto.controlaEstoque) return false
     return (item.produto.estoque ?? 0) < item.quantidade

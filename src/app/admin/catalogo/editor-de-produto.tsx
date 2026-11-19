@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { OrigemProduto, TipoValor } from '@prisma/client'
-import { Loader2, Plus, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { Loader2, Pause, Plus, Pencil, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialogo } from '@/components/ui/dialogo'
 import { Input } from '@/components/ui/input'
@@ -401,12 +401,12 @@ export function EditorDeProduto({
 }
 
 /**
- * Remover do catálogo e devolver.
+ * Pausar no catálogo e reativar.
  *
- * Remover é desativar, e não excluir: o presente some do catálogo do
- * consultor e continua nas solicitações que já o usaram, com nome e foto. Por
- * isso pode voltar a qualquer momento, e a confirmação diz isso, para ninguém
- * hesitar em tirar um item que só está fora de linha.
+ * Pausar é desativar, e não excluir: o presente some do catálogo do consultor
+ * e continua nas solicitações que já o usaram, com nome e foto. É o caso do
+ * item que ficou sem estoque e volta depois. Por isso o botão não é vermelho
+ * nem tem lixeira: a área hesitava em tirar um item achando que o perdia.
  */
 export function BotaoAtivar({ id, ativo, nome }: { id: string; ativo: boolean; nome: string }) {
   const router = useRouter()
@@ -432,32 +432,27 @@ export function BotaoAtivar({ id, ativo, nome }: { id: string; ativo: boolean; n
         ) : (
           <RotateCcw aria-hidden="true" />
         )}
-        Devolver ao catálogo
+        Reativar
       </Button>
     )
   }
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        onClick={() => setConfirmando(true)}
-      >
-        <Trash2 aria-hidden="true" />
-        Remover do catálogo
+      <Button variant="ghost" size="sm" onClick={() => setConfirmando(true)}>
+        <Pause aria-hidden="true" />
+        Pausar no catálogo
       </Button>
       <Dialogo
         aberto={confirmando}
         aoFechar={() => setConfirmando(false)}
-        titulo="Remover do catálogo?"
+        titulo="Pausar no catálogo?"
         descricao={nome}
       >
         <p className="text-sm leading-relaxed whitespace-normal">
-          O presente deixa de aparecer para os consultores. As solicitações que já o usaram
-          continuam mostrando o que foi enviado, e ele pode voltar quando quiser, em Devolver ao
-          catálogo.
+          O presente deixa de aparecer para os consultores até você reativar, por exemplo quando
+          voltar ao estoque. Nada se perde: as solicitações que já o usaram continuam como foram
+          feitas.
         </p>
         {erro ? (
           <p role="alert" className="text-destructive mt-3 text-sm">
@@ -468,9 +463,9 @@ export function BotaoAtivar({ id, ativo, nome }: { id: string; ativo: boolean; n
           <Button variant="ghost" onClick={() => setConfirmando(false)}>
             Voltar
           </Button>
-          <Button variant="destructive" disabled={salvando} onClick={alternar}>
+          <Button disabled={salvando} onClick={alternar}>
             {salvando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-            Remover do catálogo
+            Pausar
           </Button>
         </div>
       </Dialogo>

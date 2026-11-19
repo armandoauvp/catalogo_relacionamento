@@ -74,7 +74,7 @@ export default async function AdminCatalogoPage({
     },
     filtro.situacao && {
       coluna: 'Situação',
-      valor: filtro.situacao === 'ativo' ? 'no catálogo' : 'fora do catálogo',
+      valor: filtro.situacao === 'ativo' ? 'no catálogo' : 'pausado',
       semEle: hrefSemFiltro(caminho, params, 'situacao'),
     },
     filtro.sku && {
@@ -120,9 +120,9 @@ export default async function AdminCatalogoPage({
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat rotulo="Produtos ativos" valor={ativos} apoio="Visíveis para o consultor." />
         <Stat
-          rotulo="Fora do catálogo"
+          rotulo="Pausados"
           valor={produtos.length - ativos}
-          apoio="Removidos: somem para o consultor, ficam no histórico."
+          apoio="Somem para o consultor e voltam com Reativar."
         />
         <Stat
           rotulo="Sem SKU no Tiny"
@@ -225,13 +225,13 @@ export default async function AdminCatalogoPage({
                     <TableCell>
                       <FiltroDoGrupo
                         {...grupo('situacao', p.ativo ? 'ativo' : 'desativado')}
-                        rotulo={p.ativo ? 'produtos no catálogo' : 'produtos fora do catálogo'}
+                        rotulo={p.ativo ? 'produtos no catálogo' : 'produtos pausados'}
                       >
                         <Badge
                           variant={p.ativo ? 'outline' : 'muted'}
                           className="whitespace-nowrap"
                         >
-                          {p.ativo ? 'no catálogo' : 'fora do catálogo'}
+                          {p.ativo ? 'no catálogo' : 'pausado'}
                         </Badge>
                       </FiltroDoGrupo>
                     </TableCell>

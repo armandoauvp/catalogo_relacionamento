@@ -20,18 +20,24 @@ export const linkDeCompraSchema = z.object({
  * A mesma regra existe como CHECK constraint no banco; aqui ela existe para
  * que o consultor receba uma mensagem em vez de um erro de constraint.
  */
-export const itemSchema = z
-  .object({
-    produtoId: z.preprocess(
-      (v) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : null),
-      z.string().nullable(),
-    ),
-    descricaoLivre: textoOpcional,
-    urlExterna: urlOpcional,
-    valorUnitario: valorSchema,
-    quantidade: z.coerce.number().int().min(1, 'Quantidade mínima é 1.').default(1),
-  })
-  .superRefine((item, ctx) => {
+const camposDoItem = z.object({
+  produtoId: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : null),
+    z.string().nullable(),
+  ),
+  descricaoLivre: textoOpcional,
+  urlExterna: urlOpcional,
+  valorUnitario: valorSchema,
+  quantidade: z.coerce.number().int().min(1, 'Quantidade mínima é 1.').default(1),
+})
+
+export const itemSchema = camposDoItem.superRefine(conferirItem)
+
+function conferirItem(
+  item: { produtoId: string | null; descricaoLivre: string | null; urlExterna: string | null },
+  ctx: z.RefinementCtx,
+) {
+  {
     const deCatalogo = Boolean(item.produtoId)
     const especifico = Boolean(item.descricaoLivre)
 
@@ -60,7 +66,8 @@ export const itemSchema = z
         path: ['urlExterna'],
       })
     }
-  })
+  }
+}
 
 export const enderecoEntregaSchema = z.object({
   entregaCep: cepSchema,
@@ -92,6 +99,45 @@ export const solicitacaoSchema = enderecoEntregaSchema
     message: 'Descreva o motivo quando escolher "outro".',
     path: ['motivoOutro'],
   })
+
+/**
+ * Correção do pedido pelo Admin (`corrigirSolicitacao`). O item que já existe
+ * traz o `id`; o novo vem sem. O valor de item do catálogo que chega aqui não é
+ * usado: a action relê o preço no banco.
+ */
+export const correcaoSchema = enderecoEntregaSchema
+  .extend({
+    solicitacaoId: z.string().min(1),
+    motivo: z.nativeEnum(MotivoEnvio),
+    motivoOutro: textoOpcional,
+    mensagemCarta: z.string().trim().min(1, 'Escreva a mensagem da carta.').max(5000),
+    saudacaoCarta: z
+      .string()
+      .trim()
+      .max(LIMITE_DA_SAUDACAO, `Use até ${LIMITE_DA_SAUDACAO} caracteres na saudação.`)
+      .default(''),
+    observacoes: textoOpcional,
+    itens: z
+      .array(
+        camposDoItem
+          .extend({
+            id: z.string().min(1).nullable().default(null),
+            doEstoque: z.boolean().default(false),
+          })
+          .superRefine(conferirItem)
+          .refine((i) => !i.doEstoque || !i.produtoId, {
+            message: 'Item do catálogo segue a origem do produto.',
+            path: ['doEstoque'],
+          }),
+      )
+      .min(1, 'O pedido precisa de pelo menos um item.'),
+  })
+  .refine((d) => d.motivo !== MotivoEnvio.outro || Boolean(d.motivoOutro), {
+    message: 'Descreva o motivo quando escolher "outro".',
+    path: ['motivoOutro'],
+  })
+
+export type CorrecaoInput = z.input<typeof correcaoSchema>
 
 export type SolicitacaoInput = z.input<typeof solicitacaoSchema>
 export type SolicitacaoValidada = z.output<typeof solicitacaoSchema>

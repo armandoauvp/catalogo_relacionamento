@@ -128,6 +128,7 @@ model Usuario {
   enviosAnulados    EnvioDaDemanda[]          @relation("EnviosAnulados")
   pedidosALogistica DemandaLogistica[]        @relation("PedidosALogistica")
   itensComprados    SolicitacaoItem[]         @relation("ItensComprados")
+  alteracoesFeitas  SolicitacaoAlteracao[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -326,6 +327,8 @@ model Solicitacao {
   demanda    DemandaLogistica?
   /// O pedido que a aprovação abriu no Tiny, quando a integração está ligada.
   pedidoTiny PedidoTiny?
+  /// O que o Admin corrigiu no pedido depois de criado, campo a campo.
+  alteracoes SolicitacaoAlteracao[]
 
   @@index([consultorId, dataSolicitacao])
   @@index([status])
@@ -359,6 +362,10 @@ model SolicitacaoItem {
   /// garante data e autor juntos.
   compradoEm     DateTime? @map("comprado_em")
   compradoPorId  String?   @map("comprado_por_id")
+  /// Presente específico que sai do estoque da AUVP (cuia, vela): não passa
+  /// pelo Financeiro. Só vale para item específico; o do catálogo segue a
+  /// origem do produto. Uma CHECK garante.
+  doEstoque      Boolean   @default(false) @map("do_estoque")
 
   solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   produto     Produto?    @relation(fields: [produtoId], references: [id], onDelete: Restrict)
@@ -387,6 +394,25 @@ model SolicitacaoHistorico {
 
   @@index([solicitacaoId, criadoEm])
   @@map("solicitacao_historico")
+}
+
+/// Uma linha por campo corrigido pelo Admin depois da criação, com o que era e
+/// o que ficou. É o que deixa uma solicitação corrigida continuar legível como
+/// foi pedida. Nunca é editado nem apagado.
+model SolicitacaoAlteracao {
+  id            String   @id @default(cuid())
+  solicitacaoId String   @map("solicitacao_id")
+  usuarioId     String?  @map("usuario_id")
+  campo         String
+  antes         String?
+  depois        String?
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  usuario     Usuario?    @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([solicitacaoId, criadoEm])
+  @@map("solicitacao_alteracoes")
 }
 
 /// Contador do código sequencial por ano. Uma linha por ano, incrementada

@@ -234,6 +234,43 @@ export const FAQ: ItemDaFaq[] = [
 
   // --- Aprovação (admins) -----------------------------------------------------
   {
+    id: 'pilhas-da-gestao',
+    pergunta: 'Como vejo só o que preciso resolver?',
+    resposta:
+      'Na Gestão, os atalhos acima da tabela separam as pilhas, cada um com a contagem: Para aprovar, Deu problema, Aguardando compra, Esperando chegar e Organizando envio. Um clique filtra a lista; "Todas" volta. Período, consultor e busca continuam valendo junto.',
+    href: '/admin/solicitacoes',
+    rotuloDoLink: 'Abrir a Gestão',
+    exige: 'solicitacao.verTodas',
+    termos: [
+      'filtrar',
+      'kanban',
+      'pilha',
+      'deu problema',
+      'atuar',
+      'resolver',
+      'pendencias',
+      'atrasado',
+    ],
+  },
+  {
+    id: 'motivo-do-problema',
+    pergunta: 'Como registro por que deu problema?',
+    resposta:
+      'Ao mudar para "Deu problema", escolha um dos motivos prontos: Sem estoque, Não emite NF ou Faltam informações. Se não for nenhum deles, "Outro" abre o texto livre. O motivo fica no histórico, com quem mudou e quando.',
+    href: '/financeiro/compras',
+    rotuloDoLink: 'Abrir a fila de compras',
+    exige: 'solicitacao.alterarStatus',
+    termos: [
+      'deu problema',
+      'motivo',
+      'sem estoque',
+      'nota fiscal',
+      'nf',
+      'falta informacao',
+      'problema',
+    ],
+  },
+  {
     id: 'aprovar-lote',
     pergunta: 'Como aprovo várias solicitações de uma vez?',
     resposta:
@@ -253,6 +290,29 @@ export const FAQ: ItemDaFaq[] = [
     rotuloDoLink: 'Abrir a Gestão',
     exige: 'solicitacao.editar',
     termos: ['link', 'site', 'esgotado', 'fora de estoque', 'url', 'comprar em outro lugar'],
+  },
+  {
+    id: 'corrigir-pedido',
+    pergunta: 'Como corrijo um pedido que veio errado?',
+    resposta:
+      'No detalhe da solicitação, ou no "Corrigir" da fila de compras, você ajusta itens, valores, endereço e carta até a compra. Item já comprado fica travado. Item da casa, como cuia e vela, se marca como "Sai do estoque da AUVP" e não passa pela fila de compras. Cada mudança fica no pedido, com o que era antes.',
+    href: '/financeiro/compras',
+    rotuloDoLink: 'Abrir a fila de compras',
+    exige: 'solicitacao.editar',
+    termos: [
+      'editar',
+      'corrigir',
+      'errado',
+      'alterar',
+      'valor',
+      'endereço',
+      'carta',
+      'item interno',
+      'estoque',
+      'cuia',
+      'vela',
+      'trocar item',
+    ],
   },
   {
     id: 'exportar',
@@ -417,6 +477,25 @@ export const FAQ: ItemDaFaq[] = [
     rotuloDoLink: 'Abrir Produtos',
     exige: 'catalogo.gerenciar',
     termos: ['produto', 'cadastrar', 'preco', 'foto', 'sku', 'desativar', 'catalogo'],
+  },
+  {
+    id: 'pausar-produto',
+    pergunta: 'O presente ficou sem estoque. Tiro do catálogo?',
+    resposta:
+      'Use "Pausar no catálogo" na lista de Produtos: ele some para os consultores e fica marcado como pausado. Quando voltar ao estoque, clique em "Reativar". Nada se perde, e os pedidos antigos continuam como foram feitos.',
+    href: '/admin/catalogo',
+    rotuloDoLink: 'Abrir Produtos',
+    exige: 'catalogo.gerenciar',
+    termos: [
+      'sem estoque',
+      'pausar',
+      'reativar',
+      'esgotado',
+      'tirar',
+      'remover',
+      'voltar',
+      'desativar',
+    ],
   },
   {
     id: 'modelos-carta',
