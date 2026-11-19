@@ -2,7 +2,8 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { FileSpreadsheet } from 'lucide-react'
+import { ExternalLink, FileSpreadsheet } from 'lucide-react'
+import { fornecedorDoItem } from '@/lib/fornecedores'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -191,6 +192,26 @@ export default async function AdminCatalogoPage({
                           <span className="text-muted-foreground text-xs">
                             No Olist: {p.nomeNoTiny}
                           </span>
+                        ) : null}
+                        {/* A conferência semanal de estoque (bebida acaba e volta)
+                            acontece aqui: abre a loja e pausa na mesma linha. */}
+                        {p.urlCompra ? (
+                          <a
+                            href={p.urlCompra}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary-emphasis inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                          >
+                            Ver na loja ·{' '}
+                            {
+                              fornecedorDoItem({
+                                site: p.urlCompra,
+                                notaDeCompra: null,
+                                categoria: null,
+                              }).nome
+                            }
+                            <ExternalLink className="size-3" aria-hidden="true" />
+                          </a>
                         ) : null}
                       </div>
                     </TableCell>

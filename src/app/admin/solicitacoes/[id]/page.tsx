@@ -57,6 +57,7 @@ export default async function DetalheSolicitacaoPage({
         include: { usuario: { select: { nome: true } } },
         orderBy: { criadoEm: 'desc' },
       },
+      pedidoTiny: { select: { id: true } },
     },
   })
 
@@ -73,7 +74,8 @@ export default async function DetalheSolicitacaoPage({
   const passo = proximoPasso(solicitacao.status, solicitacao.itens)
   const proximo = passo && cabe(passo.destino) ? passo : null
   const podeCorrigir =
-    pode(usuario.perfil, 'solicitacao.editar') && correcaoCabe(solicitacao.status)
+    pode(usuario.perfil, 'solicitacao.editar') &&
+    correcaoCabe(solicitacao.status, solicitacao.pedidoTiny !== null)
 
   return (
     <>

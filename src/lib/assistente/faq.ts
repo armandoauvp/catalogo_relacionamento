@@ -295,7 +295,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'corrigir-pedido',
     pergunta: 'Como corrijo um pedido que veio errado?',
     resposta:
-      'No detalhe da solicitação, ou no "Corrigir" da fila de compras, você ajusta itens, valores, endereço e carta até a compra. Item já comprado fica travado. Item da casa, como cuia e vela, se marca como "Sai do estoque da AUVP" e não passa pela fila de compras. Cada mudança fica no pedido, com o que era antes.',
+      'No detalhe da solicitação, ou no "Corrigir" da fila de compras, você ajusta itens, valores, endereço e carta até a compra, e também em "Deu problema" enquanto o pedido não foi ao Tiny. Item já comprado fica travado. Item da casa, como cuia e vela, se marca como "Sai do estoque da AUVP" e não passa pela fila de compras. Cada mudança fica no pedido, com o que era antes.',
     href: '/financeiro/compras',
     rotuloDoLink: 'Abrir a fila de compras',
     exige: 'solicitacao.editar',
@@ -482,7 +482,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'pausar-produto',
     pergunta: 'O presente ficou sem estoque. Tiro do catálogo?',
     resposta:
-      'Use "Pausar no catálogo" na lista de Produtos: ele some para os consultores e fica marcado como pausado. Quando voltar ao estoque, clique em "Reativar". Nada se perde, e os pedidos antigos continuam como foram feitos.',
+      'Na lista de Produtos, "Ver na loja" abre o site para conferir se ainda tem; se acabou, use "Pausar no catálogo" na mesma linha: ele some para os consultores e fica marcado como pausado. Quando voltar ao estoque, clique em "Reativar". Nada se perde, e os pedidos antigos continuam como foram feitos.',
     href: '/admin/catalogo',
     rotuloDoLink: 'Abrir Produtos',
     exige: 'catalogo.gerenciar',

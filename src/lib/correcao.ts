@@ -1,20 +1,24 @@
-import type { StatusSolicitacao } from '@prisma/client'
+import { StatusSolicitacao } from '@prisma/client'
 import { linkDeCompraEditavel } from './compras'
 import { formatarBRL } from './money'
 
 /**
  * Correção do pedido pelo Admin, depois de criado.
  *
- * Vale até a compra: na mesma janela da troca de link, porque depois disso o
- * que foi comprado é o que vai. Item já marcado como comprado não muda nem sai,
- * mesmo com a solicitação ainda em "Aguardando compra".
+ * Vale até a compra, na mesma janela da troca de link, e em "Deu problema"
+ * enquanto o pedido não foi ao Tiny. Item já marcado como comprado não muda
+ * nem sai: o que foi comprado é o que vai.
  *
  * Cada campo que muda vira uma linha em `SolicitacaoAlteracao`, com o antes e
  * o depois em texto: a solicitação continua legível como foi pedida.
  */
 
-export function correcaoCabe(status: StatusSolicitacao): boolean {
-  return linkDeCompraEditavel(status)
+export function correcaoCabe(status: StatusSolicitacao, foiAoTiny = false): boolean {
+  if (linkDeCompraEditavel(status)) return true
+  // "Deu problema" é justamente quando se corrige (trocar o vinho que acabou,
+  // completar o endereço). Mas o pedido que já foi ao Tiny tem lá os itens e o
+  // endereço de antes, e corrigir só aqui faria os dois divergirem.
+  return status === StatusSolicitacao.deu_problema && !foiAoTiny
 }
 
 export type ItemComparavel = {

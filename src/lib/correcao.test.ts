@@ -50,6 +50,11 @@ describe('janela da correção', () => {
     expect(correcaoCabe(StatusSolicitacao.comprado)).toBe(false)
     expect(correcaoCabe(StatusSolicitacao.organizando_envio)).toBe(false)
   })
+
+  it('vale em "Deu problema" enquanto o pedido não foi ao Tiny', () => {
+    expect(correcaoCabe(StatusSolicitacao.deu_problema)).toBe(true)
+    expect(correcaoCabe(StatusSolicitacao.deu_problema, true)).toBe(false)
+  })
 })
 
 describe('o que mudou', () => {

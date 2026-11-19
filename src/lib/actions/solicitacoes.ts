@@ -805,11 +805,19 @@ export async function corrigirSolicitacao(
 
     const atual = await db.solicitacao.findUnique({
       where: { id: dados.solicitacaoId },
-      include: { itens: { include: { produto: { select: { nome: true } } } } },
+      include: {
+        itens: { include: { produto: { select: { nome: true } } } },
+        pedidoTiny: { select: { id: true } },
+      },
     })
     if (!atual) return { ok: false, erro: 'Solicitação não encontrada.' }
-    if (!correcaoCabe(atual.status)) {
-      return { ok: false, erro: 'Depois de comprado, o pedido não muda mais.' }
+    if (!correcaoCabe(atual.status, atual.pedidoTiny !== null)) {
+      return {
+        ok: false,
+        erro: atual.pedidoTiny
+          ? 'O pedido já foi ao Tiny: corrija lá, para os dois não divergirem.'
+          : 'Depois de comprado, o pedido não muda mais.',
+      }
     }
 
     const existentes = new Map(atual.itens.map((i) => [i.id, i]))

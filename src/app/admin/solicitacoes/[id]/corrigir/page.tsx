@@ -26,6 +26,7 @@ export default async function CorrigirSolicitacaoPage({
     include: {
       cliente: { select: { nome: true } },
       itens: { include: { produto: { select: { nome: true, valor: true } } } },
+      pedidoTiny: { select: { id: true } },
     },
   })
   if (!solicitacao) notFound()
@@ -39,15 +40,17 @@ export default async function CorrigirSolicitacaoPage({
     </Link>
   )
 
-  if (!correcaoCabe(solicitacao.status)) {
+  if (!correcaoCabe(solicitacao.status, solicitacao.pedidoTiny !== null)) {
     return (
       <>
         {voltar}
         <CabecalhoDaPagina titulo={`Corrigir ${solicitacao.codigo}`} />
         <Card>
           <CardContent className="text-muted-foreground pt-6 text-sm">
-            O pedido está em &ldquo;{ROTULO_STATUS[solicitacao.status]}&rdquo;. Depois de comprado,
-            ele não muda mais: o que foi comprado é o que vai.
+            O pedido está em &ldquo;{ROTULO_STATUS[solicitacao.status]}&rdquo;.{' '}
+            {solicitacao.pedidoTiny
+              ? 'Ele já foi ao Tiny: corrija lá, para os dois não divergirem.'
+              : 'Depois de comprado, ele não muda mais: o que foi comprado é o que vai.'}
           </CardContent>
         </Card>
       </>
