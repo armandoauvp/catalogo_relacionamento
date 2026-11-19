@@ -14,7 +14,7 @@ import {
   perfilLivre,
   ssoConfigurado,
 } from './env'
-import { perfilEmVigor } from './permissions'
+import { perfilEmVigor, trocaDePerfilLiberada } from './permissions'
 
 /**
  * Autenticação por SSO da AUVP (OIDC). Não existe senha própria.
@@ -200,7 +200,9 @@ export const authConfig: NextAuthConfig = {
 
       // Só `verComoPerfil` dispara o update. O valor fica como veio e é
       // conferido por `perfilEmVigor` logo abaixo, a cada renovação.
-      if (trigger === 'update' && perfilLivre) {
+      // Só quem está em `QUEM_TROCA_DE_PERFIL`; os outros ficam no gravado.
+      const livre = trocaDePerfilLiberada(token.email, perfilLivre)
+      if (trigger === 'update' && livre) {
         const escolhido = (session as { user?: { perfil?: Perfil } } | undefined)?.user?.perfil
         token.perfilEscolhido = escolhido
       }
@@ -214,7 +216,7 @@ export const authConfig: NextAuthConfig = {
 
       if (usuario) {
         token.usuarioId = usuario.id
-        token.perfil = perfilEmVigor(usuario.perfil, token.perfilEscolhido, perfilLivre)
+        token.perfil = perfilEmVigor(usuario.perfil, token.perfilEscolhido, livre)
         token.ativo = usuario.ativo
         token.name = usuario.nome
       }

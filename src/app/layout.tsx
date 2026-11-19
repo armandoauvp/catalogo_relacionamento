@@ -8,7 +8,7 @@ import { Tour } from '@/components/tour'
 import { Assistente } from '@/components/assistente'
 import { faqDoPerfil } from '@/lib/assistente/faq'
 import { avisosDaExpedicao } from '@/lib/expedicao'
-import { pode } from '@/lib/permissions'
+import { pode, trocaDePerfilLiberada } from '@/lib/permissions'
 import { Transicao } from '@/components/transicao'
 import { SCRIPT_DO_TEMA } from '@/lib/tema'
 import './globals.css'
@@ -60,6 +60,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // A navegação depende do perfil, então é montada no servidor a cada request.
   const usuario = await usuarioAtual()
+  const trocaLivre = !!usuario && trocaDePerfilLiberada(usuario.email, perfilLivre)
   const vistos = usuario
     ? await db.usuario.findUnique({
         where: { id: usuario.id },
@@ -94,18 +95,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             vontade.
           </div>
         ) : null}
-        {/* A fase de testes precisa ser lembrada para ser desligada. */}
-        {perfilLivre && usuario ? (
+        {/* Quem troca de perfil precisa lembrar que vê com um perfil emprestado. */}
+        {trocaLivre ? (
           <div className="bg-warning/15 border-warning/30 border-b px-4 py-2 text-center text-sm">
-            <strong>Fase de testes.</strong> Qualquer conta da AUVP escolhe o perfil no menu da
-            conta, e os dados são os de verdade.
+            <strong>Troca de perfil liberada.</strong> Você escolhe o perfil no menu da conta, e os
+            dados são os de verdade.
           </div>
         ) : null}
         {usuario ? (
           <Nav
             perfil={usuario.perfil}
             nome={usuario.nome}
-            perfilLivre={perfilLivre}
+            perfilLivre={trocaLivre}
             avisos={avisos}
           />
         ) : null}

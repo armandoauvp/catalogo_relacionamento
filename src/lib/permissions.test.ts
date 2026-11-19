@@ -8,6 +8,7 @@ import {
   filtroDeSolicitacoes,
   perfilEmVigor,
   perfisAoAlcance,
+  trocaDePerfilLiberada,
   pode,
   problemaAoMudarPerfil,
 } from './permissions'
@@ -341,6 +342,19 @@ describe('perfil livre, fase de testes', () => {
   it('escolha que não é perfil é ignorada', () => {
     expect(perfilEmVigor(Perfil.financeiro, 'root', true)).toBe(Perfil.financeiro)
     expect(perfilEmVigor(Perfil.financeiro, undefined, true)).toBe(Perfil.financeiro)
+  })
+})
+
+describe('quem troca de perfil livremente', () => {
+  it('só as contas da lista, e só com a fase ligada', () => {
+    expect(trocaDePerfilLiberada('lilian.araujo@auvpconsultoria.com.br', true)).toBe(true)
+    expect(trocaDePerfilLiberada(' Armando.Custodio@auvp.com.br ', true)).toBe(true)
+    expect(trocaDePerfilLiberada('armando.custodio@auvp.com.br', false)).toBe(false)
+  })
+
+  it('os demais ficam no perfil gravado', () => {
+    expect(trocaDePerfilLiberada('daniela@auvp.com.br', true)).toBe(false)
+    expect(trocaDePerfilLiberada(undefined, true)).toBe(false)
   })
 })
 

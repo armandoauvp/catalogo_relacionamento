@@ -423,6 +423,22 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
  * na navegação seguinte, sem ninguém precisar sair; por isso a escolha mora no
  * token, e não na coluna `perfil`, que segue sendo a delimitação de verdade.
  */
+/**
+ * Quem troca de perfil livremente no menu da conta, com `PERFIL_LIVRE` ligado
+ * (decisão de 19/11/2026). Os demais veem a ferramenta com o perfil gravado,
+ * que o Admin ajusta em Usuários. A lista é curta e muda pouco: mora no código,
+ * revisada como o resto das permissões.
+ */
+export const QUEM_TROCA_DE_PERFIL: readonly string[] = [
+  'armando.custodio@auvp.com.br',
+  'lilian.araujo@auvpconsultoria.com.br',
+]
+
+/** A troca de perfil vale para esta pessoa agora? */
+export function trocaDePerfilLiberada(email: string | null | undefined, ligada: boolean): boolean {
+  return ligada && !!email && QUEM_TROCA_DE_PERFIL.includes(email.trim().toLowerCase())
+}
+
 export function perfilEmVigor(cadastrado: Perfil, escolhido: unknown, livre: boolean): Perfil {
   if (!livre) return cadastrado
   const valido = (Object.values(Perfil) as unknown[]).includes(escolhido)

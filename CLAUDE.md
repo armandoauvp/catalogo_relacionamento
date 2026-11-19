@@ -136,8 +136,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   login por cartões de perfil fictícios (`src/lib/demonstracao.ts`); `env.ts`
   recusa subir fora da Vercel, no endereço da TI ou com Google ou Keycloak
   configurados. Não afrouxe essas travas.
-- **Perfil livre é fase de testes.** `PERFIL_LIVRE` deixa quem entra escolher
-  o perfil no menu da conta; a escolha mora no token, nunca na coluna
+- **Perfil livre é fase de testes, e só para quem está na lista.** `PERFIL_LIVRE`
+  liga a troca de perfil no menu da conta, mas só para as contas de
+  `QUEM_TROCA_DE_PERFIL` (`trocaDePerfilLiberada`, em `permissions.ts`); os
+  demais veem com o perfil gravado, que o Admin ajusta em Usuários. A escolha mora no token, nunca na coluna
   `perfil`, para que apagar a variável devolva a delimitação sem migrar nada.
   O domínio continua conferido.
 - **Quem entra pela primeira vez é Colaborador AUVP** (`PERFIL_DE_ENTRADA`, em

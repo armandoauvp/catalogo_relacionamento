@@ -8,6 +8,7 @@ import { Perfil } from '@prisma/client'
 import { signOut, unstable_update } from '@/lib/auth'
 import { usuarioAtual } from '@/lib/auth-guards'
 import { env, perfilLivre } from '@/lib/env'
+import { trocaDePerfilLiberada } from '@/lib/permissions'
 import { endSessionEndpoint, urlDeSaidaDoSso } from '@/lib/sessao-sso'
 
 /**
@@ -49,7 +50,12 @@ export async function sair() {
 export async function verComoPerfil(perfil: Perfil) {
   if (!perfilLivre) throw new Error('A troca de perfil está desligada.')
   if (!Object.values(Perfil).includes(perfil)) throw new Error('Perfil desconhecido.')
-  if (!(await usuarioAtual())) redirect('/login')
+  const usuario = await usuarioAtual()
+  if (!usuario) redirect('/login')
+  // O jwt também recusa, mas o erro aqui diz o porquê a quem chamar direto.
+  if (!trocaDePerfilLiberada(usuario.email, perfilLivre)) {
+    throw new Error('A troca de perfil não está liberada para esta conta.')
+  }
 
   await unstable_update({ user: { perfil } })
   redirect('/')
