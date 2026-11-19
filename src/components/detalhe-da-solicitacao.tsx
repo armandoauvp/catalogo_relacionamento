@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Prisma } from '@prisma/client'
 import { formatarBRL, subtotal } from '@/lib/money'
-import { linkDeCompraEditavel, linkDoItem } from '@/lib/compras'
+import { linkDoItem } from '@/lib/compras'
 import { LinkDeCompra } from '@/components/link-de-compra'
 import { formatarCpf, formatarTelefone } from '@/lib/cpf'
 import { formatarCep } from '@/lib/cep'
@@ -48,10 +48,12 @@ export function DetalheDaSolicitacao({
   verDadosSensiveis: boolean
   /** Cartões extras da coluna da direita, a mudança de status, no Admin. */
   acoes?: ReactNode
-  /** Quem aprova pode trocar o link de compra; a ação confere de novo. */
+  /** Quem aprova pode trocar o link de compra agora (`correcaoCabe`); a ação confere de novo. */
   trocarLink?: boolean
 }) {
-  const podeTrocarLink = trocarLink && linkDeCompraEditavel(solicitacao.status)
+  // A janela é a da correção do pedido, "Deu problema" inclusive; quem chama já
+  // sabe se o pedido foi ao Tiny, e a action confere de novo.
+  const podeTrocarLink = trocarLink
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">

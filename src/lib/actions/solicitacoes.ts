@@ -36,7 +36,7 @@ import {
   correcaoCabe,
   type ItemComparavel,
 } from '@/lib/correcao'
-import { compraCompleta, linkDeCompraEditavel } from '@/lib/compras'
+import { compraCompleta } from '@/lib/compras'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
 import { cancelarPresenteNoTiny, enfileirarPresente, processarFila } from '@/lib/tiny/fila'
@@ -765,11 +765,15 @@ export async function trocarLinkDeCompra(entrada: unknown): Promise<ResultadoDaA
 
     const item = await db.solicitacaoItem.findUnique({
       where: { id: itemId },
-      select: { solicitacao: { select: { id: true, status: true } } },
+      select: {
+        solicitacao: { select: { id: true, status: true, pedidoTiny: { select: { id: true } } } },
+      },
     })
     if (!item) return { ok: false, erro: 'Item não encontrado.' }
 
-    if (!linkDeCompraEditavel(item.solicitacao.status)) {
+    // A mesma janela da correção do pedido: até a compra, e em "Deu problema"
+    // enquanto o pedido não foi ao Tiny (trocar o link do vinho que acabou).
+    if (!correcaoCabe(item.solicitacao.status, item.solicitacao.pedidoTiny !== null)) {
       return { ok: false, erro: 'Depois de comprado, o link não muda mais.' }
     }
 
