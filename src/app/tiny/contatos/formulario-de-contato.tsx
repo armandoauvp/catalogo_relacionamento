@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { salvarContato } from '@/lib/actions/contatos-tiny'
+import { comConta, type ContaTiny } from '@/lib/tiny/contas'
 import { validarContato } from '@/lib/tiny/contato'
 import { ROTULO_DA_COLUNA, UFS, type CampoDoLote } from '@/lib/tiny/lote'
 import { cn } from '@/lib/utils'
@@ -46,9 +47,11 @@ const ORDEM: { campo: keyof CamposDoContato; largo?: boolean }[] = [
  * que entrou, e o andamento aparece na lista de contatos.
  */
 export function FormularioDeContato({
+  conta,
   tinyId,
   inicial,
 }: {
+  conta: ContaTiny
   tinyId: string | null
   inicial: CamposDoContato
 }) {
@@ -84,7 +87,7 @@ export function FormularioDeContato({
     setErro(null)
     if (erros.length) return setErro(erros.join(' '))
     iniciar(async () => {
-      const r = await salvarContato({ tinyId, campos })
+      const r = await salvarContato({ conta, tinyId, campos })
       if (!r.ok) return setErro(r.erro)
       setPronto(true)
     })
@@ -101,7 +104,7 @@ export function FormularioDeContato({
           contatos.
         </p>
         <Button asChild>
-          <Link href="/tiny/contatos">Voltar aos contatos</Link>
+          <Link href={comConta('/tiny/contatos', conta)}>Voltar aos contatos</Link>
         </Button>
       </div>
     )
@@ -161,7 +164,7 @@ export function FormularioDeContato({
           {tinyId ? 'Salvar no Tiny' : 'Cadastrar no Tiny'}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href="/tiny/contatos">Cancelar</Link>
+          <Link href={comConta('/tiny/contatos', conta)}>Cancelar</Link>
         </Button>
         {erro ? (
           <p role="alert" className="text-destructive text-sm">

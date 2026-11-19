@@ -12,6 +12,7 @@ import {
   whereDoHistorico,
 } from '@/lib/tiny/historico'
 import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
+import { comConta } from '@/lib/tiny/contas'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 import { BarraDeFiltros, CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
@@ -61,6 +62,7 @@ export default async function HistoricoDoTinyPage({
         usuario: { select: { id: true, nome: true } },
         pedido: {
           select: {
+            conta: true,
             tinyId: true,
             solicitacao: { select: { id: true, codigo: true } },
             lote: { select: { id: true, marcador: true } },
@@ -226,7 +228,9 @@ export default async function HistoricoDoTinyPage({
                         </Link>
                       ) : e.pedido?.tinyId ? (
                         <Link
-                          href={`/tiny/pedidos/${e.pedido.tinyId}` as Route}
+                          href={
+                            comConta(`/tiny/pedidos/${e.pedido.tinyId}`, e.pedido.conta) as Route
+                          }
                           className="hover:text-primary-emphasis underline-offset-4 hover:underline"
                         >
                           Pedido no Tiny

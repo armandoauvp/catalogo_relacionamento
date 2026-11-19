@@ -98,6 +98,16 @@ describe('pedido para o Tiny', () => {
     expect(chaveDoPresente('abc')).toBe('presente:abc')
   })
 
+  it('o mesmo lote pode ir a outra conta, e a chave antiga continua a da Consultoria', () => {
+    const antiga = 'lote:a:52998224725:x'
+    expect(chaveDoLote('A', '52998224725', 'X')).toBe(antiga)
+    expect(chaveDoLote('A', '52998224725', 'X', 'consultoria')).toBe(antiga)
+    expect(chaveDoLote('A', '52998224725', 'X', 'dns')).toBe('lote@dns:a:52998224725:x')
+    expect(chaveDoLote('A', '52998224725', 'X', 'supernova')).not.toBe(
+      chaveDoLote('A', '52998224725', 'X', 'dns'),
+    )
+  })
+
   it('resume os itens numa linha', () => {
     expect(
       resumoDosItens([

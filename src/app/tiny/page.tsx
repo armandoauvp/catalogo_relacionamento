@@ -7,6 +7,7 @@ import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grup
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { env, tinyConfigurado } from '@/lib/env'
+import { CONTA_PADRAO, ehContaTiny, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { formatarDataHora } from '@/lib/datas'
 import { configuracaoTiny, enviadosNaSemana } from '@/lib/tiny/fila'
 import { ROTULO_ENVIO } from '@/lib/tiny/rotulos'
@@ -61,7 +62,9 @@ export default async function TinyPage({
     ativo: valorDoFiltro(params, chave) === valor,
   })
 
+  const conta = ehContaTiny(params.conta) ? params.conta : undefined
   const onde: Prisma.PedidoTinyWhereInput = {
+    ...(conta ? { conta } : {}),
     ...(filtro === 'pendente'
       ? { envio: { in: ['pendente', 'processando'] } }
       : filtro
@@ -69,15 +72,18 @@ export default async function TinyPage({
         : {}),
     ...(origem ? { origem } : {}),
   }
-  const filtrosAtivos: FiltroAtivo[] = origem
-    ? [
-        {
-          coluna: 'Origem',
-          valor: ROTULO_DA_ORIGEM[origem],
-          semEle: hrefSemFiltro(caminho, params, 'origem'),
-        },
-      ]
-    : []
+  const filtrosAtivos: FiltroAtivo[] = [
+    conta && {
+      coluna: 'Tiny',
+      valor: NOME_DA_CONTA[conta],
+      semEle: hrefSemFiltro(caminho, params, 'conta'),
+    },
+    origem && {
+      coluna: 'Origem',
+      valor: ROTULO_DA_ORIGEM[origem],
+      semEle: hrefSemFiltro(caminho, params, 'origem'),
+    },
+  ].filter((f): f is FiltroAtivo => Boolean(f))
 
   const [configuracao, porEnvio, enviadosNaUltimaSemana, lotes, pedidos, eventos] =
     await Promise.all([
@@ -199,6 +205,7 @@ export default async function TinyPage({
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Marcador</TableHead>
+                  <TableHead>Tiny</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead className="text-right">Pedidos</TableHead>
                   <TableHead>Andamento</TableHead>
@@ -220,6 +227,9 @@ export default async function TinyPage({
                         >
                           {l.marcador}
                         </Link>
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {NOME_DA_CONTA[l.conta]}
                       </TableCell>
                       <TableCell>{l.produto}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.pedidos.length}</TableCell>
@@ -277,6 +287,7 @@ export default async function TinyPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Destinatário</TableHead>
+                  <TableHead>Tiny</TableHead>
                   <TableHead>Origem</TableHead>
                   <TableHead>O que vai</TableHead>
                   <TableHead>Andamento</TableHead>
@@ -292,6 +303,16 @@ export default async function TinyPage({
                       <span className="text-muted-foreground block text-xs tabular-nums">
                         {formatarDataHora(p.criadoEm)}
                       </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <FiltroDoGrupo
+                        {...grupo('conta', p.conta)}
+                        rotulo={`Tiny da ${NOME_DA_CONTA[p.conta]}`}
+                        texto
+                        className="text-sm"
+                      >
+                        {NOME_DA_CONTA[p.conta]}
+                      </FiltroDoGrupo>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <FiltroDoGrupo
@@ -375,7 +396,8 @@ export default async function TinyPage({
             Presentes aprovados
           </h2>
           <p className="text-muted-foreground mb-4 text-sm">
-            Como a solicitação de presente vira pedido no Tiny.
+            Como a solicitação de presente vira pedido no Tiny. Vão sempre ao Tiny da{' '}
+            {NOME_DA_CONTA[CONTA_PADRAO]}.
           </p>
           <ConfiguracaoDosPresentes configuracao={configuracao} />
         </section>

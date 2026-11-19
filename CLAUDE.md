@@ -42,6 +42,7 @@ duplique numa tela.
 | Erros do Tiny e novas tentativas | `src/lib/tiny/erros.ts`                   |
 | Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
 | Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
+| Contas do Tiny (três empresas)   | `src/lib/tiny/contas.ts`                  |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
 | Tarefas trazidas do ClickUp      | `src/lib/importacao-clickup.ts`           |
 | Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
@@ -304,6 +305,11 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   (fechar expedição) → Pronto para envio (concluir), por `passoPermitido`. A
   exceção é o cancelamento: solicitação cancelada aqui cancela o pedido lá
   enquanto ele não foi "Enviado" (`cancelamentoCabe`).
+- **Três Tinys, conta escolhida.** Consultoria, Do Not Scare e Super Nova, cada
+  uma com o seu token (`TINY_API_TOKEN`, `_DNS`, `_SUPERNOVA`). Lote e nova
+  venda perguntam a conta, sem padrão; presente vai sempre à Consultoria (CHECK
+  `pedido_tiny_presente_na_consultoria`). Token nunca em `contas.ts`, que vai
+  ao navegador: só `tokenDoTiny`, no servidor.
 - **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
   (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 

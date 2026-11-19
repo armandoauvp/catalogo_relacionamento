@@ -1,3 +1,4 @@
+import { CONTA_PADRAO, type ContaTiny } from './contas'
 /**
  * O pedido no formato de `pedido.incluir.php` (API v2 do Tiny), montado igual
  * para o presente aprovado e para a linha da planilha.
@@ -159,6 +160,16 @@ export function servicosDaTransportadora(nome: string): string[] {
 /** Chaves de idempotência: o que não pode virar dois pedidos. */
 export const chaveDoPresente = (solicitacaoId: string) => `presente:${solicitacaoId}`
 
-export function chaveDoLote(marcador: string, cpfCnpj: string, sku: string | null | undefined) {
-  return `lote:${marcador.trim().toLowerCase()}:${digitos(cpfCnpj)}:${(sku ?? '').trim().toLowerCase()}`
+/**
+ * A conta entra na chave: o mesmo lote pode ir a dois Tinys. A Consultoria fica
+ * de fora dela, para as chaves gravadas antes das contas continuarem valendo.
+ */
+export function chaveDoLote(
+  marcador: string,
+  cpfCnpj: string,
+  sku: string | null | undefined,
+  conta: ContaTiny = CONTA_PADRAO,
+) {
+  const prefixo = conta === CONTA_PADRAO ? 'lote' : `lote@${conta}`
+  return `${prefixo}:${marcador.trim().toLowerCase()}:${digitos(cpfCnpj)}:${(sku ?? '').trim().toLowerCase()}`
 }

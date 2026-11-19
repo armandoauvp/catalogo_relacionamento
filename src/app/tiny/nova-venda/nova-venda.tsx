@@ -16,6 +16,7 @@ import {
   type ClienteParaPedido,
 } from '@/lib/actions/tiny'
 import type { ProdutoDoTiny } from '@/lib/tiny/api'
+import { NOME_DA_CONTA, type ContaTiny } from '@/lib/tiny/contas'
 import { formatarBRL, somar, subtotal } from '@/lib/money'
 import {
   ROTULO_DA_COLUNA,
@@ -87,7 +88,8 @@ function Campo({
 
 const novaChave = () => crypto.randomUUID()
 
-export function NovaVenda() {
+/** A conta vem escolhida da página; produtos e contatos são procurados nela. */
+export function NovaVenda({ conta }: { conta: ContaTiny }) {
   const [chave, setChave] = useState(novaChave)
   const [cliente, setCliente] = useState(VAZIO)
   const [buscaCliente, setBuscaCliente] = useState('')
@@ -113,10 +115,10 @@ export function NovaVenda() {
   const [criado, setCriado] = useState<string | null>(null)
 
   useEffect(() => {
-    buscarTransportadoras().then((r) => {
+    buscarTransportadoras(conta).then((r) => {
       if (r.ok) setTransportadoras(r.dados)
     })
-  }, [])
+  }, [conta])
 
   const servicos = useMemo(
     () => (transportadora ? servicosDaTransportadora(transportadora) : []),
@@ -131,7 +133,7 @@ export function NovaVenda() {
   function procurarCliente() {
     setErroCliente(null)
     iniciarBuscaCliente(async () => {
-      const r = await buscarClientesParaPedido(buscaCliente)
+      const r = await buscarClientesParaPedido(buscaCliente, conta)
       if (!r.ok) return setErroCliente(r.erro)
       setClientes(r.dados)
       if (!r.dados.length) setErroCliente('Ninguém com esse nome ou documento. Preencha abaixo.')
@@ -179,10 +181,11 @@ export function NovaVenda() {
   function procurarProduto() {
     setErroProduto(null)
     iniciarBuscaProduto(async () => {
-      const r = await buscarProdutosNoTiny(buscaProduto)
+      const r = await buscarProdutosNoTiny(buscaProduto, conta)
       if (!r.ok) return setErroProduto(r.erro)
       setProdutos(r.dados)
-      if (!r.dados.length) setErroProduto('Nenhum produto com esse nome no Tiny.')
+      if (!r.dados.length)
+        setErroProduto(`Nenhum produto com esse nome no Tiny da ${NOME_DA_CONTA[conta]}.`)
     })
   }
 
@@ -219,6 +222,7 @@ export function NovaVenda() {
 
     iniciarEnvio(async () => {
       const r = await criarPedidoAvulso({
+        conta,
         chave,
         destinatario: cliente,
         itens: carrinho.map((i, n) => ({
@@ -250,8 +254,8 @@ export function NovaVenda() {
       <div className="bg-card space-y-4 rounded-lg border p-6">
         <p className="font-display text-lg font-semibold">O pedido de {criado} entrou na fila.</p>
         <p className="text-muted-foreground text-sm">
-          Ele vai ao Tiny em seguida. Se o Tiny recusar, o motivo aparece na fila, com o botão de
-          reenviar.
+          Ele vai ao Tiny da {NOME_DA_CONTA[conta]} em seguida. Se o Tiny recusar, o motivo aparece
+          na fila, com o botão de reenviar.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
@@ -571,7 +575,7 @@ export function NovaVenda() {
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" size="lg" onClick={enviar} disabled={enviando}>
           {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          Enviar pedido ao Tiny
+          Enviar pedido ao Tiny da {NOME_DA_CONTA[conta]}
         </Button>
         {erro ? (
           <p role="alert" className="text-destructive text-sm">

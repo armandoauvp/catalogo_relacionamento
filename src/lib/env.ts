@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CONTAS_TINY, type ContaTiny } from './tiny/contas'
 
 /**
  * Validação das variáveis de ambiente no boot.
@@ -103,7 +104,11 @@ const schema = (durandoBuild: boolean) =>
     CATALOG_PROVIDER: z.enum(['local', 'tiny']).default('local'),
     CLIENT_PROVIDER: z.enum(['local', 'salesforce']).default('local'),
 
+    // Uma conta do Tiny por empresa (src/lib/tiny/contas.ts). O token sem
+    // sufixo é o da Consultoria, onde os presentes sempre foram.
     TINY_API_TOKEN: z.string().default(''),
+    TINY_API_TOKEN_DNS: z.string().default(''),
+    TINY_API_TOKEN_SUPERNOVA: z.string().default(''),
     TINY_API_BASE_URL: z.string().default('https://api.tiny.com.br/api2'),
     // Protege a rota que o agendador chama para esvaziar a fila do Tiny. Sem
     // ele, a rota responde 503: aberta, qualquer um mandaria pedidos.
@@ -237,8 +242,22 @@ export const googleConfigurado =
 /** Fase de testes em que qualquer conta escolhe o perfil; ver `perfilEmVigor`. */
 export const perfilLivre = env.PERFIL_LIVRE
 
-/** O Tiny só é chamado com o token em mãos; sem ele, nada entra na fila. */
-export const tinyConfigurado = Boolean(env.TINY_API_TOKEN)
+/** O token de cada conta do Tiny. Só o servidor lê; nunca vai ao banco nem à tela. */
+export function tokenDoTiny(conta: ContaTiny): string {
+  return {
+    consultoria: env.TINY_API_TOKEN,
+    dns: env.TINY_API_TOKEN_DNS,
+    supernova: env.TINY_API_TOKEN_SUPERNOVA,
+  }[conta]
+}
+
+/** A conta só é chamada com o token em mãos; sem ele, nada dela sai da fila. */
+export const tinyLigado = (conta: ContaTiny) => Boolean(tokenDoTiny(conta))
+
+export const contasLigadas = (): ContaTiny[] => CONTAS_TINY.filter(tinyLigado)
+
+/** Alguma conta do Tiny ligada: as telas do Tiny têm o que mostrar. */
+export const tinyConfigurado = contasLigadas().length > 0
 
 /** Login sem SSO, apenas em desenvolvimento e apenas se explicitamente ligado. */
 export const devBypassHabilitado = env.AUTH_DEV_BYPASS && env.NODE_ENV === 'development'

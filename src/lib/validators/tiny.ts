@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CONTAS_TINY } from '@/lib/tiny/contas'
 import { textoOpcional } from './comuns'
 
 /**
@@ -18,7 +19,11 @@ const textoCurto = (rotulo: string, maximo = 80) =>
  * planilha, e o servidor valida cada uma de novo com `validarLinha`. O que a
  * prévia aprovou não é aceito de olhos fechados.
  */
+/** A conta do Tiny é escolha de quem envia, nunca suposta: sem ela, não vai. */
+const conta = z.enum(CONTAS_TINY, { message: 'Escolha para qual Tiny vai.' })
+
 export const loteSchema = z.object({
+  conta,
   arquivo: z.string().trim().max(200).nullable().default(null),
   marcador: textoCurto('o marcador', 50),
   subsidiaria: textoCurto('a subsidiária'),
@@ -57,6 +62,7 @@ const valorEmTexto = z
  * para dois cliques no enviar não virarem dois pedidos.
  */
 export const pedidoAvulsoSchema = z.object({
+  conta,
   chave: z.string().uuid('Abra a tela de novo para enviar.'),
   destinatario: z.record(z.string(), z.string().max(300)),
   itens: z

@@ -16,13 +16,40 @@ estar com quem vai processá-lo. Ver [fluxo de status](03-fluxo-de-status.md).
 
 Quem opera: **Admin e Logística** (`tiny.operar` em `src/lib/permissions.ts`).
 
+## Três contas
+
+A AUVP tem um Tiny por empresa, cada um com produtos, SKUs, contatos e pedidos
+próprios. A lista mora em `src/lib/tiny/contas.ts`, e cada pedido, lote e
+contato guarda a conta (`conta`, enum `ContaTiny`).
+
+| Conta            | Variável na Vercel         | O que vai para ela                       |
+| ---------------- | -------------------------- | ---------------------------------------- |
+| AUVP Consultoria | `TINY_API_TOKEN`           | presentes (sempre) e o que for escolhido |
+| Do Not Scare     | `TINY_API_TOKEN_DNS`       | só o que alguém escolher                 |
+| Super Nova       | `TINY_API_TOKEN_SUPERNOVA` | só o que alguém escolher                 |
+
+- **Importar lote e Nova venda perguntam a conta** antes de tudo, sem padrão:
+  o primeiro lote da Logística foi para a Consultoria porque não havia
+  escolha. Produto, SKU e transportadora são procurados na conta escolhida.
+- **Pedidos, Estoque e Contatos** leem a conta de `?conta=`, trocada pela
+  fileira "Tiny:" abaixo das abas; sem ela, a Consultoria.
+- **Presente vai sempre à Consultoria**, e uma CHECK no banco
+  (`pedido_tiny_presente_na_consultoria`) garante.
+- **A fila roda conta por conta.** Token recusado numa não para as outras; a
+  rodada diz qual parou. Conta sem token não manda nada, e as telas dizem qual
+  variável falta.
+- **A chave do lote leva a conta** (`lote@dns:...`): a mesma planilha pode ir a
+  dois Tinys. A da Consultoria ficou sem prefixo, como as gravadas antes.
+- **Token nunca no código.** Só o servidor lê (`tokenDoTiny`, em `env.ts`);
+  `contas.ts` é importado pelo navegador e guarda só o nome da variável.
+
 ## Ligar
 
-1. **Token.** No Tiny: Menu → Início → Extensões da Olist → instale **Token
-   API**; depois Menu → Configurações → aba E-commerce → Token API. Cadastre o
-   valor em `TINY_API_TOKEN` na Vercel (Production, Sensitive). Se o Tiny já
-   tem um token em uso por outra integração, use o mesmo: gerar outro derruba
-   a anterior.
+1. **Token.** Em cada conta do Tiny: Menu → Início → Extensões da Olist →
+   instale **Token API**; depois Menu → Configurações → aba E-commerce → Token
+   API. Cadastre o valor na variável daquela conta (tabela acima) na Vercel
+   (Production, Sensitive). Se o Tiny já tem um token em uso por outra
+   integração, use o mesmo: gerar outro derruba a anterior.
 2. **Agendador.** Gere um segredo (`openssl rand -base64 32`) e cadastre o
    mesmo valor em dois lugares:
    - `CRON_SECRET` na Vercel (Production, Sensitive);

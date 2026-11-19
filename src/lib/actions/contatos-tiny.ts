@@ -5,7 +5,8 @@ import { after } from 'next/server'
 import { z } from 'zod'
 import { autorizarAction } from '@/lib/auth-guards'
 import { db } from '@/lib/db'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
+import { CONTAS_TINY, NOME_DA_CONTA, VARIAVEL_DO_TOKEN, type ContaTiny } from '@/lib/tiny/contas'
 import { validarContato } from '@/lib/tiny/contato'
 import { enfileirarContatos, processarFila, reenviarContato } from '@/lib/tiny/fila'
 import { conferirRepetidos } from '@/lib/tiny/lote'
@@ -17,7 +18,11 @@ import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
  * fala com o Tiny é ela. Exigem `tiny.operar`.
  */
 
-const SEM_TOKEN = 'O Tiny ainda não está ligado: falta o token na Vercel (TINY_API_TOKEN).'
+const semToken = (conta: ContaTiny) =>
+  `O Tiny da ${NOME_DA_CONTA[conta]} ainda não está ligado: falta o token na Vercel (${VARIAVEL_DO_TOKEN[conta]}).`
+
+/** Cada conta do Tiny tem os próprios contatos: a tela diz em qual grava. */
+const conta = z.enum(CONTAS_TINY, { message: 'Escolha em qual Tiny grava.' })
 
 function processarDepois() {
   after(async () => {
@@ -28,6 +33,7 @@ function processarDepois() {
 const campos = z.record(z.string(), z.string().max(300))
 
 const contatoSchema = z.object({
+  conta,
   tinyId: z.string().regex(/^\d+$/).nullable().default(null),
   campos,
 })
@@ -35,9 +41,9 @@ const contatoSchema = z.object({
 export async function salvarContato(entrada: unknown): Promise<ResultadoDaAction> {
   try {
     const usuario = await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
     const validado = contatoSchema.safeParse(entrada)
     if (!validado.success) return primeiroErro(validado.error)
+    if (!tinyLigado(validado.data.conta)) return { ok: false, erro: semToken(validado.data.conta) }
 
     const { destinatario, erros } = validarContato(validado.data.campos)
     if (erros.length) return { ok: false, erro: erros.join(' ') }
@@ -46,6 +52,7 @@ export async function salvarContato(entrada: unknown): Promise<ResultadoDaAction
       [{ destinatario, tinyId: validado.data.tinyId }],
       validado.data.tinyId ? 'Edição' : 'Cadastro',
       usuario,
+      validado.data.conta,
     )
     processarDepois()
     revalidatePath('/tiny/contatos')
@@ -56,6 +63,7 @@ export async function salvarContato(entrada: unknown): Promise<ResultadoDaAction
 }
 
 const planilhaSchema = z.object({
+  conta,
   arquivo: z.string().trim().max(200).nullable().default(null),
   linhas: z
     .array(z.object({ linha: z.number().int().positive(), campos }))
@@ -72,9 +80,9 @@ export async function importarContatos(
 ): Promise<ResultadoDaAction<{ novos: number; atualizados: number }>> {
   try {
     const usuario = await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
     const validado = planilhaSchema.safeParse(entrada)
     if (!validado.success) return primeiroErro(validado.error)
+    if (!tinyLigado(validado.data.conta)) return { ok: false, erro: semToken(validado.data.conta) }
 
     const linhas = conferirRepetidos(
       validado.data.linhas.map((l) => ({ linha: l.linha, ...validarContato(l.campos) })),
@@ -86,6 +94,7 @@ export async function importarContatos(
       linhas.map((l) => ({ destinatario: l.destinatario, linha: l.linha })),
       validado.data.arquivo ? `Planilha ${validado.data.arquivo}` : 'Planilha',
       usuario,
+      validado.data.conta,
     )
     processarDepois()
     revalidatePath('/tiny/contatos')
@@ -118,11 +127,14 @@ const idsSchema = z
  */
 export async function exportarClientesParaOTiny(
   ids: unknown,
+  paraConta: unknown,
 ): Promise<ResultadoDaAction<{ enviados: number; ignorados: { nome: string; motivo: string }[] }>> {
   try {
     const usuario = await autorizarAction('tiny.operar')
     await autorizarAction('cliente.gerenciar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
+    const qual = conta.safeParse(paraConta)
+    if (!qual.success) return primeiroErro(qual.error)
+    if (!tinyLigado(qual.data)) return { ok: false, erro: semToken(qual.data) }
     const validado = idsSchema.safeParse(ids)
     if (!validado.success) return primeiroErro(validado.error)
 
@@ -149,6 +161,7 @@ export async function exportarClientesParaOTiny(
         validos.map((l) => ({ destinatario: l.destinatario })),
         'Base de clientes',
         usuario,
+        qual.data,
       )
       processarDepois()
     }

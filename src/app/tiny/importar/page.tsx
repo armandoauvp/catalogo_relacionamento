@@ -3,9 +3,11 @@ import { ArrowLeft } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { tinyConfigurado } from '@/lib/env'
+import { ehContaTiny, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { pode } from '@/lib/permissions'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
+import { EscolhaDaConta } from '../escolha-da-conta'
 import { ImportarLote } from './importar-lote'
 
 /**
@@ -16,12 +18,15 @@ import { ImportarLote } from './importar-lote'
 export default async function ImportarLotePage({
   searchParams,
 }: {
-  searchParams: Promise<{ clientes?: string }>
+  searchParams: Promise<{ clientes?: string; conta?: string }>
 }) {
   const usuario = await exigirPermissao('tiny.operar')
   const sugestoes = tinyConfigurado ? await sugestoesDoCadastro() : null
+  const params = await searchParams
+  // Sem conta na URL, a tela pergunta antes de mostrar o resto.
+  const conta = ehContaTiny(params.conta) ? params.conta : null
 
-  const ids = ((await searchParams).clientes ?? '').split(',').filter(Boolean).slice(0, 300)
+  const ids = (params.clientes ?? '').split(',').filter(Boolean).slice(0, 300)
   const daBase =
     ids.length && pode(usuario.perfil, 'cliente.gerenciar')
       ? await db.cliente.findMany({ where: { id: { in: ids } }, orderBy: { nome: 'asc' } })
@@ -41,11 +46,21 @@ export default async function ImportarLotePage({
         descricao={
           daBase.length
             ? `${daBase.length} clientes da base, um pedido para cada. Escolha o produto e a transportadora.`
-            : 'Uma planilha, um produto e uma transportadora: cada linha vira um pedido no Tiny.'
+            : conta
+              ? `Uma planilha, um produto e uma transportadora: cada linha vira um pedido no Tiny da ${NOME_DA_CONTA[conta]}.`
+              : 'Uma planilha, um produto e uma transportadora: cada linha vira um pedido no Tiny.'
         }
       />
-      {sugestoes ? (
+      {sugestoes && !conta ? (
+        <EscolhaDaConta
+          caminho="/tiny/importar"
+          params={{ clientes: params.clientes }}
+          oQue="vai este lote"
+        />
+      ) : sugestoes && conta ? (
         <ImportarLote
+          key={conta}
+          conta={conta}
           subsidiarias={sugestoes.subsidiarias}
           departamentos={sugestoes.departamentos}
           linhasDaBase={

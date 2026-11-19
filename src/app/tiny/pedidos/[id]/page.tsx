@@ -4,10 +4,11 @@ import { notFound } from 'next/navigation'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
 import { formatarCpf } from '@/lib/cpf'
 import { formatarBRL, subtotal } from '@/lib/money'
 import { detalharPedido } from '@/lib/tiny/api'
+import { comConta, contaDoParametro, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { corDoMarcador, enderecoEmUmaLinha, type DetalheDoPedido } from '@/lib/tiny/leitura'
 import { rotuloDoServico } from '@/lib/tiny/rotulos'
@@ -23,16 +24,27 @@ import {
 import { SeloDaSituacao } from '../../selo-do-pedido'
 
 /** Um pedido do Tiny por inteiro: cliente, entrega, itens, transporte e marcadores. */
-export default async function PedidoNoTinyPage({ params }: { params: Promise<{ id: string }> }) {
+/** O id do pedido é da conta da URL: o mesmo número existe em mais de um Tiny. */
+export default async function PedidoNoTinyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ conta?: string }>
+}) {
   await exigirPermissao('tiny.operar')
   const { id } = await params
+  const conta = contaDoParametro((await searchParams).conta)
+  const ligada = tinyLigado(conta)
   if (!/^\d+$/.test(id)) notFound()
 
   let pedido: DetalheDoPedido | null = null
-  let erro: string | null = tinyConfigurado ? null : 'O Tiny ainda não está ligado.'
-  if (tinyConfigurado) {
+  let erro: string | null = ligada
+    ? null
+    : `O Tiny da ${NOME_DA_CONTA[conta]} ainda não está ligado.`
+  if (ligada) {
     try {
-      pedido = await detalharPedido(id)
+      pedido = await detalharPedido(conta, id)
     } catch (e) {
       if (!(e instanceof ErroDoTiny)) throw e
       if (e.codigo === 20 || e.codigo === 32) notFound()
@@ -41,7 +53,7 @@ export default async function PedidoNoTinyPage({ params }: { params: Promise<{ i
   }
 
   const local = await db.pedidoTiny.findFirst({
-    where: { tinyId: id },
+    where: { conta, tinyId: id },
     select: {
       solicitacao: { select: { id: true, codigo: true } },
       lote: { select: { id: true, marcador: true } },
@@ -51,11 +63,11 @@ export default async function PedidoNoTinyPage({ params }: { params: Promise<{ i
   return (
     <>
       <Link
-        href="/tiny/pedidos"
+        href={comConta('/tiny/pedidos', conta)}
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Pedidos no Tiny
+        Pedidos no Tiny da {NOME_DA_CONTA[conta]}
       </Link>
 
       {!pedido ? (

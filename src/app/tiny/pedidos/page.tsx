@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import type { Route } from 'next'
-import { AlertTriangle } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
 import { formatarBRL } from '@/lib/money'
 import { pesquisarPedidosRecentesPrimeiro } from '@/lib/tiny/api'
+import { comConta, contaDoParametro, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import {
   classificarBusca,
@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AvisoDaConta } from '../aviso-da-conta'
 import { SeloDaSituacao } from '../selo-do-pedido'
 import { FiltroDoGrupo, FiltrosAtivos } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro } from '@/lib/filtro-por-grupo'
@@ -38,7 +39,14 @@ import { hrefDoGrupo, hrefSemFiltro } from '@/lib/filtro-por-grupo'
  * ganham o link para a origem.
  */
 
-type Params = { busca?: string; situacao?: string; de?: string; ate?: string; pagina?: string }
+type Params = {
+  conta?: string
+  busca?: string
+  situacao?: string
+  de?: string
+  ate?: string
+  pagina?: string
+}
 
 export default async function PedidosNoTinyPage({
   searchParams,
@@ -49,12 +57,14 @@ export default async function PedidosNoTinyPage({
   const params = await searchParams
   const pagina = Math.max(1, Number(params.pagina) || 1)
   const situacao = SITUACOES_DE_PEDIDO.find((s) => s === params.situacao) ?? null
+  const conta = contaDoParametro(params.conta)
+  const ligada = tinyLigado(conta)
 
   let resultado: PaginaDePedidos | null = null
   let erro: string | null = null
-  if (tinyConfigurado) {
+  if (ligada) {
     try {
-      resultado = await pesquisarPedidosRecentesPrimeiro({
+      resultado = await pesquisarPedidosRecentesPrimeiro(conta, {
         pagina,
         busca: classificarBusca(params.busca ?? ''),
         situacao,
@@ -70,7 +80,7 @@ export default async function PedidosNoTinyPage({
   // Os que nasceram aqui, para levar à solicitação ou ao lote.
   const daqui = resultado?.pedidos.length
     ? await db.pedidoTiny.findMany({
-        where: { tinyId: { in: resultado.pedidos.map((p) => p.id) } },
+        where: { conta, tinyId: { in: resultado.pedidos.map((p) => p.id) } },
         select: {
           tinyId: true,
           solicitacao: { select: { id: true, codigo: true } },
@@ -94,11 +104,12 @@ export default async function PedidosNoTinyPage({
     <>
       <CabecalhoDaPagina
         titulo="Pedidos no Tiny"
-        descricao="Todos os pedidos da conta, inclusive os do e-commerce. Busque pelo número, pelo CPF/CNPJ ou pelo nome do cliente."
+        descricao={`Todos os pedidos do Tiny da ${NOME_DA_CONTA[conta]}, inclusive os do e-commerce. Busque pelo número, pelo CPF/CNPJ ou pelo nome do cliente.`}
       />
 
       <BarraDeFiltros>
         <FormDeFiltro acao="/tiny/pedidos" className="flex flex-1 flex-wrap items-center gap-2">
+          <input type="hidden" name="conta" value={conta} />
           <Input
             name="busca"
             defaultValue={params.busca}
@@ -137,26 +148,7 @@ export default async function PedidosNoTinyPage({
         </FormDeFiltro>
       </BarraDeFiltros>
 
-      {!tinyConfigurado || erro ? (
-        <div
-          role="alert"
-          className="border-warning/40 bg-warning/10 mb-6 flex gap-3 rounded-lg border p-4 text-sm"
-        >
-          <AlertTriangle className="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <p>
-            {erro ? (
-              <>
-                <span className="font-semibold">O Tiny não respondeu à busca.</span> {erro}
-              </>
-            ) : (
-              <>
-                <span className="font-semibold">O Tiny ainda não está ligado.</span> Falta o token
-                em <code>TINY_API_TOKEN</code>, na Vercel.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
+      {!ligada || erro ? <AvisoDaConta conta={conta} erro={erro} /> : null}
 
       {resultado && resultado.pedidos.length === 0 ? (
         <EstadoVazio
@@ -201,7 +193,7 @@ export default async function PedidosNoTinyPage({
                     <TableRow key={p.id}>
                       <TableCell className="font-medium whitespace-nowrap tabular-nums">
                         <Link
-                          href={`/tiny/pedidos/${p.id}` as Route}
+                          href={comConta(`/tiny/pedidos/${p.id}`, conta) as Route}
                           className="hover:text-primary-emphasis underline-offset-4 hover:underline"
                         >
                           {p.numero}

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { importarContatos } from '@/lib/actions/contatos-tiny'
+import { comConta, type ContaTiny } from '@/lib/tiny/contas'
 import { lerContatos } from '@/lib/tiny/contato'
 import { conferirRepetidos, type LeituraDoLote, type LinhaDoLote } from '@/lib/tiny/lote'
 import { baixarCsv, lerArquivo } from '../../planilha'
@@ -48,7 +49,7 @@ function camposDe(l: LinhaDoLote): Record<string, string> {
   }
 }
 
-export function ImportarContatos() {
+export function ImportarContatos({ conta }: { conta: ContaTiny }) {
   const [arquivo, setArquivo] = useState<string | null>(null)
   const [leitura, setLeitura] = useState<LeituraDoLote | null>(null)
   const [erroDoArquivo, setErroDoArquivo] = useState<string | null>(null)
@@ -93,6 +94,7 @@ export function ImportarContatos() {
     setErro(null)
     iniciar(async () => {
       const r = await importarContatos({
+        conta,
         arquivo,
         linhas: validas.map((l) => ({ linha: l.linha, campos: camposDe(l) })),
       })
@@ -117,7 +119,7 @@ export function ImportarContatos() {
           Vão um a cada dois segundos, ou quatro quando é preciso procurar o contato antes.
         </p>
         <Button asChild>
-          <Link href="/tiny/contatos">Acompanhar nos contatos</Link>
+          <Link href={comConta('/tiny/contatos', conta)}>Acompanhar nos contatos</Link>
         </Button>
       </div>
     )

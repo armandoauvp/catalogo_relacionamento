@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
-import { tinyConfigurado } from '@/lib/env'
+import { contasLigadas, tinyLigado } from '@/lib/env'
+import { CONTA_PADRAO, NOME_DA_CONTA, type ContaTiny } from './contas'
 import {
   alterarSituacao,
   gravarContato,
@@ -150,7 +151,8 @@ export async function enfileirarPresente(
   solicitacaoId: string,
   usuarioId: string | null = null,
 ): Promise<boolean> {
-  if (!tinyConfigurado) return false
+  // Presente vai sempre à Consultoria; uma CHECK no banco garante.
+  if (!tinyLigado(CONTA_PADRAO)) return false
   const config = await configuracaoTiny(tx)
   if (!config.enviarPresentes) return false
 
@@ -163,6 +165,7 @@ export async function enfileirarPresente(
   const pedido = await tx.pedidoTiny.create({
     data: {
       origem: 'solicitacao',
+      conta: CONTA_PADRAO,
       chave,
       solicitacaoId,
       destinatario: s.cliente.nome,
@@ -321,7 +324,8 @@ export async function processarFila({
     contatos: 0,
     interrompida: null,
   }
-  if (!tinyConfigurado) {
+  const contas = contasLigadas()
+  if (!contas.length) {
     resultado.interrompida = 'O token do Tiny não está configurado.'
     return resultado
   }
@@ -341,9 +345,35 @@ export async function processarFila({
     chamou = true
   }
 
+  // Token errado numa conta não segura as outras: cada uma roda a sua parte,
+  // e a que parou fica registrada com o nome.
+  const paradas: string[] = []
+  for (const conta of contas) {
+    if (Date.now() >= fim) break
+    const daConta = { ...resultado, interrompida: null }
+    await rodadaDaConta(conta, fim, antesDeChamar, daConta, agora)
+    resultado.enviados = daConta.enviados
+    resultado.falhas = daConta.falhas
+    resultado.adiados = daConta.adiados
+    resultado.situacoes = daConta.situacoes
+    resultado.contatos = daConta.contatos
+    if (daConta.interrompida) paradas.push(`${NOME_DA_CONTA[conta]}: ${daConta.interrompida}`)
+  }
+  resultado.interrompida = paradas.length ? paradas.join(' · ') : null
+  return resultado
+}
+
+/** Pedidos, situações e contatos de uma conta, nesta ordem. */
+async function rodadaDaConta(
+  conta: ContaTiny,
+  fim: number,
+  antesDeChamar: () => Promise<void>,
+  resultado: ResultadoDaRodada,
+  agora: () => Date,
+) {
   while (Date.now() < fim) {
     const proximo = await db.pedidoTiny.findFirst({
-      where: { envio: 'pendente', proximaTentativaEm: { lte: agora() } },
+      where: { conta, envio: 'pendente', proximaTentativaEm: { lte: agora() } },
       orderBy: { criadoEm: 'asc' },
       select: { id: true },
     })
@@ -373,7 +403,7 @@ export async function processarFila({
 
     await antesDeChamar()
     try {
-      const criado = await incluirPedido(pedido.payload as unknown as PedidoParaOTiny)
+      const criado = await incluirPedido(conta, pedido.payload as unknown as PedidoParaOTiny)
       await db.$transaction(async (tx) => {
         await tx.pedidoTiny.update({
           where: { id: pedido.id },
@@ -447,10 +477,11 @@ export async function processarFila({
     }
   }
 
-  if (!resultado.interrompida) await levarSituacoesAoTiny(fim, antesDeChamar, resultado)
+  if (!resultado.interrompida) await levarSituacoesAoTiny(conta, fim, antesDeChamar, resultado)
   // Contatos por último: pedido e situação são o que a expedição espera.
-  if (!resultado.interrompida) await processarContatos(fim, antesDeChamar, resultado, agora)
-  return resultado
+  if (!resultado.interrompida) {
+    await processarContatos(conta, fim, antesDeChamar, resultado, agora)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -472,15 +503,21 @@ export async function enfileirarContatos(
   contatos: readonly ContatoParaEnfileirar[],
   origem: string,
   usuario: { id: string; nome: string },
+  conta: ContaTiny,
 ): Promise<{ novos: number; atualizados: number }> {
   return db.$transaction(async (tx) => {
     const esperando = await tx.contatoTiny.findMany({
-      where: { envio: 'pendente', cpfCnpj: { in: contatos.map((c) => c.destinatario.cpfCnpj) } },
+      where: {
+        conta,
+        envio: 'pendente',
+        cpfCnpj: { in: contatos.map((c) => c.destinatario.cpfCnpj) },
+      },
       select: { id: true, cpfCnpj: true },
     })
     const porDocumento = new Map(esperando.map((e) => [e.cpfCnpj, e.id]))
     const campos = (c: ContatoParaEnfileirar) => ({
       origem: origem.slice(0, 120),
+      conta,
       linha: c.linha ?? null,
       nome: c.destinatario.nome,
       dados: c.destinatario as unknown as Prisma.InputJsonValue,
@@ -504,7 +541,7 @@ export async function enfileirarContatos(
       tx,
       null,
       'contatos',
-      `${usuario.nome} mandou ${total} ${total === 1 ? 'contato' : 'contatos'} ao Tiny (${origem}).`,
+      `${usuario.nome} mandou ${total} ${total === 1 ? 'contato' : 'contatos'} ao Tiny da ${NOME_DA_CONTA[conta]} (${origem}).`,
       usuario.id,
     )
     return { novos: novos.length, atualizados: total - novos.length }
@@ -517,6 +554,7 @@ export async function enfileirarContatos(
  * intervalo da fila.
  */
 async function processarContatos(
+  conta: ContaTiny,
   fim: number,
   antesDeChamar: () => Promise<void>,
   resultado: ResultadoDaRodada,
@@ -524,7 +562,7 @@ async function processarContatos(
 ) {
   while (Date.now() < fim) {
     const proximo = await db.contatoTiny.findFirst({
-      where: { envio: 'pendente', proximaTentativaEm: { lte: agora() } },
+      where: { conta, envio: 'pendente', proximaTentativaEm: { lte: agora() } },
       orderBy: { criadoEm: 'asc' },
       select: { id: true },
     })
@@ -542,11 +580,11 @@ async function processarContatos(
       let id = contato.tinyId
       if (!id) {
         await antesDeChamar()
-        const achados = await pesquisarContatos({ cpfCnpj: contato.cpfCnpj })
+        const achados = await pesquisarContatos(conta, { cpfCnpj: contato.cpfCnpj })
         id = achados.contatos.find((c) => c.cpfCnpj === contato.cpfCnpj)?.id ?? null
       }
       await antesDeChamar()
-      const gravado = await gravarContato(montarContato(destinatario, id))
+      const gravado = await gravarContato(conta, montarContato(destinatario, id))
       const acao = id ? 'alterado' : 'incluido'
       await db.contatoTiny.update({
         where: { id: contato.id },
@@ -619,12 +657,13 @@ export async function reenviarContato(id: string, usuarioId: string | null = nul
  * situação que a expedição marcou antes de ele existir lá.
  */
 async function levarSituacoesAoTiny(
+  conta: ContaTiny,
   fim: number,
   antesDeChamar: () => Promise<void>,
   resultado: ResultadoDaRodada,
 ) {
   const pendentes = await db.pedidoTiny.findMany({
-    where: { envio: 'enviado', tinyId: { not: null }, situacaoPendente: { not: null } },
+    where: { conta, envio: 'enviado', tinyId: { not: null }, situacaoPendente: { not: null } },
     orderBy: { atualizadoEm: 'asc' },
     take: 50,
   })
@@ -634,7 +673,7 @@ async function levarSituacoesAoTiny(
     await antesDeChamar()
     const destino = p.situacaoPendente!
     try {
-      await alterarSituacao(p.tinyId!, destino)
+      await alterarSituacao(conta, p.tinyId!, destino)
       await db.$transaction(async (tx) => {
         // Só limpa se ninguém pediu outro passo enquanto o Tiny respondia.
         await tx.pedidoTiny.updateMany({
@@ -696,12 +735,14 @@ export async function sincronizarPedidos({
   prazoMs = 30_000,
   agora = () => new Date(),
 }: { prazoMs?: number; agora?: () => Date } = {}): Promise<{ atualizados: number }> {
-  if (!tinyConfigurado) return { atualizados: 0 }
+  const contas = contasLigadas()
+  if (!contas.length) return { atualizados: 0 }
   const fim = Date.now() + prazoMs
   const limiteDeIdade = new Date(agora().getTime() - DIAS_DE_ACOMPANHAMENTO * 86_400_000)
 
   const candidatos = await db.pedidoTiny.findMany({
     where: {
+      conta: { in: contas },
       envio: 'enviado',
       tinyId: { not: null },
       enviadoEm: { gte: limiteDeIdade },
@@ -723,12 +764,17 @@ export async function sincronizarPedidos({
 
   let atualizados = 0
   const lotesTocados = new Set<string>()
+  // Conta com token recusado: as outras seguem, as dela esperam a próxima vez.
+  const recusadas = new Set<ContaTiny>()
 
-  for (const [i, pedido] of candidatos.entries()) {
+  let chamou = false
+  for (const pedido of candidatos) {
     if (Date.now() >= fim) break
-    if (i > 0) await esperar(INTERVALO_ENTRE_CHAMADAS_MS)
+    if (recusadas.has(pedido.conta)) continue
+    if (chamou) await esperar(INTERVALO_ENTRE_CHAMADAS_MS)
+    chamou = true
     try {
-      const noTiny = await obterPedido(pedido.tinyId!)
+      const noTiny = await obterPedido(pedido.conta, pedido.tinyId!)
       await db.$transaction(async (tx) => {
         await tx.pedidoTiny.update({
           where: { id: pedido.id },
@@ -775,7 +821,7 @@ export async function sincronizarPedidos({
         where: { id: pedido.id },
         data: { sincronizadoEm: agora() },
       })
-      if (classificarErro(erro) === 'configuracao') break
+      if (classificarErro(erro) === 'configuracao') recusadas.add(pedido.conta)
     }
   }
 

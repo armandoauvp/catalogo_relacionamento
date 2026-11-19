@@ -692,6 +692,13 @@ enum EnvioTiny {
   cancelado
 }
 
+/// As contas do Tiny da AUVP, uma por empresa (src/lib/tiny/contas.ts).
+enum ContaTiny {
+  consultoria
+  dns
+  supernova
+}
+
 /// Um pedido que esta ferramenta manda ao Tiny, e a fila que o leva até lá.
 ///
 /// A fila mora no banco e é gravada na mesma transação que a originou
@@ -700,6 +707,8 @@ enum EnvioTiny {
 model PedidoTiny {
   id                 String           @id @default(cuid())
   origem             OrigemPedidoTiny
+  /// A conta do Tiny para onde o pedido vai. O presente vai sempre à Consultoria.
+  conta              ContaTiny        @default(consultoria)
   /// Idempotência. Um presente gera um pedido só, e a mesma pessoa não
   /// recebe duas vezes o mesmo item de um marcador, mesmo que a planilha seja
   /// importada de novo.
@@ -749,20 +758,22 @@ model PedidoTiny {
 /// Uma planilha importada: um produto, uma transportadora e um marcador para
 /// todas as linhas, como no AUVP-Eventos.
 model LoteTiny {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
+  /// A conta do Tiny escolhida na importação; todos os pedidos do lote vão a ela.
+  conta          ContaTiny @default(consultoria)
   marcador       String
   arquivo        String?
   sku            String?
   produto        String
-  valorUnitario  Decimal  @map("valor_unitario") @db.Decimal(12, 2)
+  valorUnitario  Decimal   @map("valor_unitario") @db.Decimal(12, 2)
   transportadora String?
-  formaFrete     String?  @map("forma_frete")
+  formaFrete     String?   @map("forma_frete")
   subsidiaria    String?
   departamento   String?
-  criadoPorId    String?  @map("criado_por_id")
+  criadoPorId    String?   @map("criado_por_id")
   /// A demanda que o lote abriu na trilha da Logística.
-  demandaId      String?  @unique @map("demanda_id")
-  criadoEm       DateTime @default(now()) @map("criado_em")
+  demandaId      String?   @unique @map("demanda_id")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
 
   criadoPor Usuario?          @relation(fields: [criadoPorId], references: [id], onDelete: SetNull)
   demanda   DemandaLogistica? @relation(fields: [demandaId], references: [id], onDelete: SetNull)
@@ -777,6 +788,8 @@ model LoteTiny {
 /// atualização cadastral em massa e a exportação da base passam por aqui.
 model ContatoTiny {
   id                 String    @id @default(cuid())
+  /// Cada conta do Tiny tem os próprios contatos.
+  conta              ContaTiny @default(consultoria)
   /// De onde veio, para a tela: "Cadastro", "Planilha clientes.xlsx", "Base de clientes".
   origem             String
   /// Linha da planilha, quando veio de uma.

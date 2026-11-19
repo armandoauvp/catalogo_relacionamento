@@ -6,7 +6,7 @@ import type { Prisma } from '@prisma/client'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
 import { db } from '@/lib/db'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyConfigurado, tinyLigado } from '@/lib/env'
 import { clienteProvider, type EnderecoDoCliente } from '@/lib/providers'
 import {
   listarTransportadoras,
@@ -14,6 +14,7 @@ import {
   pesquisarProdutos,
   type ProdutoDoTiny,
 } from '@/lib/tiny/api'
+import { ehContaTiny, NOME_DA_CONTA, VARIAVEL_DO_TOKEN, type ContaTiny } from '@/lib/tiny/contas'
 import { classificarBusca } from '@/lib/tiny/leitura'
 import {
   configuracaoTiny,
@@ -36,6 +37,15 @@ import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 const SEM_TOKEN = 'O Tiny ainda não está ligado: falta o token na Vercel (TINY_API_TOKEN).'
 
+const semToken = (conta: ContaTiny) =>
+  `O Tiny da ${NOME_DA_CONTA[conta]} ainda não está ligado: falta o token na Vercel (${VARIAVEL_DO_TOKEN[conta]}).`
+
+/** A conta vem do navegador: só passa se for uma das três e tiver token. */
+function problemaDaConta(conta: unknown): string | null {
+  if (!ehContaTiny(conta)) return 'Escolha para qual Tiny vai.'
+  return tinyLigado(conta) ? null : semToken(conta)
+}
+
 function revalidarTiny(loteId?: string) {
   revalidatePath('/tiny')
   if (loteId) revalidatePath(`/tiny/lotes/${loteId}`)
@@ -50,24 +60,29 @@ function processarDepois() {
 
 export async function buscarProdutosNoTiny(
   texto: string,
+  conta: ContaTiny,
 ): Promise<ResultadoDaAction<ProdutoDoTiny[]>> {
   try {
     await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
+    const problema = problemaDaConta(conta)
+    if (problema) return { ok: false, erro: problema }
     const busca = texto.trim()
     if (busca.length < 3) return { ok: false, erro: 'Digite ao menos 3 letras do produto.' }
-    return { ok: true, dados: (await pesquisarProdutos(busca)).slice(0, 30) }
+    return { ok: true, dados: (await pesquisarProdutos(conta, busca)).slice(0, 30) }
   } catch (e) {
     if (e instanceof Error && e.name === 'ErroDoTiny') return { ok: false, erro: e.message }
     return comoErro(e)
   }
 }
 
-export async function buscarTransportadoras(): Promise<ResultadoDaAction<string[]>> {
+export async function buscarTransportadoras(
+  conta: ContaTiny,
+): Promise<ResultadoDaAction<string[]>> {
   try {
     await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
-    return { ok: true, dados: await listarTransportadoras() }
+    const problema = problemaDaConta(conta)
+    if (problema) return { ok: false, erro: problema }
+    return { ok: true, dados: await listarTransportadoras(conta) }
   } catch (e) {
     if (e instanceof Error && e.name === 'ErroDoTiny') return { ok: false, erro: e.message }
     return comoErro(e)
@@ -90,11 +105,11 @@ export type ResultadoDoLote = {
 export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<ResultadoDoLote>> {
   try {
     const usuario = await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
 
     const validado = loteSchema.safeParse(entrada)
     if (!validado.success) return primeiroErro(validado.error)
     const dados = validado.data
+    if (!tinyLigado(dados.conta)) return { ok: false, erro: semToken(dados.conta) }
     // A pauta de 22/10/2026 exige SKU em todo pedido: sem ele o Tiny não liga o
     // item ao estoque.
     if (!dados.produto.codigo?.trim()) {
@@ -119,7 +134,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
 
     const comChave = linhas.map((l) => ({
       ...l,
-      chave: chaveDoLote(dados.marcador, l.destinatario.cpfCnpj, dados.produto.codigo),
+      chave: chaveDoLote(dados.marcador, l.destinatario.cpfCnpj, dados.produto.codigo, dados.conta),
     }))
     const existentes = new Set(
       (
@@ -137,7 +152,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
     if (novas.length === 0) {
       return {
         ok: false,
-        erro: 'Todas as linhas já viraram pedido com este marcador e este produto.',
+        erro: `Todas as linhas já viraram pedido com este marcador e este produto no Tiny da ${NOME_DA_CONTA[dados.conta]}.`,
       }
     }
 
@@ -162,12 +177,18 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
           responsavel: usuario.nome,
           solicitadaEm: agora,
           previsaoConclusao: fimDoDiaLocal(formatarISO(new Date(agora.getTime() + 7 * 86_400_000))),
-          observacoes: dados.arquivo ? `Planilha: ${dados.arquivo}` : null,
+          observacoes: [
+            `Tiny da ${NOME_DA_CONTA[dados.conta]}.`,
+            dados.arquivo && `Planilha: ${dados.arquivo}`,
+          ]
+            .filter(Boolean)
+            .join(' '),
         },
       })
 
       const lote = await tx.loteTiny.create({
         data: {
+          conta: dados.conta,
           marcador: dados.marcador,
           arquivo: dados.arquivo,
           sku: dados.produto.codigo,
@@ -194,6 +215,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
           ]
           return {
             origem: 'lote' as const,
+            conta: dados.conta,
             chave: l.chave,
             loteId: lote.id,
             linha: l.linha,
@@ -216,7 +238,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
         tx,
         null,
         'lote',
-        `${usuario.nome} importou ${novas.length} pedidos (${dados.marcador})` +
+        `${usuario.nome} importou ${novas.length} pedidos (${dados.marcador}) para o Tiny da ${NOME_DA_CONTA[dados.conta]}` +
           (jaEnviados.length ? `; ${jaEnviados.length} já tinham sido enviados.` : '.'),
         usuario.id,
       )
@@ -393,6 +415,7 @@ export type ClienteParaPedido = {
 
 export async function buscarClientesParaPedido(
   texto: string,
+  conta: ContaTiny,
 ): Promise<ResultadoDaAction<ClienteParaPedido[]>> {
   try {
     await autorizarAction('tiny.operar')
@@ -402,13 +425,15 @@ export async function buscarClientesParaPedido(
 
     // A base daqui primeiro: é rápida e não gasta chamada do Tiny.
     const daBase = await clienteProvider.buscarPorTexto(busca, 8)
-    const doTiny = tinyConfigurado
-      ? await pesquisarContatos(
-          criterio?.tipo === 'cpfCnpj' ? { cpfCnpj: criterio.valor } : { pesquisa: busca },
-        )
-          .then((r) => r.contatos.filter((c) => c.ativo).slice(0, 12))
-          .catch(() => [])
-      : []
+    const doTiny =
+      ehContaTiny(conta) && tinyLigado(conta)
+        ? await pesquisarContatos(
+            conta,
+            criterio?.tipo === 'cpfCnpj' ? { cpfCnpj: criterio.valor } : { pesquisa: busca },
+          )
+            .then((r) => r.contatos.filter((c) => c.ativo).slice(0, 12))
+            .catch(() => [])
+        : []
 
     // O mesmo documento nos dois lados: vale o do Tiny, que é o que vai no pedido.
     const noTiny = new Set(doTiny.map((c) => c.cpfCnpj))
@@ -458,11 +483,11 @@ export async function criarPedidoAvulso(
 ): Promise<ResultadoDaAction<{ id: string }>> {
   try {
     const usuario = await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
 
     const validado = pedidoAvulsoSchema.safeParse(entrada)
     if (!validado.success) return primeiroErro(validado.error)
     const dados = validado.data
+    if (!tinyLigado(dados.conta)) return { ok: false, erro: semToken(dados.conta) }
 
     // Quantidade e valor são dos itens; da linha só interessa o destinatário.
     const { destinatario, erros } = validarLinha({
@@ -484,6 +509,7 @@ export async function criarPedidoAvulso(
       const criado = await tx.pedidoTiny.create({
         data: {
           origem: 'avulso',
+          conta: dados.conta,
           chave,
           criadoPorId: usuario.id,
           destinatario: destinatario.nome,
@@ -504,7 +530,7 @@ export async function criarPedidoAvulso(
         tx,
         criado.id,
         'avulso',
-        `${usuario.nome} montou um pedido para ${destinatario.nome} (${resumoDosItens(itens)}).`,
+        `${usuario.nome} montou um pedido para ${destinatario.nome} (${resumoDosItens(itens)}) no Tiny da ${NOME_DA_CONTA[dados.conta]}.`,
         usuario.id,
       )
       return criado

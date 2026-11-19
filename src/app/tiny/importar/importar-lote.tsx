@@ -11,6 +11,7 @@ import { Dialogo } from '@/components/ui/dialogo'
 import { Input } from '@/components/ui/input'
 import { buscarProdutosNoTiny, buscarTransportadoras, criarLote } from '@/lib/actions/tiny'
 import type { ProdutoDoTiny } from '@/lib/tiny/api'
+import { NOME_DA_CONTA, type ContaTiny } from '@/lib/tiny/contas'
 import { formatarBRL } from '@/lib/money'
 import {
   conferirRepetidos,
@@ -201,10 +202,13 @@ function leituraDaBase(linhas: readonly LinhaDaBase[]): LeituraDoLote {
 }
 
 export function ImportarLote({
+  conta,
   subsidiarias,
   departamentos,
   linhasDaBase = null,
 }: {
+  /** Escolhida antes, na página: produto, SKU e transportadora são desta conta. */
+  conta: ContaTiny
   subsidiarias: string[]
   departamentos: string[]
   linhasDaBase?: LinhaDaBase[] | null
@@ -241,10 +245,10 @@ export function ImportarLote({
   } | null>(null)
 
   useEffect(() => {
-    buscarTransportadoras().then((r) => {
+    buscarTransportadoras(conta).then((r) => {
       if (r.ok) setTransportadoras(r.dados)
     })
-  }, [])
+  }, [conta])
 
   const servicos = useMemo(
     () => (transportadora ? servicosDaTransportadora(transportadora) : []),
@@ -303,10 +307,11 @@ export function ImportarLote({
   function buscar() {
     setErroDaBusca(null)
     iniciarBusca(async () => {
-      const r = await buscarProdutosNoTiny(busca)
+      const r = await buscarProdutosNoTiny(busca, conta)
       if (!r.ok) return setErroDaBusca(r.erro)
       setProdutos(r.dados)
-      if (r.dados.length === 0) setErroDaBusca('Nenhum produto com esse nome no Tiny.')
+      if (r.dados.length === 0)
+        setErroDaBusca(`Nenhum produto com esse nome no Tiny da ${NOME_DA_CONTA[conta]}.`)
     })
   }
 
@@ -317,6 +322,7 @@ export function ImportarLote({
     if (!validas.length) return setErro('Nenhuma linha válida para enviar.')
     iniciarEnvio(async () => {
       const r = await criarLote({
+        conta,
         arquivo,
         marcador: String(dados.get('marcador') ?? ''),
         subsidiaria: String(dados.get('subsidiaria') ?? ''),
@@ -671,8 +677,8 @@ export function ImportarLote({
         <Button type="submit" size="lg" disabled={enviando || !validas.length || !produto}>
           {enviando ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {validas.length
-            ? `Enviar ${validas.length} ${validas.length === 1 ? 'pedido' : 'pedidos'} ao Tiny`
-            : 'Enviar ao Tiny'}
+            ? `Enviar ${validas.length} ${validas.length === 1 ? 'pedido' : 'pedidos'} ao Tiny da ${NOME_DA_CONTA[conta]}`
+            : `Enviar ao Tiny da ${NOME_DA_CONTA[conta]}`}
         </Button>
         {erro ? (
           <p role="alert" className="text-destructive text-sm">

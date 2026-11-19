@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import type { Route } from 'next'
-import { AlertTriangle, FileUp, Plus } from 'lucide-react'
+import { FileUp, Plus } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
 import { formatarCpf, formatarTelefone } from '@/lib/cpf'
 import { formatarDataHora } from '@/lib/datas'
 import { pesquisarContatos } from '@/lib/tiny/api'
+import { comConta, contaDoParametro, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { classificarBusca, type PaginaDeContatos } from '@/lib/tiny/leitura'
 import { ROTULO_ENVIO, tomDoPedido } from '@/lib/tiny/rotulos'
@@ -24,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AtualizarEnquanto, BotaoReenviar } from '../acoes-da-fila'
+import { AvisoDaConta } from '../aviso-da-conta'
 import { FiltroDoGrupo, FiltrosAtivos, type FiltroAtivo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, hrefSemFiltro, valorDoFiltro } from '@/lib/filtro-por-grupo'
 
@@ -64,13 +66,16 @@ export default async function ContatosDoTinyPage({
     origem && { coluna: 'Origem', valor: origem, semEle: hrefSemFiltro(caminho, params, 'origem') },
   ].filter((f): f is FiltroAtivo => Boolean(f))
   const pagina = Math.max(1, Number(params.pagina) || 1)
+  const conta = contaDoParametro(params.conta)
+  const ligada = tinyLigado(conta)
 
   let resultado: PaginaDeContatos | null = null
   let erro: string | null = null
-  if (tinyConfigurado && busca.length >= 3) {
+  if (ligada && busca.length >= 3) {
     const criterio = classificarBusca(busca)
     try {
       resultado = await pesquisarContatos(
+        conta,
         criterio?.tipo === 'cpfCnpj'
           ? { cpfCnpj: criterio.valor, pagina }
           : { pesquisa: busca, pagina },
@@ -82,9 +87,10 @@ export default async function ContatosDoTinyPage({
   }
 
   const [naFila, recentes] = await Promise.all([
-    db.contatoTiny.count({ where: { envio: { in: ['pendente', 'processando'] } } }),
+    db.contatoTiny.count({ where: { conta, envio: { in: ['pendente', 'processando'] } } }),
     db.contatoTiny.findMany({
       where: {
+        conta,
         ...(envio === 'pendente'
           ? { envio: { in: ['pendente', 'processando'] } }
           : envio
@@ -99,24 +105,24 @@ export default async function ContatosDoTinyPage({
   ])
 
   const linkDaPagina = (n: number) =>
-    `/tiny/contatos?busca=${encodeURIComponent(busca)}${n > 1 ? `&pagina=${n}` : ''}` as Route
+    `/tiny/contatos?conta=${conta}&busca=${encodeURIComponent(busca)}${n > 1 ? `&pagina=${n}` : ''}` as Route
 
   return (
     <>
       <AtualizarEnquanto ativo={naFila > 0} intervaloMs={8000} />
       <CabecalhoDaPagina
         titulo="Contatos no Tiny"
-        descricao="Os clientes cadastrados no Tiny: busque, edite, cadastre ou atualize vários de uma vez por planilha, sem gerar pedido."
+        descricao={`Os clientes cadastrados no Tiny da ${NOME_DA_CONTA[conta]}: busque, edite, cadastre ou atualize vários de uma vez por planilha, sem gerar pedido.`}
         acoes={
           <>
             <Button variant="outline" asChild>
-              <Link href="/tiny/contatos/importar">
+              <Link href={comConta('/tiny/contatos/importar', conta)}>
                 <FileUp aria-hidden="true" />
                 Atualizar por planilha
               </Link>
             </Button>
             <Button asChild>
-              <Link href="/tiny/contatos/novo">
+              <Link href={comConta('/tiny/contatos/novo', conta)}>
                 <Plus aria-hidden="true" />
                 Novo contato
               </Link>
@@ -127,6 +133,7 @@ export default async function ContatosDoTinyPage({
 
       <BarraDeFiltros>
         <FormDeFiltro acao="/tiny/contatos" className="flex flex-1 flex-wrap items-center gap-2">
+          <input type="hidden" name="conta" value={conta} />
           <Input
             name="busca"
             defaultValue={busca}
@@ -138,22 +145,7 @@ export default async function ContatosDoTinyPage({
         </FormDeFiltro>
       </BarraDeFiltros>
 
-      {!tinyConfigurado || erro ? (
-        <div
-          role="alert"
-          className="border-warning/40 bg-warning/10 mb-6 flex gap-3 rounded-lg border p-4 text-sm"
-        >
-          <AlertTriangle className="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <p>
-            {erro ?? (
-              <>
-                <span className="font-semibold">O Tiny ainda não está ligado.</span> Falta o token
-                em <code>TINY_API_TOKEN</code>, na Vercel.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
+      {!ligada || erro ? <AvisoDaConta conta={conta} erro={erro} /> : null}
 
       {resultado && resultado.contatos.length === 0 ? (
         <EstadoVazio
@@ -204,7 +196,9 @@ export default async function ContatosDoTinyPage({
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/tiny/contatos/${c.id}` as Route}>Editar</Link>
+                        <Link href={comConta(`/tiny/contatos/${c.id}`, conta) as Route}>
+                          Editar
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>

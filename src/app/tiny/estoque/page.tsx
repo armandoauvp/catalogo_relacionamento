@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import type { Route } from 'next'
-import { AlertTriangle } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
 import { formatarBRL } from '@/lib/money'
 import { pesquisarProdutosPorPagina } from '@/lib/tiny/api'
+import { comConta, CONTA_PADRAO, contaDoParametro, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import type { PaginaDeProdutos } from '@/lib/tiny/leitura'
 import { BotaoDeFiltro, FormDeFiltro, LinkDeFiltro } from '@/components/filtro-sem-piscar'
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AvisoDaConta } from '../aviso-da-conta'
 
 /**
  * Estoque do Tiny: busca o produto pelo nome ou pelo SKU e abre o saldo de
@@ -27,7 +28,7 @@ import {
  * linha estouraria o limite de chamadas por minuto.
  */
 
-type Params = { busca?: string; pagina?: string }
+type Params = { conta?: string; busca?: string; pagina?: string }
 
 export default async function EstoqueDoTinyPage({
   searchParams,
@@ -38,12 +39,14 @@ export default async function EstoqueDoTinyPage({
   const params = await searchParams
   const busca = (params.busca ?? '').trim()
   const pagina = Math.max(1, Number(params.pagina) || 1)
+  const conta = contaDoParametro(params.conta)
+  const ligada = tinyLigado(conta)
 
   let resultado: PaginaDeProdutos | null = null
   let erro: string | null = null
-  if (tinyConfigurado && busca.length >= 2) {
+  if (ligada && busca.length >= 2) {
     try {
-      resultado = await pesquisarProdutosPorPagina(busca, pagina)
+      resultado = await pesquisarProdutosPorPagina(conta, busca, pagina)
     } catch (e) {
       if (!(e instanceof ErroDoTiny)) throw e
       erro = e.message
@@ -51,7 +54,9 @@ export default async function EstoqueDoTinyPage({
   }
 
   // Quem do catálogo daqui aponta para cada SKU, para comparar os dois estoques.
-  const skus = resultado?.produtos.map((p) => p.codigo).filter(Boolean) ?? []
+  // O catálogo é dos presentes, que só existem no Tiny da Consultoria.
+  const skus =
+    conta !== CONTA_PADRAO ? [] : (resultado?.produtos.map((p) => p.codigo).filter(Boolean) ?? [])
   const doCatalogo = skus.length
     ? await db.produto.findMany({
         where: { skuTiny: { in: skus } },
@@ -61,17 +66,18 @@ export default async function EstoqueDoTinyPage({
   const porSku = new Map(doCatalogo.map((p) => [p.skuTiny, p]))
 
   const linkDaPagina = (n: number) =>
-    `/tiny/estoque?busca=${encodeURIComponent(busca)}${n > 1 ? `&pagina=${n}` : ''}` as Route
+    `/tiny/estoque?conta=${conta}&busca=${encodeURIComponent(busca)}${n > 1 ? `&pagina=${n}` : ''}` as Route
 
   return (
     <>
       <CabecalhoDaPagina
         titulo="Estoque no Tiny"
-        descricao="Saldo de cada produto no Tiny: geral, reservado e por depósito. Busque pelo nome ou pelo SKU."
+        descricao={`Saldo de cada produto no Tiny da ${NOME_DA_CONTA[conta]}: geral, reservado e por depósito. Busque pelo nome ou pelo SKU.`}
       />
 
       <BarraDeFiltros>
         <FormDeFiltro acao="/tiny/estoque" className="flex flex-1 flex-wrap items-center gap-2">
+          <input type="hidden" name="conta" value={conta} />
           <Input
             name="busca"
             defaultValue={busca}
@@ -83,24 +89,9 @@ export default async function EstoqueDoTinyPage({
         </FormDeFiltro>
       </BarraDeFiltros>
 
-      {!tinyConfigurado || erro ? (
-        <div
-          role="alert"
-          className="border-warning/40 bg-warning/10 mb-6 flex gap-3 rounded-lg border p-4 text-sm"
-        >
-          <AlertTriangle className="text-warning mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <p>
-            {erro ?? (
-              <>
-                <span className="font-semibold">O Tiny ainda não está ligado.</span> Falta o token
-                em <code>TINY_API_TOKEN</code>, na Vercel.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
+      {!ligada || erro ? <AvisoDaConta conta={conta} erro={erro} /> : null}
 
-      {!resultado && tinyConfigurado && !erro ? (
+      {!resultado && ligada && !erro ? (
         <EstadoVazio
           titulo="Busque um produto"
           descricao="Digite ao menos duas letras do nome ou o SKU para ver o saldo no Tiny."
@@ -144,7 +135,9 @@ export default async function EstoqueDoTinyPage({
                       </TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/tiny/estoque/${p.id}` as Route}>Ver saldo</Link>
+                          <Link href={comConta(`/tiny/estoque/${p.id}`, conta) as Route}>
+                            Ver saldo
+                          </Link>
                         </Button>
                       </TableCell>
                     </TableRow>

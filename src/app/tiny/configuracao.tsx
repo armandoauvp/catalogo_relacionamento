@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { buscarTransportadoras, salvarConfiguracaoTiny } from '@/lib/actions/tiny'
+import { CONTA_PADRAO } from '@/lib/tiny/contas'
 import { servicosDaTransportadora } from '@/lib/tiny/pedido'
 
 type Configuracao = {
@@ -32,7 +33,8 @@ export function ConfiguracaoDosPresentes({ configuracao }: { configuracao: Confi
   const [servico, setServico] = useState(configuracao.formaFrete ?? '')
 
   useEffect(() => {
-    buscarTransportadoras().then((r) => {
+    // Os presentes vão sempre ao Tiny da Consultoria.
+    buscarTransportadoras(CONTA_PADRAO).then((r) => {
       if (r.ok) setTransportadoras(r.dados)
     })
   }, [])

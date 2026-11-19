@@ -1,4 +1,5 @@
-import { env } from '@/lib/env'
+import { env, tokenDoTiny } from '@/lib/env'
+import { NOME_DA_CONTA, type ContaTiny } from './contas'
 import type { PedidoParaOTiny } from './pedido'
 import type { ContatoParaOTiny } from './contato'
 import { coletarErros, ErroDoTiny } from './erros'
@@ -40,10 +41,17 @@ const TEMPO_LIMITE_MS = 20_000
 
 type Retorno = Record<string, unknown> & { status?: string; codigo_erro?: string | number }
 
-async function chamar(endpoint: string, parametros: Record<string, string>): Promise<Retorno> {
-  if (!env.TINY_API_TOKEN) throw new ErroDoTiny('O token do Tiny não está configurado.', 1)
+async function chamar(
+  conta: ContaTiny,
+  endpoint: string,
+  parametros: Record<string, string>,
+): Promise<Retorno> {
+  const token = tokenDoTiny(conta)
+  if (!token) {
+    throw new ErroDoTiny(`O token do Tiny da ${NOME_DA_CONTA[conta]} não está configurado.`, 1)
+  }
 
-  const corpo = new URLSearchParams({ token: env.TINY_API_TOKEN, formato: 'json', ...parametros })
+  const corpo = new URLSearchParams({ token, formato: 'json', ...parametros })
   let resposta: Response
   try {
     resposta = await fetch(`${env.TINY_API_BASE_URL}/${endpoint}`, {
@@ -93,8 +101,11 @@ export type ProdutoDoTiny = {
   tipoVariacao: string
 }
 
-export async function pesquisarProdutos(pesquisa: string): Promise<ProdutoDoTiny[]> {
-  const r = await chamar('produtos.pesquisa.php', { pesquisa })
+export async function pesquisarProdutos(
+  conta: ContaTiny,
+  pesquisa: string,
+): Promise<ProdutoDoTiny[]> {
+  const r = await chamar(conta, 'produtos.pesquisa.php', { pesquisa })
   return listaDe(r.produtos, 'produto').map((p) => ({
     id: texto(p.id),
     codigo: texto(p.codigo),
@@ -106,8 +117,8 @@ export async function pesquisarProdutos(pesquisa: string): Promise<ProdutoDoTiny
   }))
 }
 
-export async function listarTransportadoras(): Promise<string[]> {
-  const r = await chamar('formas.envio.pesquisa.php', {})
+export async function listarTransportadoras(conta: ContaTiny): Promise<string[]> {
+  const r = await chamar(conta, 'formas.envio.pesquisa.php', {})
   const nomes = listaDe(r.registros, 'registro')
     .map((t) => texto(t.nome ?? t.descricao).trim())
     .filter(Boolean)
@@ -119,9 +130,10 @@ export async function listarTransportadoras(): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 export async function incluirPedido(
+  conta: ContaTiny,
   pedido: PedidoParaOTiny,
 ): Promise<{ id: string; numero: string }> {
-  const r = await chamar('pedido.incluir.php', { pedido: JSON.stringify({ pedido }) })
+  const r = await chamar(conta, 'pedido.incluir.php', { pedido: JSON.stringify({ pedido }) })
   const [registro] = listaDe(r.registros, 'registro')
   const id = texto(registro?.id ?? r.id)
   if (!id) throw new ErroDoTiny('O Tiny aceitou o pedido, mas não devolveu o número.', null)
@@ -129,8 +141,12 @@ export async function incluirPedido(
 }
 
 /** Muda a situação do pedido no Tiny: o fechamento e a conclusão da expedição. */
-export async function alterarSituacao(id: string, situacao: string): Promise<void> {
-  await chamar('pedido.alterar.situacao', { id, situacao })
+export async function alterarSituacao(
+  conta: ContaTiny,
+  id: string,
+  situacao: string,
+): Promise<void> {
+  await chamar(conta, 'pedido.alterar.situacao', { id, situacao })
 }
 
 export type PedidoNoTiny = {
@@ -141,8 +157,8 @@ export type PedidoNoTiny = {
   transportadora: string | null
 }
 
-export async function obterPedido(id: string): Promise<PedidoNoTiny> {
-  const r = await chamar('pedido.obter.php', { id })
+export async function obterPedido(conta: ContaTiny, id: string): Promise<PedidoNoTiny> {
+  const r = await chamar(conta, 'pedido.obter.php', { id })
   const p = (r.pedido ?? {}) as Record<string, unknown>
   const ou = (v: unknown) => texto(v) || null
   return {
@@ -167,7 +183,10 @@ export type FiltroDePedidos = {
   dataFinal?: string | null
 }
 
-export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaDePedidos> {
+export async function pesquisarPedidos(
+  conta: ContaTiny,
+  filtro: FiltroDePedidos,
+): Promise<PaginaDePedidos> {
   const parametros: Record<string, string> = { pagina: String(filtro.pagina ?? 1) }
   if (filtro.busca?.tipo === 'numero') parametros.numero = filtro.busca.valor
   if (filtro.busca?.tipo === 'cpfCnpj') parametros.cpf_cnpj = filtro.busca.valor
@@ -175,7 +194,7 @@ export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaD
   if (filtro.situacao) parametros.situacao = filtro.situacao
   if (filtro.dataInicial) parametros.dataInicial = filtro.dataInicial
   if (filtro.dataFinal) parametros.dataFinal = filtro.dataFinal
-  return lerPaginaDePedidos(await chamar('pedidos.pesquisa.php', parametros))
+  return lerPaginaDePedidos(await chamar(conta, 'pedidos.pesquisa.php', parametros))
 }
 
 /**
@@ -185,9 +204,10 @@ export async function pesquisarPedidos(filtro: FiltroDePedidos): Promise<PaginaD
  * Custa até quatro chamadas por página quando a busca tem várias.
  */
 export async function pesquisarPedidosRecentesPrimeiro(
+  conta: ContaTiny,
   filtro: FiltroDePedidos,
 ): Promise<PaginaDePedidos> {
-  const primeira = await pesquisarPedidos({ ...filtro, pagina: 1 })
+  const primeira = await pesquisarPedidos(conta, { ...filtro, pagina: 1 })
   if (primeira.paginas <= 1) {
     return { pedidos: [...primeira.pedidos].reverse(), pagina: 1, paginas: 1 }
   }
@@ -195,7 +215,7 @@ export async function pesquisarPedidosRecentesPrimeiro(
   const porPagina = primeira.pedidos.length
   const lidas = new Map<number, PaginaDePedidos>([[1, primeira]])
   const ler = async (n: number) => {
-    if (!lidas.has(n)) lidas.set(n, await pesquisarPedidos({ ...filtro, pagina: n }))
+    if (!lidas.has(n)) lidas.set(n, await pesquisarPedidos(conta, { ...filtro, pagina: n }))
     return lidas.get(n)!
   }
   const ultima = await ler(primeira.paginas)
@@ -214,8 +234,8 @@ export async function pesquisarPedidosRecentesPrimeiro(
   }
 }
 
-export async function detalharPedido(id: string): Promise<DetalheDoPedido> {
-  const r = await chamar('pedido.obter.php', { id })
+export async function detalharPedido(conta: ContaTiny, id: string): Promise<DetalheDoPedido> {
+  const r = await chamar(conta, 'pedido.obter.php', { id })
   if (r.vazio || !r.pedido) throw new ErroDoTiny('O Tiny não achou este pedido.', 20)
   return lerDetalheDoPedido(r.pedido as Record<string, unknown>)
 }
@@ -225,23 +245,24 @@ export async function detalharPedido(id: string): Promise<DetalheDoPedido> {
 // ---------------------------------------------------------------------------
 
 export async function pesquisarProdutosPorPagina(
+  conta: ContaTiny,
   pesquisa: string,
   pagina = 1,
 ): Promise<PaginaDeProdutos> {
-  const r = await chamar('produtos.pesquisa.php', { pesquisa, pagina: String(pagina) })
+  const r = await chamar(conta, 'produtos.pesquisa.php', { pesquisa, pagina: String(pagina) })
   return lerPaginaDeProdutos(r)
 }
 
-export async function obterEstoque(id: string): Promise<EstoqueDoProduto> {
-  const r = await chamar('produto.obter.estoque.php', { id })
+export async function obterEstoque(conta: ContaTiny, id: string): Promise<EstoqueDoProduto> {
+  const r = await chamar(conta, 'produto.obter.estoque.php', { id })
   if (r.vazio || !r.produto) throw new ErroDoTiny('O Tiny não achou este produto.', 20)
   return lerEstoque(r.produto as Record<string, unknown>)
 }
 
 /** A foto é enfeite: se a chamada falhar, a tela segue sem ela. */
-export async function obterImagemDoProduto(id: string): Promise<string | null> {
+export async function obterImagemDoProduto(conta: ContaTiny, id: string): Promise<string | null> {
   try {
-    const r = await chamar('produto.obter.php', { id })
+    const r = await chamar(conta, 'produto.obter.php', { id })
     return r.produto ? imagemDoProduto(r.produto as Record<string, unknown>) : null
   } catch {
     return null
@@ -252,27 +273,33 @@ export async function obterImagemDoProduto(id: string): Promise<string | null> {
 // Contatos: leitura. A escrita vai pela fila de contatos.
 // ---------------------------------------------------------------------------
 
-export async function pesquisarContatos(filtro: {
-  pesquisa?: string
-  cpfCnpj?: string
-  pagina?: number
-}): Promise<PaginaDeContatos> {
+export async function pesquisarContatos(
+  conta: ContaTiny,
+  filtro: {
+    pesquisa?: string
+    cpfCnpj?: string
+    pagina?: number
+  },
+): Promise<PaginaDeContatos> {
   const parametros: Record<string, string> = { pagina: String(filtro.pagina ?? 1) }
   if (filtro.pesquisa) parametros.pesquisa = filtro.pesquisa
   if (filtro.cpfCnpj) parametros.cpf_cnpj = filtro.cpfCnpj
-  return lerPaginaDeContatos(await chamar('contatos.pesquisa.php', parametros))
+  return lerPaginaDeContatos(await chamar(conta, 'contatos.pesquisa.php', parametros))
 }
 
-export async function obterContato(id: string): Promise<ContatoDoTiny> {
-  const r = await chamar('contato.obter.php', { id })
+export async function obterContato(conta: ContaTiny, id: string): Promise<ContatoDoTiny> {
+  const r = await chamar(conta, 'contato.obter.php', { id })
   if (r.vazio || !r.contato) throw new ErroDoTiny('O Tiny não achou este contato.', 20)
   return lerContato(r.contato as Record<string, unknown>)
 }
 
 /** Inclui ou altera um contato. Só a fila chama: escrita no Tiny passa por ela. */
-export async function gravarContato(contato: ContatoParaOTiny): Promise<{ id: string }> {
+export async function gravarContato(
+  conta: ContaTiny,
+  contato: ContatoParaOTiny,
+): Promise<{ id: string }> {
   const endpoint = contato.id ? 'contato.alterar.php' : 'contato.incluir.php'
-  const r = await chamar(endpoint, { contato: JSON.stringify({ contatos: [{ contato }] }) })
+  const r = await chamar(conta, endpoint, { contato: JSON.stringify({ contatos: [{ contato }] }) })
   const [registro] = listaDe(r.registros, 'registro')
   // Com um contato só, o Tiny às vezes diz OK no geral e Erro no registro.
   if (registro && texto(registro.status).toLowerCase() === 'erro') {

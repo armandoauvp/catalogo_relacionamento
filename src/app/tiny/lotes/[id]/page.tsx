@@ -27,6 +27,7 @@ import {
   BotoesDaFila,
 } from '../../acoes-da-fila'
 import { SeloDoPedido } from '../../selo-do-pedido'
+import { NOME_DA_CONTA } from '@/lib/tiny/contas'
 
 /**
  * Um lote importado, linha a linha: o que já é pedido no Tiny, o que ainda
@@ -66,6 +67,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
         sobrancelha={`${formatarDataHora(lote.criadoEm)}${lote.criadoPor ? ` · ${lote.criadoPor.nome}` : ''}`}
         titulo={`Lote ${lote.marcador}`}
         descricao={[
+          `Tiny da ${NOME_DA_CONTA[lote.conta]}`,
           `${lote.produto}${lote.sku ? ` (${lote.sku})` : ''}, ${formatarBRL(lote.valorUnitario)} cada`,
           lote.transportadora
             ? `${lote.transportadora}${lote.formaFrete ? ` · ${lote.formaFrete}` : ''}`

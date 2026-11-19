@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
 import { obterEstoque, obterImagemDoProduto } from '@/lib/tiny/api'
+import { comConta, CONTA_PADRAO, contaDoParametro, NOME_DA_CONTA } from '@/lib/tiny/contas'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import type { EstoqueDoProduto } from '@/lib/tiny/leitura'
 import { CabecalhoDaPagina } from '@/components/pagina'
@@ -22,18 +23,28 @@ import {
 const numero = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
 
 /** O saldo de um produto no Tiny, por depósito, ao lado do que o catálogo daqui diz. */
-export default async function SaldoNoTinyPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SaldoNoTinyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ conta?: string }>
+}) {
   await exigirPermissao('tiny.operar')
   const { id } = await params
+  const conta = contaDoParametro((await searchParams).conta)
+  const ligada = tinyLigado(conta)
   if (!/^\d+$/.test(id)) notFound()
 
   let estoque: EstoqueDoProduto | null = null
   let imagem: string | null = null
-  let erro: string | null = tinyConfigurado ? null : 'O Tiny ainda não está ligado.'
-  if (tinyConfigurado) {
+  let erro: string | null = ligada
+    ? null
+    : `O Tiny da ${NOME_DA_CONTA[conta]} ainda não está ligado.`
+  if (ligada) {
     try {
-      estoque = await obterEstoque(id)
-      imagem = await obterImagemDoProduto(id)
+      estoque = await obterEstoque(conta, id)
+      imagem = await obterImagemDoProduto(conta, id)
     } catch (e) {
       if (!(e instanceof ErroDoTiny)) throw e
       if (e.codigo === 20 || e.codigo === 32) notFound()
@@ -41,21 +52,23 @@ export default async function SaldoNoTinyPage({ params }: { params: Promise<{ id
     }
   }
 
-  const local = estoque?.codigo
-    ? await db.produto.findFirst({
-        where: { skuTiny: estoque.codigo },
-        select: { id: true, nome: true, origem: true, controlaEstoque: true, estoque: true },
-      })
-    : null
+  // O catálogo daqui é o dos presentes, que só existem no Tiny da Consultoria.
+  const local =
+    estoque?.codigo && conta === CONTA_PADRAO
+      ? await db.produto.findFirst({
+          where: { skuTiny: estoque.codigo },
+          select: { id: true, nome: true, origem: true, controlaEstoque: true, estoque: true },
+        })
+      : null
 
   return (
     <>
       <Link
-        href="/tiny/estoque"
+        href={comConta('/tiny/estoque', conta)}
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Estoque no Tiny
+        Estoque no Tiny da {NOME_DA_CONTA[conta]}
       </Link>
 
       {!estoque ? (

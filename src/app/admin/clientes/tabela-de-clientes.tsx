@@ -8,6 +8,7 @@ import { Loader2, Send, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Select } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import {
 import { exportarClientesParaOTiny } from '@/lib/actions/contatos-tiny'
 import { formatarCpf, formatarTelefone, mascararCpf } from '@/lib/cpf'
 import { formatarBRL } from '@/lib/money'
+import { CONTAS_TINY, NOME_DA_CONTA, type ContaTiny } from '@/lib/tiny/contas'
 import { FiltroDoGrupo } from '@/components/filtro-por-grupo'
 import { hrefDoGrupo, valorDoFiltro, type ParametrosDaUrl } from '@/lib/filtro-por-grupo'
 import { EditorDeCliente, type ClienteEditavel } from './editor-de-cliente'
@@ -58,6 +60,8 @@ export function TabelaDeClientes({
   const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set())
   const [enviando, iniciar] = useTransition()
   const [aviso, setAviso] = useState<{ texto: string; erro: boolean } | null>(null)
+  // Escolha de quem envia, nunca suposta: são três Tinys, cada um com os seus contatos.
+  const [conta, setConta] = useState<ContaTiny | ''>('')
 
   const todos = clientes.length > 0 && escolhidos.size === clientes.length
   const alternar = (id: string) =>
@@ -70,13 +74,14 @@ export function TabelaDeClientes({
 
   function mandarComoContatos() {
     setAviso(null)
+    if (!conta) return setAviso({ texto: 'Escolha em qual Tiny cadastrar.', erro: true })
     iniciar(async () => {
-      const r = await exportarClientesParaOTiny([...escolhidos])
+      const r = await exportarClientesParaOTiny([...escolhidos], conta)
       if (!r.ok) return setAviso({ texto: r.erro, erro: true })
       const { enviados, ignorados } = r.dados
       setAviso({
         texto:
-          `${enviados} ${enviados === 1 ? 'cliente foi' : 'clientes foram'} para a fila de contatos do Tiny.` +
+          `${enviados} ${enviados === 1 ? 'cliente foi' : 'clientes foram'} para a fila de contatos do Tiny da ${NOME_DA_CONTA[conta]}.` +
           (ignorados.length
             ? ` Ficaram de fora: ${ignorados.map((i) => `${i.nome} (${i.motivo})`).join('; ')}`
             : ''),
@@ -105,7 +110,25 @@ export function TabelaDeClientes({
           </span>
           {escolhidos.size ? (
             <span className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={mandarComoContatos} disabled={enviando}>
+              <Select
+                value={conta}
+                onChange={(e) => setConta(e.target.value as ContaTiny | '')}
+                aria-label="Em qual Tiny cadastrar"
+                className="h-8 w-44"
+              >
+                <option value="">Em qual Tiny?</option>
+                {CONTAS_TINY.map((c) => (
+                  <option key={c} value={c}>
+                    {NOME_DA_CONTA[c]}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={mandarComoContatos}
+                disabled={enviando || !conta}
+              >
                 {enviando ? (
                   <Loader2 className="animate-spin" aria-hidden="true" />
                 ) : (

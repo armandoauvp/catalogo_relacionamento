@@ -6,7 +6,8 @@ import { db } from '@/lib/db'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fotoDoFormulario } from '@/lib/arquivos'
 import { produtoSchema, categoriaSchema } from '@/lib/validators/produto'
-import { tinyConfigurado } from '@/lib/env'
+import { tinyLigado } from '@/lib/env'
+import { CONTA_PADRAO } from '@/lib/tiny/contas'
 import { pesquisarProdutos } from '@/lib/tiny/api'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { conferirSku, lerPlanilhaDeSkus, type ConferenciaDoSku } from '@/lib/tiny/skus'
@@ -102,9 +103,10 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
  * que conferir, e o SKU passa como veio.
  */
 async function conferirNoTiny(sku: string): Promise<ConferenciaDoSku> {
-  if (!tinyConfigurado) return { ok: true, nomeNoTiny: '' }
+  // O catálogo é dos presentes, que vão sempre ao Tiny da Consultoria.
+  if (!tinyLigado(CONTA_PADRAO)) return { ok: true, nomeNoTiny: '' }
   try {
-    return conferirSku(sku, await pesquisarProdutos(sku.trim()))
+    return conferirSku(sku, await pesquisarProdutos(CONTA_PADRAO, sku.trim()))
   } catch (e) {
     if (!(e instanceof ErroDoTiny)) throw e
     return {
@@ -120,11 +122,16 @@ export async function conferirSkuNoTiny(
 ): Promise<ResultadoDaAction<ConferenciaDoSku & { limite: boolean }>> {
   try {
     await autorizarAction('catalogo.gerenciar')
-    if (!tinyConfigurado) return { ok: true, dados: { ok: true, nomeNoTiny: '', limite: false } }
+    if (!tinyLigado(CONTA_PADRAO)) {
+      return { ok: true, dados: { ok: true, nomeNoTiny: '', limite: false } }
+    }
     try {
       return {
         ok: true,
-        dados: { ...conferirSku(sku, await pesquisarProdutos(sku.trim())), limite: false },
+        dados: {
+          ...conferirSku(sku, await pesquisarProdutos(CONTA_PADRAO, sku.trim())),
+          limite: false,
+        },
       }
     } catch (e) {
       if (!(e instanceof ErroDoTiny)) throw e
