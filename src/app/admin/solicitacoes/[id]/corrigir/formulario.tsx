@@ -69,7 +69,8 @@ export function FormularioDeCorrecao({
   const novos = useRef(0)
   const novaChave = () => `novo-${novos.current++}`
   const [itens, setItens] = useState<ItemDoFormulario[]>(() =>
-    inicial.itens.map((i) => ({ ...i, chave: i.id ?? novaChave() })),
+    // Todo item gravado tem id; o contador só entra no item acrescentado.
+    inicial.itens.map((i) => ({ ...i, chave: i.id ?? 'item' })),
   )
   const [campos, setCampos] = useState(() => {
     const { itens: _itens, solicitacaoId: _id, ...resto } = inicial
