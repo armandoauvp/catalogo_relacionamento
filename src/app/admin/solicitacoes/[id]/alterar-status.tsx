@@ -66,9 +66,15 @@ export function AlterarStatus({
         const ignorada = r.dados.ignoradas[0]
         if (ignorada) return setErro(ignorada.motivo)
       } else {
-        const r = await alterarStatus({ solicitacaoId, statusNovo: passo.destino })
+        // A nota escrita embaixo vale também para o botão do passo seguinte.
+        const r = await alterarStatus({
+          solicitacaoId,
+          statusNovo: passo.destino,
+          motivo: motivo.trim() || undefined,
+        })
         if (!r.ok) return setErro(r.erro)
       }
+      setMotivo('')
       setEscolhido(null)
       router.refresh()
     })
@@ -172,7 +178,22 @@ export function AlterarStatus({
             />
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        // Nota livre em qualquer mudança: quem corrigiu o pedido avisa quem vem
+        // depois (a Lilian devolvendo à Dani) sem sair da ferramenta.
+        <div className="space-y-1.5">
+          <Label htmlFor="nota-status">
+            Nota <span className="text-muted-foreground font-normal">(opcional)</span>
+          </Label>
+          <Textarea
+            id="nota-status"
+            rows={2}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="O que você corrigiu ou o que falta. Fica no histórico e aparece na fila de compras."
+          />
+        </div>
+      )}
 
       {erro ? (
         <p role="alert" className="text-destructive text-sm">

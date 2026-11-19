@@ -7,6 +7,7 @@ import {
   linkDeCompraEditavel,
   linkDoItem,
   type ItemParaCompra,
+  notaDoStatus,
 } from './compras'
 import { fornecedorDoItem } from './fornecedores'
 
@@ -71,6 +72,7 @@ describe('compra por fornecedor', () => {
     status: StatusSolicitacao.aguardando_compra,
     precisaComprar: true,
     compradoEm: null as Date | null,
+    nota: null,
   }
   const item = (
     itemId: string,
@@ -140,5 +142,53 @@ describe('compra por fornecedor', () => {
         { precisaComprar: false, compradoEm: null },
       ]),
     ).toBe(true)
+  })
+})
+
+describe('nota que acompanha o pedido na fila', () => {
+  const quando = (h: number) => new Date(Date.UTC(2026, 10, 19, h))
+  const lilian = { nome: 'Lilian' }
+
+  it('mostra o recado de quem o devolveu de "Deu problema"', () => {
+    const nota = notaDoStatus(
+      [
+        {
+          statusNovo: StatusSolicitacao.deu_problema,
+          motivo: 'Sem estoque',
+          criadoEm: quando(10),
+          usuario: { nome: 'Dani' },
+        },
+        {
+          statusNovo: StatusSolicitacao.aguardando_compra,
+          motivo: 'Troquei o link do vinho',
+          criadoEm: quando(12),
+          usuario: lilian,
+        },
+      ],
+      StatusSolicitacao.aguardando_compra,
+    )
+    expect(nota).toEqual({ texto: 'Troquei o link do vinho', autor: 'Lilian', quando: quando(12) })
+  })
+
+  it('nota de status anterior, do sistema ou vazia não aparece', () => {
+    const deuProblema = [
+      {
+        statusNovo: StatusSolicitacao.deu_problema,
+        motivo: 'Sem estoque',
+        criadoEm: quando(10),
+        usuario: lilian,
+      },
+    ]
+    expect(notaDoStatus(deuProblema, StatusSolicitacao.aguardando_compra)).toBeNull()
+    const importada = [
+      {
+        statusNovo: StatusSolicitacao.aguardando_compra,
+        motivo: 'Liberada no ClickUp',
+        criadoEm: quando(9),
+        usuario: null,
+      },
+    ]
+    expect(notaDoStatus(importada, StatusSolicitacao.aguardando_compra)).toBeNull()
+    expect(notaDoStatus([], StatusSolicitacao.aguardando_compra)).toBeNull()
   })
 })

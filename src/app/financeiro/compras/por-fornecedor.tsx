@@ -3,7 +3,15 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, ExternalLink, Loader2, PencilLine, ShoppingCart } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  Loader2,
+  MessageSquareText,
+  PencilLine,
+  ShoppingCart,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialogo } from '@/components/ui/dialogo'
@@ -23,6 +31,8 @@ export type ItemDoFornecedor = {
   cliente: string
   /** Itens da mesma solicitação que ainda faltam em outras lojas. */
   emOutrasLojas: number
+  /** O recado de quem pôs o pedido aqui, como "troquei o link do vinho". */
+  nota: { texto: string; autor: string } | null
 }
 
 export type GrupoNaTela = {
@@ -227,6 +237,7 @@ export function PorFornecedor({
                           ? ` · +${i.emOutrasLojas} ${i.emOutrasLojas === 1 ? 'item' : 'itens'} em outra loja`
                           : ''}
                       </p>
+                      {i.nota ? <NotaDoPedido {...i.nota} /> : null}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-4 pl-7 sm:pl-0">
@@ -313,5 +324,17 @@ export function PorFornecedor({
         </p>
       ) : null}
     </div>
+  )
+}
+
+/** O recado no item da fila, em destaque, para quem compra ler antes de abrir. */
+export function NotaDoPedido({ texto, autor }: { texto: string; autor: string }) {
+  return (
+    <p className="bg-warning/10 border-warning/30 mt-1.5 flex items-start gap-1.5 rounded-md border px-2 py-1 text-xs">
+      <MessageSquareText className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        <span className="font-medium">{autor}:</span> {texto}
+      </span>
+    </p>
   )
 }

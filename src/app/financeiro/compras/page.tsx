@@ -11,7 +11,7 @@ import {
 } from '@/lib/compras'
 import { Button } from '@/components/ui/button'
 import { LinkDeFiltro } from '@/components/filtro-sem-piscar'
-import { PorFornecedor, type GrupoNaTela } from './por-fornecedor'
+import { NotaDoPedido, PorFornecedor, type GrupoNaTela } from './por-fornecedor'
 import { siteDeCompra } from '@/lib/fornecedores'
 import { formatarBRL } from '@/lib/money'
 import { formatarData } from '@/lib/datas'
@@ -93,6 +93,7 @@ export default async function FilaDeComprasPage({
       emOutrasLojas: pendentes.filter(
         (o) => o.solicitacaoId === i.solicitacaoId && o.fornecedor.chave !== i.fornecedor.chave,
       ).length,
+      nota: i.nota ? { texto: i.nota.texto, autor: i.nota.autor } : null,
     })),
   }))
   const aguardando = itens.filter((i) => i.status === 'aguardando_compra')
@@ -214,6 +215,9 @@ export default async function FilaDeComprasPage({
                           </>
                         ) : null}
                       </div>
+                      {item.nota ? (
+                        <NotaDoPedido texto={item.nota.texto} autor={item.nota.autor} />
+                      ) : null}
                     </TableCell>
                     <TableCell className="max-w-44">
                       <SiteDeCompra

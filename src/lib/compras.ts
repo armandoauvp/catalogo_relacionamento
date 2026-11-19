@@ -48,6 +48,32 @@ export type ItemParaCompra = {
   precisaComprar: boolean
   /** Quando o Financeiro marcou este item como comprado. */
   compradoEm: Date | null
+  /** O recado de quem pôs o pedido no status atual (`notaDoStatus`). */
+  nota: NotaDoStatus | null
+}
+
+export type NotaDoStatus = { texto: string; autor: string; quando: Date }
+
+/**
+ * O recado que acompanha o pedido no status em que ele está: a nota escrita na
+ * mudança que o trouxe até aqui, como "troquei o link do vinho" de quem o
+ * devolveu de "Deu problema". Nota de mudança anterior já foi lida e não vale;
+ * a do sistema (importação, sem autor) não é recado de ninguém.
+ */
+export function notaDoStatus(
+  historico: readonly {
+    statusNovo: StatusSolicitacao
+    motivo: string | null
+    criadoEm: Date
+    usuario: { nome: string } | null
+  }[],
+  status: StatusSolicitacao,
+): NotaDoStatus | null {
+  const ultima = [...historico].sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())[0]
+  if (!ultima || ultima.statusNovo !== status || !ultima.motivo?.trim() || !ultima.usuario) {
+    return null
+  }
+  return { texto: ultima.motivo.trim(), autor: ultima.usuario.nome, quando: ultima.criadoEm }
 }
 
 /**
@@ -88,6 +114,17 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
     include: {
       consultor: { select: { nome: true } },
       cliente: { select: { nome: true } },
+      // Só a mudança mais recente: é ela que diz o recado do status atual.
+      historico: {
+        select: {
+          statusNovo: true,
+          motivo: true,
+          criadoEm: true,
+          usuario: { select: { nome: true } },
+        },
+        orderBy: { criadoEm: 'desc' },
+        take: 1,
+      },
       itens: {
         include: {
           produto: {
@@ -132,6 +169,7 @@ export async function filaDeCompras(filtro: FiltroDaFila = {}): Promise<ItemPara
         fornecedor: fornecedorDoItem({ site, notaDeCompra, categoria }),
         precisaComprar: precisaDeCompra([item]),
         compradoEm: item.compradoEm,
+        nota: notaDoStatus(s.historico, s.status),
       }
     }),
   )

@@ -295,7 +295,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'corrigir-pedido',
     pergunta: 'Como corrijo um pedido que veio errado?',
     resposta:
-      'No detalhe da solicitação, ou no "Corrigir" da fila de compras, você ajusta itens, valores, endereço e carta até a compra, e também em "Deu problema" enquanto o pedido não foi ao Tiny. Item já comprado fica travado. Item da casa, como cuia e vela, se marca como "Sai do estoque da AUVP" e não passa pela fila de compras. Cada mudança fica no pedido, com o que era antes.',
+      'No detalhe da solicitação, ou no "Corrigir" da fila de compras, você ajusta itens, valores, endereço e carta até a compra, e também em "Deu problema" enquanto o pedido não foi ao Tiny. Item já comprado fica travado. Item da casa, como cuia e vela, se marca como "Sai do estoque da AUVP" e não passa pela fila de compras. Cada mudança fica no pedido, com o que era antes. Ao devolver o pedido para a compra, escreva na Nota o que corrigiu: ela aparece para o Financeiro na fila de compras.',
     href: '/financeiro/compras',
     rotuloDoLink: 'Abrir a fila de compras',
     exige: 'solicitacao.editar',
