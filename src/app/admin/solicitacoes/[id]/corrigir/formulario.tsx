@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { MotivoEnvio } from '@prisma/client'
@@ -48,9 +48,6 @@ type Inicial = {
   observacoes: string
 }
 
-let proximaChave = 0
-const novaChave = () => `item-${proximaChave++}`
-
 /**
  * A correção do pedido, de uma vez: itens, entrega e carta, salvos juntos. O
  * item já comprado aparece travado, porque o que foi comprado é o que vai.
@@ -67,8 +64,12 @@ export function FormularioDeCorrecao({
   const [erro, setErro] = useState<string | null>(null)
   const [buscandoCep, setBuscandoCep] = useState(false)
 
+  // A chave vira o `id` dos campos: o item gravado usa o próprio id, que é o
+  // mesmo no servidor e no navegador; um contador de módulo divergia na hidratação.
+  const novos = useRef(0)
+  const novaChave = () => `novo-${novos.current++}`
   const [itens, setItens] = useState<ItemDoFormulario[]>(() =>
-    inicial.itens.map((i) => ({ ...i, chave: novaChave() })),
+    inicial.itens.map((i) => ({ ...i, chave: i.id ?? novaChave() })),
   )
   const [campos, setCampos] = useState(() => {
     const { itens: _itens, solicitacaoId: _id, ...resto } = inicial

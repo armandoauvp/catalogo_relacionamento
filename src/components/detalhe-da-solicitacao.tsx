@@ -76,7 +76,9 @@ export function DetalheDaSolicitacao({
                 const site = linkDoItem(item)
                 return (
                   <TableRow key={item.id}>
-                    <TableCell>
+                    {/* `max-w-0` deixa o link longo truncar: sem ele a célula cresce
+                        até o tamanho do link e empurra quantidade e valor para fora. */}
+                    <TableCell className="w-full max-w-0">
                       <span className="font-medium">
                         {item.produto?.nome ?? item.descricaoLivre}
                       </span>
