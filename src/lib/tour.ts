@@ -32,6 +32,17 @@ const CONTA: PassoDoTour = {
   acao: 'logistica.ver',
 }
 
+/** O sininho: cada movimento dos presentes que a pessoa pediu. */
+const AVISOS: PassoDoTour = {
+  rota: '',
+  alvo: 'avisos',
+  titulo: 'Avisos do rastreio',
+  texto:
+    'Cada movimento dos presentes que você pediu chega aqui: postado, a caminho, entregue, aguardando retirada ou com problema. O número mostra quantos você ainda não viu.',
+  // Quem pede presente é quem recebe aviso do rastreio dele.
+  acao: 'solicitacao.verProprias',
+}
+
 /** O caminho do presente: é o mesmo para o Admin geral e o de Relacionamento. */
 const GESTAO_DOS_PRESENTES: readonly PassoDoTour[] = [
   {
@@ -128,6 +139,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
         'Quem entra pela primeira vez vira Colaborador AUVP. Aqui você define o perfil e o limite mensal de cada um.',
       acao: 'usuario.gerenciar',
     },
+    AVISOS,
     CONTA,
   ],
   admin_relacionamento: [
@@ -140,6 +152,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
         'Quem entra pela primeira vez aparece aqui como Colaborador AUVP: faça Consultor quem é do time, defina o limite mensal e desative quem saiu.',
       acao: 'usuario.definirLimite',
     },
+    AVISOS,
     CONTA,
   ],
   admin_logistica: [
@@ -160,6 +173,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
         'Quem entra pela primeira vez vira Colaborador AUVP. Aqui você põe a pessoa na Logística e desativa quem saiu.',
       acao: 'usuario.gerenciar',
     },
+    AVISOS,
     CONTA,
   ],
   consultor: [
@@ -201,6 +215,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
         'Abra uma solicitação para ver quem age agora, o histórico e o rastreio, sem precisar perguntar a ninguém.',
       acao: 'solicitacao.verProprias',
     },
+    AVISOS,
     CONTA,
   ],
   financeiro: [
@@ -235,9 +250,10 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
         'Todas as solicitações, com filtro e exportação. Cancelar ou registrar problema é por aqui.',
       acao: 'solicitacao.verTodas',
     },
+    AVISOS,
     CONTA,
   ],
-  logistica: [...OPERACAO_DA_LOGISTICA, CONTA],
+  logistica: [...OPERACAO_DA_LOGISTICA, AVISOS, CONTA],
   colaborador: [
     {
       rota: '/logistica',
@@ -269,6 +285,7 @@ const TOURS: Record<Perfil, readonly PassoDoTour[]> = {
       texto: 'O painel da Logística: a situação da semana, o volume e as demandas em andamento.',
       acao: 'logistica.ver',
     },
+    AVISOS,
     CONTA,
   ],
 }

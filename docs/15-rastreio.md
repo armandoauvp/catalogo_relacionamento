@@ -56,6 +56,26 @@ Código em `src/lib/rastreio/`: `leitura.ts` (formato da resposta, entrega),
    rastreios foram consultados; credencial errada aparece em vermelho, com o
    motivo.
 
+## Avisos no sininho
+
+Pedido da área: o consultor fica sabendo de cada movimento do presente que
+pediu. Cada evento novo dos Correios vira um aviso (`notificacoes`) para o
+consultor da solicitação com aquele código, gravado na mesma transação do
+evento. O sino fica no canto de cima, com o número de não lidos; `/avisos`
+lista, leva à solicitação e marca como lidos ao abrir.
+
+- **Tom** (`src/lib/rastreio/avisos.ts`): entrega em verde; o que pede ação
+  (retirada na agência, tentativa sem sucesso, ausente, endereço incorreto,
+  extravio, roubo, devolução) em destaque; o resto é comum.
+- **Quem:** o consultor da solicitação. O aviso em destaque vai também aos
+  Admins de Relacionamento ativos.
+- **Sem ruído:** na primeira consulta de um objeto chegam todos os eventos de
+  uma vez, e só o mais recente avisa. Evento com mais de 7 dias não avisa. O
+  mesmo evento nunca avisa a mesma pessoa duas vezes (`usuario_id` + `chave`).
+- **Solicitação cancelada** não avisa.
+- E-mail ficou para depois: precisa de um serviço de envio com o domínio
+  `auvp.com.br` verificado. O gancho é o mesmo `avisarQuemPediu`.
+
 ## O formato da resposta
 
 O Swagger da API Rastro só abre logado no CWS. A leitura usa os nomes que as

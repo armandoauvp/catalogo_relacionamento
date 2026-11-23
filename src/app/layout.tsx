@@ -72,6 +72,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     usuario && pode(usuario.perfil, 'expedicao.verFila')
       ? { expedicao: (await avisosDaExpedicao()).prontos }
       : {}
+  const naoLidas = usuario
+    ? await db.notificacao.count({ where: { usuarioId: usuario.id, lidaEm: null } })
+    : 0
 
   return (
     // O script muda a classe do <html> antes da hidratação; daí o suppress.
@@ -108,6 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             nome={usuario.nome}
             perfilLivre={trocaLivre}
             avisos={avisos}
+            naoLidas={naoLidas}
           />
         ) : null}
         {usuario ? (

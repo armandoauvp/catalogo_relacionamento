@@ -314,7 +314,9 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
 - **Histórico do rastreio vem dos Correios, e não muda status.** A API Rastro
   (CWS, contrato da AUVP) traz os eventos de código `AA123456789BR`; a entrega
   lida lá só acende o aviso, quem marca é `marcarEntregue`. Eventos só se somam,
-  e objeto entregue não é mais consultado. Ver `docs/15-rastreio.md`.
+  e objeto entregue não é mais consultado. Cada evento novo avisa o consultor
+  no sininho (`Notificacao`, `src/lib/rastreio/avisos.ts`), na mesma transação;
+  o que pede ação avisa também o Admin de Relacionamento. Ver `docs/15-rastreio.md`.
 - **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
   (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 

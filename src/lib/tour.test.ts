@@ -19,11 +19,12 @@ describe('tour guiado', () => {
     // rever o texto, porque "Aprovar um ou vários" sem o passo anterior não lê bem.
     const contagem = Object.fromEntries(PERFIS.map((p) => [p, passosDoTour(p).length]))
     expect(contagem).toEqual({
-      admin: 7,
-      admin_relacionamento: 7,
+      // O sininho entra para quem pede presente: o aviso é do rastreio dele.
+      admin: 8,
+      admin_relacionamento: 8,
       admin_logistica: 8,
-      consultor: 6,
-      financeiro: 5,
+      consultor: 7,
+      financeiro: 6,
       logistica: 6,
       colaborador: 5,
     })

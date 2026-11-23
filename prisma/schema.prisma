@@ -129,6 +129,7 @@ model Usuario {
   pedidosALogistica DemandaLogistica[]        @relation("PedidosALogistica")
   itensComprados    SolicitacaoItem[]         @relation("ItensComprados")
   alteracoesFeitas  SolicitacaoAlteracao[]
+  notificacoes      Notificacao[]
 
   @@index([perfil, ativo])
   @@map("usuarios")
@@ -319,16 +320,17 @@ model Solicitacao {
   dataSolicitacao DateTime @default(now()) @map("data_solicitacao")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  consultor  Usuario                @relation("SolicitacoesDoConsultor", fields: [consultorId], references: [id], onDelete: Restrict)
-  cliente    Cliente                @relation(fields: [clienteId], references: [id], onDelete: Restrict)
-  itens      SolicitacaoItem[]
-  historico  SolicitacaoHistorico[]
+  consultor    Usuario                @relation("SolicitacoesDoConsultor", fields: [consultorId], references: [id], onDelete: Restrict)
+  cliente      Cliente                @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  itens        SolicitacaoItem[]
+  historico    SolicitacaoHistorico[]
   /// A demanda que a aprovação abriu na trilha da Logística.
-  demanda    DemandaLogistica?
+  demanda      DemandaLogistica?
   /// O pedido que a aprovação abriu no Tiny, quando a integração está ligada.
-  pedidoTiny PedidoTiny?
+  pedidoTiny   PedidoTiny?
   /// O que o Admin corrigiu no pedido depois de criado, campo a campo.
-  alteracoes SolicitacaoAlteracao[]
+  alteracoes   SolicitacaoAlteracao[]
+  notificacoes Notificacao[]
 
   @@index([consultorId, dataSolicitacao])
   @@index([status])
@@ -893,4 +895,35 @@ model EventoDeRastreio {
 
   @@unique([codigoObjeto, ocorridoEm, codigo, tipo])
   @@map("eventos_de_rastreio")
+}
+
+/// O tom do aviso no sininho: entrega em verde, problema em destaque.
+enum TomDaNotificacao {
+  comum
+  entrega
+  alerta
+}
+
+/// Um aviso no sininho de uma pessoa. Hoje nasce do rastreio dos Correios: cada
+/// evento novo avisa o consultor da solicitação, e os problemas avisam também
+/// o Admin de Relacionamento (src/lib/rastreio/avisos.ts).
+model Notificacao {
+  id            String           @id @default(cuid())
+  usuarioId     String           @map("usuario_id")
+  solicitacaoId String?          @map("solicitacao_id")
+  tom           TomDaNotificacao @default(comum)
+  titulo        String
+  texto         String
+  /// Idempotência: o mesmo evento não avisa a mesma pessoa duas vezes.
+  chave         String
+  lidaEm        DateTime?        @map("lida_em")
+  criadoEm      DateTime         @default(now()) @map("criado_em")
+
+  usuario     Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  solicitacao Solicitacao? @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict)
+
+  @@unique([usuarioId, chave])
+  @@index([usuarioId, lidaEm])
+  @@index([usuarioId, criadoEm])
+  @@map("notificacoes")
 }

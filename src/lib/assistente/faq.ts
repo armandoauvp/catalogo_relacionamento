@@ -195,6 +195,25 @@ export const FAQ: ItemDaFaq[] = [
     termos: ['rastreamento', 'codigo', 'correios', 'transportadora', 'entrega', 'envio'],
   },
   {
+    id: 'avisos',
+    pergunta: 'Como fico sabendo quando o presente anda, chega ou dá problema?',
+    resposta:
+      'Pelo sininho, no canto de cima. Cada movimento dos Correios de um presente seu vira um aviso: entregue em verde, e retirada na agência, tentativa sem sucesso, extravio ou devolução em destaque, para você avisar o cliente. O número mostra quantos você ainda não viu; abrir a lista marca como vistos.',
+    href: '/avisos',
+    rotuloDoLink: 'Abrir os avisos',
+    exige: 'solicitacao.verProprias',
+    termos: [
+      'aviso',
+      'notificacao',
+      'sininho',
+      'sino',
+      'extraviado',
+      'retirada',
+      'devolvido',
+      'entregue',
+    ],
+  },
+  {
     id: 'confirmar-recebimento',
     pergunta: 'Como confirmo que o cliente recebeu o presente?',
     resposta:

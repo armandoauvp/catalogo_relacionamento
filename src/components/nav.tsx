@@ -6,6 +6,7 @@ import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import type { Perfil } from '@prisma/client'
 import {
+  Bell,
   Check,
   ChevronDown,
   ClipboardList,
@@ -285,6 +286,7 @@ export function Nav({
   nome,
   perfilLivre = false,
   avisos = {},
+  naoLidas = 0,
 }: {
   perfil: Perfil
   nome: string
@@ -292,6 +294,8 @@ export function Nav({
   avisos?: Partial<Record<string, number>>
   /** Fase de testes: o menu da conta troca o perfil com que se vê a ferramenta. */
   perfilLivre?: boolean
+  /** Avisos do sininho ainda não lidos (`/avisos`). */
+  naoLidas?: number
 }) {
   const caminho = usePathname()
   const [emHover, setEmHover] = useState<string | null>(null)
@@ -463,6 +467,17 @@ export function Nav({
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
+          {/* O sininho: cada movimento dos presentes que a pessoa pediu. */}
+          <Link
+            href={'/avisos' as Route}
+            data-tour="avisos"
+            aria-label={naoLidas ? `Avisos, ${naoLidas} não lidos` : 'Avisos'}
+            aria-current={caminho === '/avisos' ? 'page' : undefined}
+            className="hover:bg-muted text-muted-foreground hover:text-foreground relative grid size-9 place-items-center rounded-lg transition-colors"
+          >
+            <Bell className="size-[18px]" aria-hidden="true" />
+            {naoLidas ? <Contador n={naoLidas} /> : null}
+          </Link>
           <TrocaDeTema />
           <div className="bg-border mx-0.5 hidden h-4 w-px lg:block" />
 

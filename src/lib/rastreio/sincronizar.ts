@@ -1,5 +1,7 @@
+import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { correiosConfigurado } from '@/lib/env'
+import { chaveDoEvento, eventosParaAvisar, textoDoAviso, tomDoEvento } from './avisos'
 import { consultarObjeto, ErroDosCorreios } from './correios'
 import {
   ehCodigoDosCorreios,
@@ -7,6 +9,7 @@ import {
   entregueEm,
   maisNovosPrimeiro,
   normalizarCodigo,
+  type EventoLido,
 } from './leitura'
 
 /**
@@ -67,16 +70,68 @@ export async function gravarConsulta(
   const lido = await consultarObjeto(codigo)
   const entrega = entregueEm(lido.eventos)
   return db.$transaction(async (tx) => {
+    const ja = await tx.eventoDeRastreio.findMany({
+      where: { codigoObjeto: codigo },
+      select: { ocorridoEm: true, codigo: true, tipo: true },
+    })
+    const conhecidos = new Set(ja.map((e) => chaveDoEvento(codigo, e)))
+    const novos = lido.eventos.filter((e) => !conhecidos.has(chaveDoEvento(codigo, e)))
+
     await tx.objetoRastreado.upsert({
       where: { codigo },
       create: { codigo, consultadoEm: agora, entregueEm: entrega, erro: lido.erro },
       update: { consultadoEm: agora, erro: lido.erro, ...(entrega ? { entregueEm: entrega } : {}) },
     })
     const { count } = await tx.eventoDeRastreio.createMany({
-      data: lido.eventos.map((e) => ({ ...e, codigoObjeto: codigo })),
+      data: novos.map((e) => ({ ...e, codigoObjeto: codigo })),
       skipDuplicates: true,
     })
+    // Na mesma transação: aviso de evento que não está na tela não existe.
+    await avisarQuemPediu(tx, codigo, eventosParaAvisar(novos, ja.length === 0, agora))
     return { novos: count, entregue: Boolean(entrega) }
+  })
+}
+
+/**
+ * Cada evento novo avisa o consultor da solicitação com aquele código; o que
+ * pede ação avisa também os Admins de Relacionamento ativos. A chave impede o
+ * mesmo evento de avisar a mesma pessoa duas vezes.
+ */
+async function avisarQuemPediu(
+  tx: Prisma.TransactionClient,
+  codigo: string,
+  eventos: readonly EventoLido[],
+) {
+  if (!eventos.length) return
+  const solicitacoes = await tx.solicitacao.findMany({
+    where: { rastreio: { equals: codigo, mode: 'insensitive' }, status: { not: 'cancelado' } },
+    select: { id: true, codigo: true, consultorId: true, cliente: { select: { nome: true } } },
+  })
+  if (!solicitacoes.length) return
+  const admins = eventos.some((e) => tomDoEvento(e) === 'alerta')
+    ? await tx.usuario.findMany({
+        where: { perfil: 'admin_relacionamento', ativo: true },
+        select: { id: true },
+      })
+    : []
+
+  await tx.notificacao.createMany({
+    data: solicitacoes.flatMap((s) =>
+      eventos.flatMap((e) => {
+        const aviso = textoDoAviso(s.codigo, s.cliente.nome, e)
+        const para = new Set([
+          s.consultorId,
+          ...(aviso.tom === 'alerta' ? admins.map((a) => a.id) : []),
+        ])
+        return [...para].map((usuarioId) => ({
+          usuarioId,
+          solicitacaoId: s.id,
+          ...aviso,
+          chave: chaveDoEvento(codigo, e),
+        }))
+      }),
+    ),
+    skipDuplicates: true,
   })
 }
 
