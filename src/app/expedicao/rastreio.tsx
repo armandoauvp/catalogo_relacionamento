@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { marcarEntregue, registrarRastreio } from '@/lib/actions/solicitacoes'
+import { formatarDataHora } from '@/lib/datas'
 import { podeMarcarEntregue } from '@/lib/status'
 
 /**
@@ -28,11 +29,14 @@ export function Rastreio({
   status,
   rastreio,
   transportadora,
+  entregueNosCorreiosEm = null,
 }: {
   solicitacaoId: string
   status: StatusSolicitacao
   rastreio: string | null
   transportadora: string | null
+  /** A entrega que os Correios registraram, em ISO; só um aviso para quem marca. */
+  entregueNosCorreiosEm?: string | null
 }) {
   const router = useRouter()
   const [salvando, iniciar] = useTransition()
@@ -114,6 +118,12 @@ export function Rastreio({
           </Button>
         ) : null}
       </div>
+
+      {podeEntregar && entregueNosCorreiosEm ? (
+        <p role="status" className="text-success mt-2 text-sm font-medium">
+          Os Correios registraram a entrega em {formatarDataHora(new Date(entregueNosCorreiosEm))}.
+        </p>
+      ) : null}
 
       {erro ? (
         <p role="alert" className="text-destructive mt-2 text-sm">

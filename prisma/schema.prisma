@@ -853,3 +853,44 @@ model ConfiguracaoTiny {
 
   @@map("configuracao_tiny")
 }
+
+/// Um código de rastreio dos Correios que a ferramenta acompanha. Não tem
+/// chave estrangeira: o código mora como texto na solicitação e no pedido do
+/// Tiny, e o mesmo objeto pode aparecer nos dois.
+model ObjetoRastreado {
+  codigo       String    @id
+  /// O último evento de entrega lido dos Correios. Depois dele, o objeto não é
+  /// mais consultado. Não muda o status da solicitação: quem marca é uma pessoa.
+  entregueEm   DateTime? @map("entregue_em")
+  consultadoEm DateTime? @map("consultado_em")
+  /// A última recusa dos Correios ("objeto não encontrado"), para a tela dizer.
+  erro         String?
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+
+  eventos EventoDeRastreio[]
+
+  @@index([entregueEm, consultadoEm])
+  @@map("objetos_rastreados")
+}
+
+/// Um evento do histórico do objeto, como os Correios contam. Só se soma:
+/// cada consulta grava o que ainda não existia.
+model EventoDeRastreio {
+  id           String   @id @default(cuid())
+  codigoObjeto String   @map("codigo_objeto")
+  ocorridoEm   DateTime @map("ocorrido_em")
+  /// Código e tipo do evento nos Correios ("BDE" e "01" é entregue).
+  codigo       String
+  tipo         String
+  descricao    String
+  /// Onde aconteceu: "Unidade de Distribuição - NOVA IGUACU - RJ".
+  local        String?
+  /// Para onde seguiu, quando é uma transferência.
+  destino      String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  objeto ObjetoRastreado @relation(fields: [codigoObjeto], references: [codigo], onDelete: Restrict)
+
+  @@unique([codigoObjeto, ocorridoEm, codigo, tipo])
+  @@map("eventos_de_rastreio")
+}

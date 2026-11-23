@@ -110,6 +110,13 @@ const schema = (durandoBuild: boolean) =>
     TINY_API_TOKEN_DNS: z.string().default(''),
     TINY_API_TOKEN_SUPERNOVA: z.string().default(''),
     TINY_API_BASE_URL: z.string().default('https://api.tiny.com.br/api2'),
+    // API Rastro dos Correios (CWS), com o contrato da AUVP: o histórico do
+    // objeto na tela. Só lê objetos postados pelo próprio contrato. Ver
+    // docs/15-rastreio.md. Sem os três, nada é consultado.
+    CORREIOS_USUARIO: z.string().default(''),
+    CORREIOS_CODIGO_ACESSO: z.string().default(''),
+    CORREIOS_CARTAO_POSTAGEM: z.string().default(''),
+    CORREIOS_API_URL: z.string().default('https://api.correios.com.br'),
     // Protege a rota que o agendador chama para esvaziar a fila do Tiny. Sem
     // ele, a rota responde 503: aberta, qualquer um mandaria pedidos.
     CRON_SECRET: z.string().default(''),
@@ -258,6 +265,12 @@ export const contasLigadas = (): ContaTiny[] => CONTAS_TINY.filter(tinyLigado)
 
 /** Alguma conta do Tiny ligada: as telas do Tiny têm o que mostrar. */
 export const tinyConfigurado = contasLigadas().length > 0
+
+/** O histórico do rastreio só é consultado com as três credenciais do CWS. */
+export const correiosConfigurado =
+  Boolean(env.CORREIOS_USUARIO) &&
+  Boolean(env.CORREIOS_CODIGO_ACESSO) &&
+  Boolean(env.CORREIOS_CARTAO_POSTAGEM)
 
 /** Login sem SSO, apenas em desenvolvimento e apenas se explicitamente ligado. */
 export const devBypassHabilitado = env.AUTH_DEV_BYPASS && env.NODE_ENV === 'development'

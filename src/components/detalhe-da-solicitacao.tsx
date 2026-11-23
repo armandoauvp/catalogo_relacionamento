@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { LinhaDoTempo } from '@/components/linha-do-tempo'
+import { HistoricoDoRastreio } from '@/components/historico-do-rastreio'
 
 /**
  * Corpo do detalhe de uma solicitação.
@@ -183,6 +184,7 @@ export function DetalheDaSolicitacao({
         <CartaoDeRastreio
           rastreio={solicitacao.rastreio}
           transportadora={solicitacao.transportadora}
+          aindaNaoEntregue={solicitacao.status === 'organizando_envio'}
         />
 
         <Card>
@@ -278,9 +280,12 @@ function Correcoes({ alteracoes }: { alteracoes: SolicitacaoDetalhada['alteracoe
 function CartaoDeRastreio({
   rastreio,
   transportadora,
+  aindaNaoEntregue,
 }: {
   rastreio: string | null
   transportadora: string | null
+  /** O status ainda não diz entregue: a entrega dos Correios vira aviso. */
+  aindaNaoEntregue: boolean
 }) {
   return (
     <Card>
@@ -293,9 +298,9 @@ function CartaoDeRastreio({
             {/* `select-all`: o código é copiado para o site da transportadora. */}
             <p className="font-medium tracking-wide tabular-nums select-all">{rastreio}</p>
             {transportadora ? <p className="text-muted-foreground mt-1">{transportadora}</p> : null}
+            <HistoricoDoRastreio codigo={rastreio} avisarEntrega={aindaNaoEntregue} />
             <p className="text-muted-foreground mt-3 border-t pt-3 text-xs">
-              Acompanhe no site da transportadora. O status desta tela muda quando alguém confirma a
-              entrega aqui dentro.
+              O status desta tela muda quando alguém confirma a entrega aqui dentro.
             </p>
           </>
         ) : (

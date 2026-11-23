@@ -31,6 +31,7 @@ import { passoPermitido, situacaoVigente } from '@/lib/tiny/ciclo'
 import { codigoDaSituacao } from '@/lib/tiny/leitura'
 import { BotaoConcluir, BotaoFecharExpedicao } from '@/app/tiny/acoes-da-fila'
 import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
+import { normalizarCodigo } from '@/lib/rastreio/leitura'
 import { Rastreio } from './rastreio'
 import { Chegou } from './chegou'
 
@@ -143,6 +144,18 @@ export default async function ExpedicaoPage({
         },
       })
     ).map((t) => [t.solicitacaoId!, t]),
+  )
+  // A entrega que os Correios já registraram vira aviso ao lado do botão; quem marca é uma pessoa.
+  const entreguesNosCorreios = new Map(
+    (
+      await db.objetoRastreado.findMany({
+        where: {
+          entregueEm: { not: null },
+          codigo: { in: pedidos.map((p) => normalizarCodigo(p.rastreio)).filter(Boolean) },
+        },
+        select: { codigo: true, entregueEm: true },
+      })
+    ).map((o) => [o.codigo, o.entregueEm!]),
   )
   const fechaveis = aSeparar
     .filter((p) => {
@@ -364,6 +377,11 @@ export default async function ExpedicaoPage({
                       solicitacaoId={pedido.id}
                       status={pedido.status}
                       rastreio={pedido.rastreio}
+                      entregueNosCorreiosEm={
+                        entreguesNosCorreios
+                          .get(normalizarCodigo(pedido.rastreio))
+                          ?.toISOString() ?? null
+                      }
                       transportadora={pedido.transportadora}
                     />
                   </div>

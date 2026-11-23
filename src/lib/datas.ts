@@ -54,6 +54,11 @@ export function formatarData(data: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, dateStyle: 'short' }).format(data)
 }
 
+/** "12:51:35", com segundos, como os Correios contam o evento. */
+export function formatarHora(data: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, timeStyle: 'medium' }).format(data)
+}
+
 export function formatarDataHora(data: Date): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: FUSO,

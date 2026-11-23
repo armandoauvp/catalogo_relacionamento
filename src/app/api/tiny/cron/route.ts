@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { env } from '@/lib/env'
 import { bearerConfere } from '@/lib/segredo'
+import { sincronizarRastreios } from '@/lib/rastreio/sincronizar'
 import { processarFila, sincronizarPedidos } from '@/lib/tiny/fila'
 
 /**
@@ -24,9 +25,12 @@ async function rodar(req: Request) {
     return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401 })
   }
 
-  const fila = await processarFila({ prazoMs: 30_000 })
-  const sincronizacao = await sincronizarPedidos({ prazoMs: 20_000 })
-  return NextResponse.json({ fila, sincronizacao })
+  // Os três cabem nos 60 s do Hobby; o que sobrar fica para a próxima chamada.
+  const fila = await processarFila({ prazoMs: 25_000 })
+  const sincronizacao = await sincronizarPedidos({ prazoMs: 15_000 })
+  // Depois do Tiny: é dele que vem o código novo a acompanhar.
+  const rastreio = await sincronizarRastreios({ prazoMs: 12_000 })
+  return NextResponse.json({ fila, sincronizacao, rastreio })
 }
 
 export const GET = rodar

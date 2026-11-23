@@ -43,6 +43,7 @@ duplique numa tela.
 | Planilha do envio em lote        | `src/lib/tiny/lote.ts`                    |
 | Ciclo de vida no Tiny (pauta)    | `src/lib/tiny/ciclo.ts`                   |
 | Contas do Tiny (três empresas)   | `src/lib/tiny/contas.ts`                  |
+| Histórico do rastreio (Correios) | `src/lib/rastreio/`                       |
 | Leitura do CSV de clientes       | `src/lib/importacao-clientes.ts`          |
 | Tarefas trazidas do ClickUp      | `src/lib/importacao-clickup.ts`           |
 | Filtro e exportação de clientes  | `src/lib/filtro-de-clientes.ts`           |
@@ -310,6 +311,10 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   venda perguntam a conta, sem padrão; presente vai sempre à Consultoria (CHECK
   `pedido_tiny_presente_na_consultoria`). Token nunca em `contas.ts`, que vai
   ao navegador: só `tokenDoTiny`, no servidor.
+- **Histórico do rastreio vem dos Correios, e não muda status.** A API Rastro
+  (CWS, contrato da AUVP) traz os eventos de código `AA123456789BR`; a entrega
+  lida lá só acende o aviso, quem marca é `marcarEntregue`. Eventos só se somam,
+  e objeto entregue não é mais consultado. Ver `docs/15-rastreio.md`.
 - **Lote não duplica pedido.** A chave é marcador + CPF/CNPJ + SKU
   (`chaveDoLote`), única no banco: reimportar a planilha pula quem já recebeu.
 

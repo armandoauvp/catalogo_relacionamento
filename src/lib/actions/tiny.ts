@@ -6,7 +6,8 @@ import type { Prisma } from '@prisma/client'
 import { autorizarAction } from '@/lib/auth-guards'
 import { fimDoDiaLocal, formatarISO } from '@/lib/datas'
 import { db } from '@/lib/db'
-import { tinyConfigurado, tinyLigado } from '@/lib/env'
+import { correiosConfigurado, tinyConfigurado, tinyLigado } from '@/lib/env'
+import { sincronizarRastreios } from '@/lib/rastreio/sincronizar'
 import { clienteProvider, type EnderecoDoCliente } from '@/lib/providers'
 import {
   listarTransportadoras,
@@ -267,14 +268,21 @@ export async function processarAgora(): Promise<ResultadoDaAction<ResultadoDaRod
   }
 }
 
-export async function sincronizarAgora(): Promise<ResultadoDaAction<{ atualizados: number }>> {
+export async function sincronizarAgora(): Promise<
+  ResultadoDaAction<{ atualizados: number; rastreios: number }>
+> {
   try {
     await autorizarAction('tiny.operar')
-    if (!tinyConfigurado) return { ok: false, erro: SEM_TOKEN }
-    const resultado = await sincronizarPedidos({ prazoMs: 40_000 })
+    if (!tinyConfigurado && !correiosConfigurado) return { ok: false, erro: SEM_TOKEN }
+    const doTiny = await sincronizarPedidos({ prazoMs: 30_000 })
+    // O histórico dos Correios vem junto: é o mesmo "Atualizar rastreios".
+    const rastreio = await sincronizarRastreios({ prazoMs: 15_000 })
+    if (rastreio.interrompida) return { ok: false, erro: rastreio.interrompida }
     revalidarTiny()
     revalidatePath('/solicitacoes')
-    return { ok: true, dados: resultado }
+    revalidatePath('/admin/solicitacoes')
+    revalidatePath('/expedicao')
+    return { ok: true, dados: { atualizados: doTiny.atualizados, rastreios: rastreio.consultados } }
   } catch (e) {
     return comoErro(e)
   }

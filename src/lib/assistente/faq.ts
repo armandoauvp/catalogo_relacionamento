@@ -188,7 +188,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'rastreio',
     pergunta: 'Onde vejo o código de rastreio?',
     resposta:
-      'Na própria solicitação, em "Minhas solicitações". O rastreio aparece quando o pedido sai; ele volta sozinho do Tiny ou é anotado pela Logística.',
+      'Na própria solicitação, em "Minhas solicitações". O rastreio aparece quando o pedido sai; ele volta sozinho do Tiny ou é anotado pela Logística. Se for dos Correios, o cartão mostra também o histórico do objeto: postado, em transferência, saiu para entrega e entregue.',
     href: '/solicitacoes',
     rotuloDoLink: 'Minhas solicitações',
     exige: 'solicitacao.verProprias',
@@ -386,7 +386,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'expedicao',
     pergunta: 'Como registro o rastreio e marco como entregue?',
     resposta:
-      'Na Expedição ficam os presentes a separar e postar, com o endereço. Anote o rastreio quando sair. Rastreio não muda o status: "Entregue" é marcado por quem acompanha, e só com rastreio.',
+      'Na Expedição ficam os presentes a separar e postar, com o endereço. Anote o rastreio quando sair. Rastreio não muda o status: "Entregue" é marcado por quem acompanha, e só com rastreio. Quando os Correios registram a entrega, aparece o aviso em verde ao lado do botão.',
     href: '/expedicao',
     rotuloDoLink: 'Abrir a Expedição',
     exige: 'expedicao.registrarRastreio',

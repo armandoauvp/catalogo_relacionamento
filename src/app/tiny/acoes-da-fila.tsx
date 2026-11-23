@@ -61,7 +61,11 @@ export function BotoesDaFila() {
             setAviso(
               r.ok
                 ? {
-                    texto: `${plural(r.dados.atualizados, 'pedido atualizado', 'pedidos atualizados')}.`,
+                    texto:
+                      `${plural(r.dados.atualizados, 'pedido atualizado', 'pedidos atualizados')}` +
+                      (r.dados.rastreios
+                        ? `; ${plural(r.dados.rastreios, 'rastreio consultado', 'rastreios consultados')} nos Correios.`
+                        : '.'),
                     erro: false,
                   }
                 : { texto: r.erro, erro: true },

@@ -13,6 +13,7 @@ import { ErroDoTiny } from '@/lib/tiny/erros'
 import { corDoMarcador, enderecoEmUmaLinha, type DetalheDoPedido } from '@/lib/tiny/leitura'
 import { rotuloDoServico } from '@/lib/tiny/rotulos'
 import { CabecalhoDaPagina } from '@/components/pagina'
+import { HistoricoDoRastreio } from '@/components/historico-do-rastreio'
 import {
   Table,
   TableBody,
@@ -220,6 +221,7 @@ function Detalhe({
               {p.dataEnvio ? <Linha rotulo="Enviado em" valor={p.dataEnvio} /> : null}
               {p.dataEntrega ? <Linha rotulo="Entregue em" valor={p.dataEntrega} /> : null}
             </dl>
+            <HistoricoDoRastreio codigo={p.rastreio} />
           </Cartao>
 
           {p.marcadores.length ? (
