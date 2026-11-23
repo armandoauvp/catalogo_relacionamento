@@ -27,6 +27,21 @@ type Bruto = Record<string, unknown>
 const texto = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 const objeto = (v: unknown): Bruto => (v && typeof v === 'object' ? (v as Bruto) : {})
 
+/**
+ * Os cartões de postagem da variável, um por empresa: "0012345678, 0087654321".
+ * Vírgula, ponto e vírgula ou espaço separam; só dígitos contam; repetido sai.
+ */
+export function cartoesDePostagem(texto: string | null | undefined): string[] {
+  return [
+    ...new Set(
+      (texto ?? '')
+        .split(/[\s,;]+/)
+        .map((c) => c.replace(/\D/g, ''))
+        .filter(Boolean),
+    ),
+  ]
+}
+
 /** Código de objeto dos Correios: duas letras, nove dígitos, duas letras. */
 export function ehCodigoDosCorreios(codigo: string | null | undefined): boolean {
   return /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(normalizarCodigo(codigo))

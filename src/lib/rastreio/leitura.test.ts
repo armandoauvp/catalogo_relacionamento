@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cartoesDePostagem,
   dataDosCorreios,
   ehCodigoDosCorreios,
   ehEntrega,
@@ -108,5 +109,15 @@ describe('leitura da API Rastro', () => {
     expect(maisNovosPrimeiro([d(1), d(3), d(2)]).map((e) => e.ocorridoEm.getUTCHours())).toEqual([
       3, 2, 1,
     ])
+  })
+
+  it('um cartão por empresa, numa variável só', () => {
+    expect(cartoesDePostagem('0012345678, 0087654321;0011111111')).toEqual([
+      '0012345678',
+      '0087654321',
+      '0011111111',
+    ])
+    expect(cartoesDePostagem(' 0012345678 0012345678 ')).toEqual(['0012345678'])
+    expect(cartoesDePostagem('')).toEqual([])
   })
 })

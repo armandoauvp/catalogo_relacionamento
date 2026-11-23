@@ -34,15 +34,22 @@ Código em `src/lib/rastreio/`: `leitura.ts` (formato da resposta, entrega),
 
 1. **Credenciais do CWS.** Quem cuida do contrato com os Correios entra em
    [cws.correios.com.br](https://cws.correios.com.br) com o usuário do
-   contrato da AUVP e, em **Gestão de acesso a API's**, gera o **código de
-   acesso às APIs**. Anote também o **número do cartão de postagem** (o mesmo
-   das etiquetas) e confira se a **API Rastro** está liberada para o contrato.
+   contrato (em nome da Vibrio) e, em **Gestão de acesso a API's**, gera o
+   **código de acesso às APIs**. Anote também o **cartão de postagem de cada
+   empresa** (o mesmo das etiquetas) e confira se a **API Rastro** está
+   liberada para o contrato.
 2. **Na Vercel** (Settings → Environment Variables, Production, Sensitive):
    - `CORREIOS_USUARIO`: o usuário do Meu Correios com que se entra no CWS
      (o Swagger da API Token chama o código de acesso de "senha" desse
      usuário);
    - `CORREIOS_CODIGO_ACESSO`: o código de acesso gerado no passo 1;
-   - `CORREIOS_CARTAO_POSTAGEM`: o número do cartão de postagem.
+   - `CORREIOS_CARTAO_POSTAGEM`: os cartões de postagem, **um por empresa**,
+     separados por vírgula (Consultoria, Do Not Scare, Super Nova), por
+     exemplo `0012345678, 0087654321, 0011111111`. O contrato é um só, em nome
+     da Vibrio, mas cada empresa posta com o seu cartão, e a API só mostra o
+     objeto ao cartão que o postou: cada código é consultado com o primeiro
+     cartão e, se ele não conhecer o objeto, com o próximo. Ponha primeiro o da
+     Consultoria, que posta os presentes.
 3. **Redeploy** (Deployments → ⋯ no mais recente → Redeploy): variável nova só
    vale depois dele.
 4. Em **Tiny**, clique em **Atualizar rastreios**. A mensagem diz quantos
