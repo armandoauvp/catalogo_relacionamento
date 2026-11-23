@@ -38,8 +38,9 @@ Código em `src/lib/rastreio/`: `leitura.ts` (formato da resposta, entrega),
    acesso às APIs**. Anote também o **número do cartão de postagem** (o mesmo
    das etiquetas) e confira se a **API Rastro** está liberada para o contrato.
 2. **Na Vercel** (Settings → Environment Variables, Production, Sensitive):
-   - `CORREIOS_USUARIO`: o usuário do CWS (em geral o CNPJ ou o login do
-     contrato);
+   - `CORREIOS_USUARIO`: o usuário do Meu Correios com que se entra no CWS
+     (o Swagger da API Token chama o código de acesso de "senha" desse
+     usuário);
    - `CORREIOS_CODIGO_ACESSO`: o código de acesso gerado no passo 1;
    - `CORREIOS_CARTAO_POSTAGEM`: o número do cartão de postagem.
 3. **Redeploy** (Deployments → ⋯ no mais recente → Redeploy): variável nova só
