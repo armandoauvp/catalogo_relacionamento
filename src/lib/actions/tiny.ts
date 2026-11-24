@@ -530,6 +530,7 @@ export async function criarPedidoAvulso(
             itens,
             transportadora: dados.transportadora,
             formaFrete: dados.formaFrete,
+            naturezaOperacao: dados.naturezaOperacao,
             marcador: dados.marcador,
             observacao: dados.observacao,
           }) as unknown as Prisma.InputJsonValue,

@@ -191,6 +191,8 @@ sincronização.
 - **Produtos** do Tiny, quantos forem, com quantidade e preço ajustáveis.
   Sem SKU não vai, como no resto.
 - **Transportadora, serviço, marcador** (opcional) e observação.
+- **Natureza da operação**, opcional, como no lote: pelo nome do Tiny, com as
+  já usadas nos lotes daquela conta como sugestão (`naturezasJaUsadas`).
 
 O pedido entra na mesma fila (`origem = avulso`, com quem montou). A tela gera
 uma chave quando abre: dois cliques no enviar devolvem o mesmo pedido.

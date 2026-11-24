@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { exigirPermissao } from '@/lib/auth-guards'
 import { tinyConfigurado } from '@/lib/env'
 import { ehContaTiny, NOME_DA_CONTA } from '@/lib/tiny/contas'
+import { naturezasJaUsadas } from '@/lib/tiny/naturezas'
 import { sugestoesDoCadastro } from '@/lib/logistica/painel'
 import { pode } from '@/lib/permissions'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
@@ -26,17 +27,7 @@ export default async function ImportarLotePage({
   // Sem conta na URL, a tela pergunta antes de mostrar o resto.
   const conta = ehContaTiny(params.conta) ? params.conta : null
 
-  // As naturezas já usadas nesta conta, a mais recente primeiro: a API do Tiny
-  // não lista as cadastradas lá.
-  const naturezas = conta
-    ? await db.loteTiny.findMany({
-        where: { conta, naturezaOperacao: { not: null } },
-        orderBy: { criadoEm: 'desc' },
-        distinct: ['naturezaOperacao'],
-        select: { naturezaOperacao: true },
-        take: 20,
-      })
-    : []
+  const naturezas = conta ? await naturezasJaUsadas(conta) : []
 
   const ids = (params.clientes ?? '').split(',').filter(Boolean).slice(0, 300)
   const daBase =
@@ -75,7 +66,7 @@ export default async function ImportarLotePage({
           conta={conta}
           subsidiarias={sugestoes.subsidiarias}
           departamentos={sugestoes.departamentos}
-          naturezas={naturezas.flatMap((n) => (n.naturezaOperacao ? [n.naturezaOperacao] : []))}
+          naturezas={naturezas}
           linhasDaBase={
             daBase.length
               ? daBase.map((c, i) => ({

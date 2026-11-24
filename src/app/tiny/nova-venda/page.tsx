@@ -1,5 +1,6 @@
 import { exigirPermissao } from '@/lib/auth-guards'
 import { ehContaTiny, NOME_DA_CONTA } from '@/lib/tiny/contas'
+import { naturezasJaUsadas } from '@/lib/tiny/naturezas'
 import { CabecalhoDaPagina } from '@/components/pagina'
 import { EscolhaDaConta } from '../escolha-da-conta'
 import { NovaVenda } from './nova-venda'
@@ -13,6 +14,7 @@ export default async function NovaVendaPage({
   // Sem conta na URL, a tela pergunta antes de mostrar o pedido.
   const { conta } = await searchParams
   const escolhida = ehContaTiny(conta) ? conta : null
+  const naturezas = escolhida ? await naturezasJaUsadas(escolhida) : []
   return (
     <>
       <CabecalhoDaPagina
@@ -24,7 +26,7 @@ export default async function NovaVendaPage({
         }
       />
       {escolhida ? (
-        <NovaVenda key={escolhida} conta={escolhida} />
+        <NovaVenda key={escolhida} conta={escolhida} naturezas={naturezas} />
       ) : (
         <EscolhaDaConta caminho="/tiny/nova-venda" oQue="vai este pedido" />
       )}

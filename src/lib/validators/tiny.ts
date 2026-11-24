@@ -22,6 +22,15 @@ const textoCurto = (rotulo: string, maximo = 80) =>
 /** A conta do Tiny é escolha de quem envia, nunca suposta: sem ela, não vai. */
 const conta = z.enum(CONTAS_TINY, { message: 'Escolha para qual Tiny vai.' })
 
+/** Pelo nome do cadastro no Tiny; vazia usa a padrão da conta. */
+const naturezaOperacao = z
+  .string()
+  .trim()
+  .max(100)
+  .nullable()
+  .default(null)
+  .transform((v) => v || null)
+
 export const loteSchema = z.object({
   conta,
   arquivo: z.string().trim().max(200).nullable().default(null),
@@ -38,13 +47,7 @@ export const loteSchema = z.object({
   }),
   transportadora: z.string().trim().max(100).nullable().default(null),
   formaFrete: z.string().trim().max(30).nullable().default(null),
-  naturezaOperacao: z
-    .string()
-    .trim()
-    .max(100)
-    .nullable()
-    .default(null)
-    .transform((v) => v || null),
+  naturezaOperacao,
   linhas: z
     .array(
       z.object({
@@ -86,6 +89,7 @@ export const pedidoAvulsoSchema = z.object({
     .max(50, 'Um pedido vai até 50 itens.'),
   transportadora: z.string().trim().max(100).nullable().default(null),
   formaFrete: z.string().trim().max(30).nullable().default(null),
+  naturezaOperacao,
   marcador: z.string().trim().max(50).nullable().default(null),
   observacao: z.string().trim().max(300).nullable().default(null),
 })

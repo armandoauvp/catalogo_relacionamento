@@ -89,7 +89,14 @@ function Campo({
 const novaChave = () => crypto.randomUUID()
 
 /** A conta vem escolhida da página; produtos e contatos são procurados nela. */
-export function NovaVenda({ conta }: { conta: ContaTiny }) {
+export function NovaVenda({
+  conta,
+  naturezas = [],
+}: {
+  conta: ContaTiny
+  /** Já usadas nesta conta, a mais recente primeiro. */
+  naturezas?: string[]
+}) {
   const [chave, setChave] = useState(novaChave)
   const [cliente, setCliente] = useState(VAZIO)
   const [buscaCliente, setBuscaCliente] = useState('')
@@ -108,6 +115,7 @@ export function NovaVenda({ conta }: { conta: ContaTiny }) {
   const [transportadora, setTransportadora] = useState('')
   const [servico, setServico] = useState('')
   const [marcador, setMarcador] = useState('')
+  const [natureza, setNatureza] = useState(naturezas[0] ?? '')
   const [observacao, setObservacao] = useState('')
 
   const [enviando, iniciarEnvio] = useTransition()
@@ -233,6 +241,7 @@ export function NovaVenda({ conta }: { conta: ContaTiny }) {
         })),
         transportadora: transportadora || null,
         formaFrete: servico || null,
+        naturezaOperacao: natureza.trim() || null,
         marcador: marcador.trim() || null,
         observacao: observacao.trim() || null,
       })
@@ -560,6 +569,24 @@ export function NovaVenda({ conta }: { conta: ContaTiny }) {
           </Campo>
           <Campo rotulo="Marcador" dica="Opcional. Ex.: VENDA-EVENTO.">
             <Input value={marcador} onChange={(e) => setMarcador(e.target.value)} maxLength={50} />
+          </Campo>
+          <Campo
+            rotulo="Natureza da operação"
+            dica="Escrita igual ao cadastro no Tiny. Vazio usa a padrão da conta."
+            className="sm:col-span-3"
+          >
+            <Input
+              value={natureza}
+              onChange={(e) => setNatureza(e.target.value)}
+              list="venda-naturezas"
+              maxLength={100}
+              placeholder="Padrão do Tiny"
+            />
+            <datalist id="venda-naturezas">
+              {naturezas.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
           </Campo>
           <Campo rotulo="Observação" className="sm:col-span-3">
             <Textarea
