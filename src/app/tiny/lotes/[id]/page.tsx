@@ -72,6 +72,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
           lote.transportadora
             ? `${lote.transportadora}${lote.formaFrete ? ` · ${lote.formaFrete}` : ''}`
             : null,
+          lote.naturezaOperacao ? `natureza ${lote.naturezaOperacao}` : null,
           lote.arquivo ? `planilha ${lote.arquivo}` : null,
         ]
           .filter(Boolean)

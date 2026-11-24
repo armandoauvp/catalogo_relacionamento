@@ -38,6 +38,13 @@ export const loteSchema = z.object({
   }),
   transportadora: z.string().trim().max(100).nullable().default(null),
   formaFrete: z.string().trim().max(30).nullable().default(null),
+  naturezaOperacao: z
+    .string()
+    .trim()
+    .max(100)
+    .nullable()
+    .default(null)
+    .transform((v) => v || null),
   linhas: z
     .array(
       z.object({

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { classificarErro, coletarErros, ErroDoTiny, proximaTentativa } from './erros'
+import {
+  classificarErro,
+  coletarErros,
+  ErroDoTiny,
+  proximaTentativa,
+  EMPRESA_TROCADA,
+} from './erros'
 
 describe('o que fazer com cada erro do Tiny', () => {
   it('excesso de acessos, rede e manutenção são temporários', () => {
@@ -12,6 +18,8 @@ describe('o que fazer com cada erro do Tiny', () => {
   it('token e conta bloqueada param a rodada', () => {
     expect(classificarErro(new ErroDoTiny('token inválido', 2))).toBe('configuracao')
     expect(classificarErro(new ErroDoTiny('empresa bloqueada', 8))).toBe('configuracao')
+    // Token de outra empresa: a rodada daquela conta para, nada sai pelo Tiny errado.
+    expect(classificarErro(new ErroDoTiny('token trocado', EMPRESA_TROCADA))).toBe('configuracao')
   })
 
   it('duplicidade, pelo código ou pela mensagem', () => {

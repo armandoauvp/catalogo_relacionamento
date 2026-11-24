@@ -40,6 +40,13 @@ contato guarda a conta (`conta`, enum `ContaTiny`).
   variável falta.
 - **A chave do lote leva a conta** (`lote@dns:...`): a mesma planilha pode ir a
   dois Tinys. A da Consultoria ficou sem prefixo, como as gravadas antes.
+- **Cada token é conferido com a empresa.** Antes de falar com uma conta, a API
+  pergunta ao Tiny de quem é o token (`info.php`) e compara o nome com o esperado
+  (`src/lib/tiny/empresa.ts`; a Do Not Scare está em nome da Investidor
+  Sardinha). Token de outra empresa não lê nem envia nada: as telas e a fila
+  dizem qual variável está trocada. Em novembro de 2026 os tokens da
+  Consultoria e da DNS foram cadastrados um no lugar do outro, e a tela
+  "Consultoria" listava pedidos da DNS. A conferência vale por 30 minutos.
 - **Token nunca no código.** Só o servidor lê (`tokenDoTiny`, em `env.ts`);
   `contas.ts` é importado pelo navegador e guarda só o nome da variável.
 
@@ -267,6 +274,10 @@ O estoque do catálogo daqui continua sendo o que decide a rota
 - CPF e CEP que o Excel guardou como número voltam com os zeros da frente.
 - **Um produto do Tiny** (busca pelo nome, com o preço do cadastro de lá), uma
   **transportadora** e um **marcador** para todas as linhas.
+- **Natureza da operação**, opcional, pelo nome exato do cadastro no Tiny
+  (`nome_natureza_operacao`). Vazia, vale a padrão da conta. A API v2 não
+  lista as naturezas, então a tela sugere as já usadas naquela conta e começa
+  pela última. Nome que o Tiny não reconhece volta como falha do pedido.
 - **Sem duplicar:** a chave de cada pedido é marcador + CPF/CNPJ + SKU.
   Importar a mesma planilha de novo pula quem já recebeu e diz quem foi pulado.
 

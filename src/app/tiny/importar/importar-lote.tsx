@@ -205,12 +205,15 @@ export function ImportarLote({
   conta,
   subsidiarias,
   departamentos,
+  naturezas = [],
   linhasDaBase = null,
 }: {
   /** Escolhida antes, na página: produto, SKU e transportadora são desta conta. */
   conta: ContaTiny
   subsidiarias: string[]
   departamentos: string[]
+  /** Já usadas nesta conta, a mais recente primeiro. */
+  naturezas?: string[]
   linhasDaBase?: LinhaDaBase[] | null
 }) {
   const router = useRouter()
@@ -330,6 +333,7 @@ export function ImportarLote({
         produto: { codigo: produto.codigo || null, nome: produto.nome, preco: precoDoLote },
         transportadora: transportadora || null,
         formaFrete: servico || null,
+        naturezaOperacao: String(dados.get('naturezaOperacao') ?? '') || null,
         linhas: validas.map((l) => ({ linha: l.linha, campos: camposDe(l) })),
       })
       if (!r.ok) return setErro(r.erro)
@@ -654,6 +658,18 @@ export function ImportarLote({
               ))}
             </select>
           </Campo>
+          <Campo
+            rotulo="Natureza da operação"
+            dica="Escrita igual ao cadastro no Tiny. Vazio usa a padrão da conta."
+          >
+            <Input
+              name="naturezaOperacao"
+              list="lote-naturezas"
+              maxLength={100}
+              defaultValue={naturezas[0] ?? ''}
+              placeholder="Padrão do Tiny"
+            />
+          </Campo>
           <Campo rotulo="Subsidiária que pediu" dica="Para o gráfico do Dashboard Logístico.">
             <Input name="subsidiaria" list="lote-subsidiarias" required maxLength={80} />
           </Campo>
@@ -661,6 +677,11 @@ export function ImportarLote({
             <Input name="departamento" list="lote-departamentos" required maxLength={80} />
           </Campo>
         </div>
+        <datalist id="lote-naturezas">
+          {naturezas.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
         <datalist id="lote-subsidiarias">
           {subsidiarias.map((s) => (
             <option key={s} value={s} />

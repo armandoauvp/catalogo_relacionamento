@@ -38,6 +38,8 @@ export type DadosDoPedido = {
   itens: ItemDoPedido[]
   transportadora?: string | null
   formaFrete?: string | null
+  /** Pelo nome, como está cadastrada no Tiny; vazia usa a padrão da conta. */
+  naturezaOperacao?: string | null
   marcador?: string | null
   /** O código desta ferramenta (SOL-2026-0012), para achar o pedido no Tiny. */
   numeroNoSistema?: string | null
@@ -61,6 +63,7 @@ export type PedidoParaOTiny = {
   marcadores?: { marcador: { descricao: string } }[]
   nome_transportador?: string
   forma_frete?: string
+  nome_natureza_operacao?: string
   frete_por_conta: 'R' | 'D'
   numero_pedido_ecommerce?: string
   obs?: string
@@ -133,6 +136,9 @@ export function montarPedido(dados: DadosDoPedido): PedidoParaOTiny {
   }
   if (dados.transportadora?.trim()) pedido.nome_transportador = corte(dados.transportadora, 100)
   if (dados.formaFrete?.trim()) pedido.forma_frete = corte(dados.formaFrete, 30)
+  if (dados.naturezaOperacao?.trim()) {
+    pedido.nome_natureza_operacao = corte(dados.naturezaOperacao, 100)
+  }
   if (dados.numeroNoSistema?.trim()) {
     pedido.numero_pedido_ecommerce = corte(dados.numeroNoSistema, 50)
   }

@@ -3,7 +3,7 @@ import { NOME_DA_CONTA, VARIAVEL_DO_TOKEN, type ContaTiny } from '@/lib/tiny/con
 
 /**
  * O aviso das telas que leem uma conta do Tiny: ela está sem token, ou o Tiny
- * não respondeu. Diz qual conta e qual variável falta, porque são três.
+ * não respondeu, ou o token é de outra empresa. Diz qual conta e qual variável falta, porque são três.
  */
 export function AvisoDaConta({ conta, erro }: { conta: ContaTiny; erro?: string | null }) {
   return (
@@ -15,7 +15,9 @@ export function AvisoDaConta({ conta, erro }: { conta: ContaTiny; erro?: string 
       <p>
         {erro ? (
           <>
-            <span className="font-semibold">O Tiny da {NOME_DA_CONTA[conta]} não respondeu.</span>{' '}
+            <span className="font-semibold">
+              Não foi possível ler o Tiny da {NOME_DA_CONTA[conta]}.
+            </span>{' '}
             {erro}
           </>
         ) : (

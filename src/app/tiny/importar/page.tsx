@@ -26,6 +26,18 @@ export default async function ImportarLotePage({
   // Sem conta na URL, a tela pergunta antes de mostrar o resto.
   const conta = ehContaTiny(params.conta) ? params.conta : null
 
+  // As naturezas já usadas nesta conta, a mais recente primeiro: a API do Tiny
+  // não lista as cadastradas lá.
+  const naturezas = conta
+    ? await db.loteTiny.findMany({
+        where: { conta, naturezaOperacao: { not: null } },
+        orderBy: { criadoEm: 'desc' },
+        distinct: ['naturezaOperacao'],
+        select: { naturezaOperacao: true },
+        take: 20,
+      })
+    : []
+
   const ids = (params.clientes ?? '').split(',').filter(Boolean).slice(0, 300)
   const daBase =
     ids.length && pode(usuario.perfil, 'cliente.gerenciar')
@@ -63,6 +75,7 @@ export default async function ImportarLotePage({
           conta={conta}
           subsidiarias={sugestoes.subsidiarias}
           departamentos={sugestoes.departamentos}
+          naturezas={naturezas.flatMap((n) => (n.naturezaOperacao ? [n.naturezaOperacao] : []))}
           linhasDaBase={
             daBase.length
               ? daBase.map((c, i) => ({

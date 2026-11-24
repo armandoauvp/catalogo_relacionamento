@@ -2,7 +2,8 @@ import { env, tokenDoTiny } from '@/lib/env'
 import { NOME_DA_CONTA, type ContaTiny } from './contas'
 import type { PedidoParaOTiny } from './pedido'
 import type { ContatoParaOTiny } from './contato'
-import { coletarErros, ErroDoTiny } from './erros'
+import { coletarErros, EMPRESA_TROCADA, ErroDoTiny } from './erros'
+import { lerEmpresa, problemaDaEmpresa } from './empresa'
 import {
   codigoDaSituacao,
   decimalDoTiny,
@@ -50,7 +51,31 @@ async function chamar(
   if (!token) {
     throw new ErroDoTiny(`O token do Tiny da ${NOME_DA_CONTA[conta]} não está configurado.`, 1)
   }
+  await conferirEmpresa(conta, token)
+  return chamarCom(token, endpoint, parametros)
+}
 
+/** Token conferido continua valendo por um tempo; trocado é perguntado de novo antes. */
+const CONFERIDO_POR_MS = 30 * 60_000
+const TROCADO_POR_MS = 2 * 60_000
+const conferidos = new Map<string, { problema: string | null; ate: number }>()
+
+async function conferirEmpresa(conta: ContaTiny, token: string) {
+  const chave = `${conta}:${token}`
+  let conferido = conferidos.get(chave)
+  if (!conferido || conferido.ate < Date.now()) {
+    const problema = problemaDaEmpresa(conta, lerEmpresa(await chamarCom(token, 'info.php', {})))
+    conferido = { problema, ate: Date.now() + (problema ? TROCADO_POR_MS : CONFERIDO_POR_MS) }
+    conferidos.set(chave, conferido)
+  }
+  if (conferido.problema) throw new ErroDoTiny(conferido.problema, EMPRESA_TROCADA)
+}
+
+async function chamarCom(
+  token: string,
+  endpoint: string,
+  parametros: Record<string, string>,
+): Promise<Retorno> {
   const corpo = new URLSearchParams({ token, formato: 'json', ...parametros })
   let resposta: Response
   try {

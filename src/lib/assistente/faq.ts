@@ -458,17 +458,17 @@ export const FAQ: ItemDaFaq[] = [
     id: 'tiny-lote',
     pergunta: 'Como mando vários pedidos ao Tiny por planilha?',
     resposta:
-      'Em "Importar lote" no Tiny, escolha primeiro para qual Tiny vai (AUVP Consultoria, Do Not Scare ou Super Nova) e suba a planilha. O produto é procurado na conta escolhida. Quem já recebeu com o mesmo marcador, CPF/CNPJ e SKU naquela conta é pulado, então reimportar não duplica pedido.',
+      'Em "Importar lote" no Tiny, escolha primeiro para qual Tiny vai (AUVP Consultoria, Do Not Scare ou Super Nova) e suba a planilha. O produto é procurado na conta escolhida. Em "Natureza da operação", escreva o nome igual ao cadastro no Tiny; vazio, vale a padrão da conta, e a tela sugere as já usadas. Quem já recebeu com o mesmo marcador, CPF/CNPJ e SKU naquela conta é pulado, então reimportar não duplica pedido.',
     href: '/tiny/importar',
     rotuloDoLink: 'Importar planilha',
     exige: 'tiny.operar',
-    termos: ['lote', 'planilha', 'importar', 'eventos', 'varios', 'massa'],
+    termos: ['lote', 'planilha', 'importar', 'eventos', 'varios', 'massa', 'natureza', 'operacao'],
   },
   {
     id: 'tiny-contas',
     pergunta: 'Como escolho para qual Tiny vai: Consultoria, Do Not Scare ou Super Nova?',
     resposta:
-      'São três contas do Tiny, uma por empresa, cada uma com produtos, SKUs e contatos próprios. Importar lote e Nova venda perguntam a conta antes de tudo. Em Pedidos, Estoque e Contatos, a fileira "Tiny:" logo abaixo das abas troca a conta lida. Os presentes do Relacionamento vão sempre à AUVP Consultoria. Na Fila, a coluna Tiny mostra para onde foi cada pedido.',
+      'São três contas do Tiny, uma por empresa, cada uma com produtos, SKUs e contatos próprios. Importar lote e Nova venda perguntam a conta antes de tudo. Em Pedidos, Estoque e Contatos, a fileira "Tiny:" logo abaixo das abas troca a conta lida. Os presentes do Relacionamento vão sempre à AUVP Consultoria. Na Fila, a coluna Tiny mostra para onde foi cada pedido. Se o token cadastrado for de outra empresa, nada é lido nem enviado por ele, e a tela diz qual variável corrigir na Vercel.',
     href: '/tiny/importar',
     rotuloDoLink: 'Importar lote',
     exige: 'tiny.operar',

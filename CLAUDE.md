@@ -307,7 +307,9 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   exceção é o cancelamento: solicitação cancelada aqui cancela o pedido lá
   enquanto ele não foi "Enviado" (`cancelamentoCabe`).
 - **Três Tinys, conta escolhida.** Consultoria, Do Not Scare e Super Nova, cada
-  uma com o seu token (`TINY_API_TOKEN`, `_DNS`, `_SUPERNOVA`). Lote e nova
+  uma com o seu token (`TINY_API_TOKEN`, `_DNS`, `_SUPERNOVA`), conferido com
+  a empresa pelo `info.php` antes de qualquer chamada (`src/lib/tiny/empresa.ts`):
+  token de outra empresa não lê nem envia. Lote e nova
   venda perguntam a conta, sem padrão; presente vai sempre à Consultoria (CHECK
   `pedido_tiny_presente_na_consultoria`). Token nunca em `contas.ts`, que vai
   ao navegador: só `tokenDoTiny`, no servidor.

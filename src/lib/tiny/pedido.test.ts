@@ -67,6 +67,20 @@ describe('pedido para o Tiny', () => {
     expect(p.itens[0]!.item).not.toHaveProperty('codigo')
     expect(p).not.toHaveProperty('marcadores')
     expect(p).not.toHaveProperty('nome_transportador')
+    expect(p).not.toHaveProperty('nome_natureza_operacao')
+  })
+
+  it('a natureza da operação vai pelo nome, e vazia fica a padrão da conta', () => {
+    const itens = [{ codigo: 'X', descricao: 'Boné', quantidade: 1, valorUnitario: '35.00' }]
+    const com = montarPedido({
+      destinatario,
+      itens,
+      naturezaOperacao: '  Remessa em bonificação, doação ou brinde ',
+    })
+    expect(com.nome_natureza_operacao).toBe('Remessa em bonificação, doação ou brinde')
+    expect(montarPedido({ destinatario, itens, naturezaOperacao: '  ' })).not.toHaveProperty(
+      'nome_natureza_operacao',
+    )
   })
 
   it('corta o que passa do tamanho que o Tiny aceita', () => {
