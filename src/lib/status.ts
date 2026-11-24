@@ -8,7 +8,10 @@ import { OrigemProduto, StatusSolicitacao } from '@prisma/client'
  * - `deu_problema` pode ser acionado a partir de qualquer status vivo;
  * - `devolvido` só a partir de `entregue` em diante;
  * - de `deu_problema` a solicitação volta para qualquer status anterior do
- *   fluxo linear, ou é cancelada.
+ *   fluxo linear, ou é cancelada;
+ * - de qualquer etapa viva do fluxo linear o Admin volta direto para uma
+ *   anterior (`ehVolta`), com motivo. Pedido da Lilian em 24/11/2026: antes era
+ *   preciso passar por "Deu problema", e ninguém sabia disso.
  *
  * `cliente_confirmou`, `devolvido` e `cancelado` são terminais.
  */
@@ -107,6 +110,42 @@ export function motivosProntos(status: StatusSolicitacao): readonly string[] {
   return status === StatusSolicitacao.deu_problema ? MOTIVOS_DE_PROBLEMA : []
 }
 
+/** Voltar a uma etapa anterior do fluxo linear, saindo de uma etapa dele. */
+export function ehVolta(atual: StatusSolicitacao, novo: StatusSolicitacao): boolean {
+  const de = FLUXO_LINEAR.indexOf(atual)
+  const para = FLUXO_LINEAR.indexOf(novo)
+  return de >= 0 && para >= 0 && para < de
+}
+
+/** A volta pede motivo como os status de exceção: fica no histórico o porquê. */
+export function exigeMotivoNaMudanca(atual: StatusSolicitacao, novo: StatusSolicitacao): boolean {
+  return exigeMotivo(novo) || ehVolta(atual, novo)
+}
+
+const antes = (status: StatusSolicitacao, etapa: StatusSolicitacao) => {
+  const i = FLUXO_LINEAR.indexOf(status)
+  return i >= 0 && i < FLUXO_LINEAR.indexOf(etapa)
+}
+
+/**
+ * O que precisa ser desfeito ao chegar a um status, venha de uma volta ou de
+ * "Deu problema". Pelo destino, porque o que ele ainda não deveria ter é o que
+ * se desfaz; numa ida para a frente não há nada disso, e nada muda.
+ *
+ * - `compra`: antes de "Comprado", os itens voltam para a fila do Financeiro.
+ * - `tiny`: antes de "Organizando envio", o pedido do presente é cancelado lá
+ *   enquanto não foi enviado; ao voltar à expedição, ele vai de novo.
+ *
+ * A trilha da Logística se resolve em `faseDoPresente`: antes da aprovação, a
+ * demanda sai dela.
+ */
+export function desfazAoChegar(status: StatusSolicitacao): { compra: boolean; tiny: boolean } {
+  return {
+    compra: antes(status, StatusSolicitacao.comprado),
+    tiny: antes(status, StatusSolicitacao.organizando_envio),
+  }
+}
+
 export function contaNoSaldo(status: StatusSolicitacao): boolean {
   return !STATUS_FORA_DO_SALDO.includes(status)
 }
@@ -137,6 +176,9 @@ export function transicoesPermitidas(atual: StatusSolicitacao): StatusSolicitaca
   for (const atalho of ATALHOS[atual] ?? []) {
     if (!proximos.includes(atalho)) proximos.push(atalho)
   }
+
+  // Voltas, da etapa mais próxima para a mais distante.
+  for (let i = indice - 1; i >= 0; i--) proximos.push(FLUXO_LINEAR[i]!)
 
   // "Deu problema" é acionável de qualquer status vivo.
   proximos.push(StatusSolicitacao.deu_problema)
@@ -220,10 +262,12 @@ export function validarMudancaDeStatus(
     }
   }
 
-  if (exigeMotivo(novo) && !motivo?.trim()) {
+  if (exigeMotivoNaMudanca(atual, novo) && !motivo?.trim()) {
     return {
       ok: false,
-      erro: `"${ROTULO_STATUS[novo]}" exige o preenchimento do motivo.`,
+      erro: ehVolta(atual, novo)
+        ? `Voltar para "${ROTULO_STATUS[novo]}" exige o motivo.`
+        : `"${ROTULO_STATUS[novo]}" exige o preenchimento do motivo.`,
     }
   }
 
@@ -321,6 +365,14 @@ export function caminhoDeEncaminhamento(
     return { ok: false, erro: `Já está em "${ROTULO_STATUS[alvo]}".` }
   }
 
+  // A volta pede motivo, e o lote não tem onde escrever: ela é pelo detalhe.
+  if (ehVolta(atual, alvo)) {
+    return {
+      ok: false,
+      erro: `Voltar para "${ROTULO_STATUS[alvo]}" é pelo detalhe da solicitação, com o motivo.`,
+    }
+  }
+
   if (transicaoPermitida(atual, alvo)) {
     return { ok: true, passos: [alvo] }
   }
@@ -328,7 +380,11 @@ export function caminhoDeEncaminhamento(
   // O caso que dá o segundo passo: falta a aprovação no meio. É o OK do Admin,
   // e ele fica registrado como uma linha própria do histórico.
   const aprovacao = StatusSolicitacao.aguardando_aprovacao
-  if (transicaoPermitida(atual, aprovacao) && transicaoPermitida(aprovacao, alvo)) {
+  if (
+    !ehVolta(atual, aprovacao) &&
+    transicaoPermitida(atual, aprovacao) &&
+    transicaoPermitida(aprovacao, alvo)
+  ) {
     return { ok: true, passos: [aprovacao, alvo] }
   }
 

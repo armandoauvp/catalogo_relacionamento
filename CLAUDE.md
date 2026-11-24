@@ -122,6 +122,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
 - **`Produto.valor` nulo não é zero.** Seis produtos vieram sem preço; a tela
   diz "valor a definir". `SolicitacaoItem.valorUnitario` continua obrigatório e
   congela como zero nesses casos.
+- **Voltar uma etapa desfaz o que ela disparou.** O Admin volta direto para
+  um status anterior (`ehVolta`), sempre com motivo, e `desfazAoChegar` diz o
+  que se desfaz pelo destino: compra antes de "Comprado", pedido no Tiny antes
+  de "Organizando envio", trilha antes da aprovação. O lote da Gestão não volta.
 - **O lote não afrouxa a máquina de estados.** `caminhoDeEncaminhamento` insere
   o passo da aprovação quando ele falta, e cada passo vira uma linha do
   histórico. O que não pode andar volta como ignorado, com o motivo.

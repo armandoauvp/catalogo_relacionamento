@@ -5,7 +5,9 @@ import {
   STATUS_PARA_APROVAR,
   caminhoDeEncaminhamento,
   contaNoSaldo,
+  desfazAoChegar,
   ehChegadaDoItem,
+  ehVolta,
   ehPassoDeCompra,
   ehTerminal,
   motivosProntos,
@@ -36,9 +38,81 @@ describe('fluxo linear', () => {
     ).toBe(false)
   })
 
-  it('não deixa voltar pelo fluxo linear', () => {
+  it('pula para a frente só pelo atalho, mas volta para qualquer etapa anterior', () => {
+    // Pedido da Lilian: de "Comprado" ela não conseguia voltar para a aprovação.
+    expect(transicoesPermitidas(StatusSolicitacao.comprado)).toEqual([
+      StatusSolicitacao.organizando_envio,
+      StatusSolicitacao.aguardando_compra,
+      StatusSolicitacao.aguardando_aprovacao,
+      StatusSolicitacao.pendente,
+      StatusSolicitacao.deu_problema,
+      StatusSolicitacao.cancelado,
+    ])
+    expect(transicoesPermitidas(StatusSolicitacao.pendente)).not.toContain(
+      StatusSolicitacao.comprado,
+    )
+  })
+})
+
+describe('voltar uma etapa', () => {
+  it('é volta só dentro do fluxo linear, para trás', () => {
+    expect(ehVolta(StatusSolicitacao.comprado, StatusSolicitacao.aguardando_compra)).toBe(true)
+    expect(ehVolta(StatusSolicitacao.comprado, StatusSolicitacao.organizando_envio)).toBe(false)
+    // De "Deu problema" para trás é o caminho antigo, sem exigência nova.
+    expect(ehVolta(StatusSolicitacao.deu_problema, StatusSolicitacao.pendente)).toBe(false)
+  })
+
+  it('exige o motivo', () => {
     expect(
-      transicaoPermitida(StatusSolicitacao.comprado, StatusSolicitacao.aguardando_compra),
+      validarMudancaDeStatus(StatusSolicitacao.entregue, StatusSolicitacao.organizando_envio),
+    ).toEqual({ ok: false, erro: 'Voltar para "Organizando envio" exige o motivo.' })
+    expect(
+      validarMudancaDeStatus(
+        StatusSolicitacao.entregue,
+        StatusSolicitacao.organizando_envio,
+        'Marcado como entregue por engano',
+      ),
+    ).toEqual({ ok: true })
+  })
+
+  it('status final continua sem volta', () => {
+    expect(
+      validarMudancaDeStatus(
+        StatusSolicitacao.cliente_confirmou,
+        StatusSolicitacao.entregue,
+        'qualquer',
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('desfaz a compra antes de "Comprado" e o Tiny antes de "Organizando envio"', () => {
+    expect(desfazAoChegar(StatusSolicitacao.aguardando_compra)).toEqual({
+      compra: true,
+      tiny: true,
+    })
+    expect(desfazAoChegar(StatusSolicitacao.comprado)).toEqual({ compra: false, tiny: true })
+    expect(desfazAoChegar(StatusSolicitacao.organizando_envio)).toEqual({
+      compra: false,
+      tiny: false,
+    })
+    // Fora do fluxo linear não se desfaz nada.
+    expect(desfazAoChegar(StatusSolicitacao.deu_problema)).toEqual({
+      compra: false,
+      tiny: false,
+    })
+  })
+
+  it('o lote da gestão não volta: a volta pede motivo, e é pelo detalhe', () => {
+    const caminho = caminhoDeEncaminhamento(
+      StatusSolicitacao.organizando_envio,
+      StatusSolicitacao.aguardando_aprovacao,
+      [],
+    )
+    expect(caminho.ok).toBe(false)
+    // Nem disfarçada de dois passos, passando pela aprovação.
+    expect(
+      caminhoDeEncaminhamento(StatusSolicitacao.comprado, StatusSolicitacao.aguardando_compra, [])
+        .ok,
     ).toBe(false)
   })
 })

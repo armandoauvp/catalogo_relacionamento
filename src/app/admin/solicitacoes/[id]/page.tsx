@@ -123,7 +123,12 @@ export default async function DetalheSolicitacaoPage({
                   {ROTULO_STATUS[solicitacao.status]} é um status final e não admite mudança.
                 </p>
               ) : (
-                <AlterarStatus solicitacaoId={solicitacao.id} opcoes={proximos} proximo={proximo} />
+                <AlterarStatus
+                  solicitacaoId={solicitacao.id}
+                  atual={solicitacao.status}
+                  opcoes={proximos}
+                  proximo={proximo}
+                />
               )}
               {podeAlterar ? (
                 <MarcarComoTeste solicitacaoId={solicitacao.id} teste={solicitacao.teste} />

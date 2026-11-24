@@ -26,8 +26,8 @@ const AGORA = new Date('2026-10-09T15:00:00Z')
 
 describe('fase da demanda para cada status do presente', () => {
   it('antes da aprovação, o presente não é da Logística', () => {
-    expect(faseDoPresente('pendente')).toBeNull()
-    expect(faseDoPresente('aguardando_aprovacao')).toBeNull()
+    expect(faseDoPresente('pendente')).toBe('arquivar')
+    expect(faseDoPresente('aguardando_aprovacao')).toBe('arquivar')
   })
 
   it('aprovado entra na trilha: esperando compra, ou já em execução com estoque', () => {

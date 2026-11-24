@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import type { PedidoTiny, Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { contasLigadas, tinyLigado } from '@/lib/env'
 import { CONTA_PADRAO, NOME_DA_CONTA, type ContaTiny } from './contas'
@@ -23,6 +23,7 @@ import { rotuloDaSituacao } from './rotulos'
 import { classificarErro, MAX_TENTATIVAS, proximaTentativa } from './erros'
 import {
   chaveDoPresente,
+  corte,
   montarPedido,
   resumoDosItens,
   type Destinatario,
@@ -144,7 +145,8 @@ const avisoDeSemSku = (nomes: string[]) =>
  * Põe o presente na fila do Tiny. Recebe a transação de quem mudou o status:
  * o pedido entra junto com o histórico, ou nada acontece. Um presente gera um
  * pedido só; voltar a "Organizando envio" depois de um problema não cria outro
- * (o reenvio é pela tela do Tiny).
+ * (o reenvio é pela tela do Tiny), a não ser que o pedido tenha sido cancelado
+ * por uma volta (`reabrirPresente`).
  */
 export async function enfileirarPresente(
   tx: Banco,
@@ -157,7 +159,8 @@ export async function enfileirarPresente(
   if (!config.enviarPresentes) return false
 
   const chave = chaveDoPresente(solicitacaoId)
-  if (await tx.pedidoTiny.findUnique({ where: { chave }, select: { id: true } })) return false
+  const existente = await tx.pedidoTiny.findUnique({ where: { chave } })
+  if (existente) return reabrirPresente(tx, existente, usuarioId)
 
   const { s, payload, resumo, semSku } = await pedidoDoPresente(tx, solicitacaoId)
   // Sem SKU o pedido não vai, mas fica registrado, com o aviso, para alguém
@@ -182,6 +185,73 @@ export async function enfileirarPresente(
     semSku.length
       ? `Presente ${s.codigo} parado: ${avisoDeSemSku(semSku)}`
       : `Presente ${s.codigo} entrou na fila.`,
+    usuarioId,
+  )
+  return !semSku.length
+}
+
+/**
+ * O presente volta à expedição e já tem pedido. Só muda algo quando o Admin o
+ * tinha voltado para antes do envio, o que cancelou o pedido:
+ *
+ * - o cancelamento ainda não chegou ao Tiny: desiste dele, o pedido segue lá;
+ * - nunca foi ao Tiny, ou já foi cancelado lá: vai de novo, com os itens e o
+ *   endereço de agora. O número do sistema ganha "-2", "-3"... para o Tiny não
+ *   confundir com o pedido cancelado.
+ *
+ * Fora isso, um presente é um pedido só, e o reenvio é pela tela do Tiny.
+ */
+async function reabrirPresente(
+  tx: Banco,
+  pedido: PedidoTiny,
+  usuarioId: string | null,
+): Promise<boolean> {
+  const canceladoLa = pedido.situacao === 'cancelado'
+  if (pedido.situacaoPendente === 'cancelado' && !canceladoLa) {
+    await tx.pedidoTiny.update({ where: { id: pedido.id }, data: { situacaoPendente: null } })
+    await registrarEvento(
+      tx,
+      pedido.id,
+      'reaberto',
+      `${pedido.destinatario}: voltou à expedição antes de o cancelamento chegar ao Tiny; o pedido segue lá.`,
+      usuarioId,
+    )
+    return false
+  }
+  if (pedido.envio !== 'cancelado' && !canceladoLa) return false
+
+  const { s, payload, resumo, semSku } = await pedidoDoPresente(tx, pedido.solicitacaoId!)
+  const vezes = await tx.eventoTiny.count({ where: { pedidoId: pedido.id, tipo: 'reaberto' } })
+  if (canceladoLa) payload.numero_pedido_ecommerce = corte(`${s.codigo}-${vezes + 2}`, 50)
+  await tx.pedidoTiny.update({
+    where: { id: pedido.id },
+    data: {
+      payload: payload as unknown as Prisma.InputJsonValue,
+      resumo,
+      destinatario: s.cliente.nome,
+      cpfCnpj: s.cliente.cpf,
+      envio: semSku.length ? 'falhou' : 'pendente',
+      erro: semSku.length ? avisoDeSemSku(semSku) : null,
+      tentativas: 0,
+      proximaTentativaEm: new Date(),
+      tinyId: null,
+      tinyNumero: null,
+      situacao: null,
+      situacaoPendente: null,
+      rastreio: null,
+      urlRastreio: null,
+      notaFiscalId: null,
+      enviadoEm: null,
+      sincronizadoEm: null,
+    },
+  })
+  await registrarEvento(
+    tx,
+    pedido.id,
+    'reaberto',
+    canceladoLa
+      ? `Presente ${s.codigo} voltou à expedição; o pedido ${pedido.tinyNumero ?? ''} foi cancelado no Tiny, e um novo entra na fila.`
+      : `Presente ${s.codigo} voltou à expedição e entrou na fila de novo.`,
     usuarioId,
   )
   return !semSku.length
@@ -243,11 +313,17 @@ export async function cancelarPresenteNoTiny(
   tx: Banco,
   solicitacaoId: string,
   usuarioId: string | null = null,
+  /** Cancelada aqui, ou voltada pelo Admin para antes do envio. */
+  por: 'cancelamento' | 'volta' = 'cancelamento',
 ): Promise<boolean> {
   const pedido = await tx.pedidoTiny.findUnique({
     where: { chave: chaveDoPresente(solicitacaoId) },
   })
-  if (!pedido) return false
+  // Já cancelado, aqui ou lá: uma segunda volta não tem o que desfazer.
+  if (!pedido || pedido.envio === 'cancelado' || situacaoVigente(pedido) === 'cancelado') {
+    return false
+  }
+  const oQue = por === 'volta' ? 'solicitação voltou a uma etapa anterior' : 'solicitação cancelada'
 
   // Condicionado ao envio: a fila pode ter reservado o pedido neste instante.
   const parado = await tx.pedidoTiny.updateMany({
@@ -259,7 +335,7 @@ export async function cancelarPresenteNoTiny(
       tx,
       pedido.id,
       'cancelado',
-      `${pedido.destinatario}: solicitação cancelada antes de ir ao Tiny; o pedido não será criado.`,
+      `${pedido.destinatario}: ${oQue}; o pedido ainda não tinha ido ao Tiny e não será criado.`,
       usuarioId,
     )
     return false
@@ -272,7 +348,7 @@ export async function cancelarPresenteNoTiny(
       tx,
       pedido.id,
       'cancelado',
-      `${pedido.destinatario}: solicitação cancelada, mas ${numero.toLowerCase()} já está "${rotuloDaSituacao(vigente)}" no Tiny; nada foi mudado lá.`,
+      `${pedido.destinatario}: ${oQue}, mas ${numero.toLowerCase()} já está "${rotuloDaSituacao(vigente)}" no Tiny; nada foi mudado lá.`,
       usuarioId,
     )
     return false
@@ -285,7 +361,7 @@ export async function cancelarPresenteNoTiny(
     tx,
     pedido.id,
     'cancelado',
-    `${pedido.destinatario}: solicitação cancelada; ${numero.toLowerCase()} vai a "Cancelado" no Tiny.`,
+    `${pedido.destinatario}: ${oQue}; ${numero.toLowerCase()} vai a "Cancelado" no Tiny.`,
     usuarioId,
   )
   return true

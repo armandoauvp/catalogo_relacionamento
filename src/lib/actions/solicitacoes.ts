@@ -14,6 +14,7 @@ import { acompanhamentosFaltando, mensagemDePendencia } from '@/lib/acompanhamen
 import {
   ROTULO_STATUS,
   caminhoDeEncaminhamento,
+  desfazAoChegar,
   ehChegadaDoItem,
   ehPassoDeCompra,
   podeConfirmarRecebimento,
@@ -538,6 +539,28 @@ export async function marcarItensComprados(
   }
 }
 
+/**
+ * Desfaz o que o status novo ainda não deveria ter (`desfazAoChegar`): numa
+ * volta do Admin, ou de "Deu problema" para trás. Na ida para a frente não há
+ * nada a desfazer, e nada muda. Devolve se há algo para a fila levar ao Tiny.
+ */
+async function desfazerAoChegar(
+  tx: Prisma.TransactionClient,
+  solicitacaoId: string,
+  statusNovo: StatusSolicitacao,
+  usuarioId: string,
+): Promise<boolean> {
+  const desfaz = desfazAoChegar(statusNovo)
+  // A compra volta para a fila do Financeiro; o item da casa nunca esteve nela.
+  if (desfaz.compra) {
+    await tx.solicitacaoItem.updateMany({
+      where: { solicitacaoId, compradoEm: { not: null } },
+      data: { compradoEm: null, compradoPorId: null },
+    })
+  }
+  return desfaz.tiny ? cancelarPresenteNoTiny(tx, solicitacaoId, usuarioId, 'volta') : false
+}
+
 /** Grava uma mudança já autorizada e validada, com tudo o que anda junto com ela. */
 async function gravarMudancaDeStatus(
   usuarioId: string,
@@ -571,7 +594,7 @@ async function gravarMudancaDeStatus(
     if (statusNovo === StatusSolicitacao.cancelado) {
       return cancelarPresenteNoTiny(tx, solicitacao.id, usuarioId)
     }
-    return false
+    return desfazerAoChegar(tx, solicitacao.id, statusNovo, usuarioId)
   })
   if (foiParaOTiny) processarFilaDepois()
 
@@ -732,6 +755,8 @@ export async function encaminharEmLote(
           algumParaOTiny =
             (await cancelarPresenteNoTiny(tx, solicitacao.id, usuario.id)) || algumParaOTiny
         }
+        algumParaOTiny =
+          (await desfazerAoChegar(tx, solicitacao.id, anterior, usuario.id)) || algumParaOTiny
       })
 
       const ultimo = caminho.passos[caminho.passos.length - 1]!

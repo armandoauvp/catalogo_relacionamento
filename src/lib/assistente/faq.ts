@@ -272,6 +272,16 @@ export const FAQ: ItemDaFaq[] = [
     ],
   },
   {
+    id: 'voltar-status',
+    pergunta: 'Como volto uma solicitação para um status anterior?',
+    resposta:
+      'No detalhe da solicitação, em "Novo status", escolha uma das opções "↩ Voltar para..." (Aguardando aprovação, Aguardando compra...) e escreva o motivo, que fica no histórico. A tela diz antes o que será desfeito: antes de "Comprado", os itens voltam para a fila do Financeiro; antes de "Organizando envio", o pedido no Tiny é cancelado se ainda não saiu, e vai de novo quando a solicitação voltar à expedição; antes da aprovação, a demanda sai da trilha da Logística. A Gestão em lote não volta status.',
+    href: '/admin/solicitacoes',
+    rotuloDoLink: 'Abrir a Gestão',
+    exige: 'solicitacao.alterarStatus',
+    termos: ['voltar', 'desfazer', 'anterior', 'errei', 'retornar', 'status', 'engano'],
+  },
+  {
     id: 'motivo-do-problema',
     pergunta: 'Como registro por que deu problema?',
     resposta:

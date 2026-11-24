@@ -39,9 +39,11 @@ export const PONTE = {
  */
 export function faseDoPresente(status: StatusSolicitacao): FaseOperacional | 'arquivar' | null {
   switch (status) {
+    // Ainda não aprovado não entra na trilha. Se já esteve nela, o Admin voltou
+    // a solicitação para antes da aprovação: ela sai, e volta ao ser aprovada.
     case 'pendente':
     case 'aguardando_aprovacao':
-      return null
+      return 'arquivar'
     // Comprado não é chegado: até a Logística confirmar a chegada, a demanda
     // espera o item como esperava a compra. O "Chegou" a põe em execução.
     case 'aguardando_compra':

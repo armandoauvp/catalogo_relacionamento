@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ROTULO_STATUS, exigeMotivo, motivosProntos, type ProximoPasso } from '@/lib/status'
+import {
+  ROTULO_STATUS,
+  desfazAoChegar,
+  ehVolta,
+  exigeMotivoNaMudanca,
+  motivosProntos,
+  type ProximoPasso,
+} from '@/lib/status'
 import { cn } from '@/lib/utils'
 
 const OUTRO = 'Outro'
@@ -27,10 +34,12 @@ import { alterarStatus, encaminharEmLote, marcarComoTeste } from '@/lib/actions/
  */
 export function AlterarStatus({
   solicitacaoId,
+  atual,
   opcoes,
   proximo,
 }: {
   solicitacaoId: string
+  atual: StatusSolicitacao
   opcoes: StatusSolicitacao[]
   proximo: ProximoPasso | null
 }) {
@@ -80,8 +89,22 @@ export function AlterarStatus({
     })
   }
 
-  const precisaDeMotivo = exigeMotivo(status)
+  const volta = ehVolta(atual, status)
+  const precisaDeMotivo = exigeMotivoNaMudanca(atual, status)
   const prontos = motivosProntos(status)
+  const rotulo = (s: StatusSolicitacao) =>
+    ehVolta(atual, s) ? `↩ Voltar para ${ROTULO_STATUS[s]}` : ROTULO_STATUS[s]
+  const desfaz = desfazAoChegar(status)
+  // O que a volta desfaz, dito antes do clique: quem volta precisa saber.
+  const efeitos = volta
+    ? [
+        desfaz.compra && 'os itens comprados voltam para a fila do Financeiro',
+        desfaz.tiny && 'o pedido no Tiny é cancelado, se ainda não foi enviado',
+        status === StatusSolicitacao.pendente || status === StatusSolicitacao.aguardando_aprovacao
+          ? 'a demanda sai da trilha da Logística até a nova aprovação'
+          : null,
+      ].filter(Boolean)
+    : []
 
   function enviar() {
     setErro(null)
@@ -132,11 +155,19 @@ export function AlterarStatus({
         >
           {opcoes.map((opcao) => (
             <option key={opcao} value={opcao}>
-              {ROTULO_STATUS[opcao]}
+              {rotulo(opcao)}
               {opcao === sugerido ? ' (sugerido)' : ''}
             </option>
           ))}
         </Select>
+        {volta ? (
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {efeitos.length
+              ? `Ao voltar, ${efeitos.join('; ')}.`
+              : 'A solicitação volta a esta etapa.'}{' '}
+            O motivo fica no histórico.
+          </p>
+        ) : null}
       </div>
 
       {precisaDeMotivo ? (
@@ -174,7 +205,11 @@ export function AlterarStatus({
               rows={3}
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Fica gravado no histórico, junto com quem mudou e quando."
+              placeholder={
+                volta
+                  ? 'Por que voltar? Fica no histórico, junto com quem voltou e quando.'
+                  : 'Fica gravado no histórico, junto com quem mudou e quando.'
+              }
             />
           ) : null}
         </div>
@@ -210,7 +245,11 @@ export function AlterarStatus({
         className="h-auto w-full py-2.5 leading-snug whitespace-normal"
       >
         {salvando ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-        {salvando ? 'Gravando…' : `Mudar para ${ROTULO_STATUS[status]}`}
+        {salvando
+          ? 'Gravando…'
+          : volta
+            ? `Voltar para ${ROTULO_STATUS[status]}`
+            : `Mudar para ${ROTULO_STATUS[status]}`}
       </Button>
     </div>
   )

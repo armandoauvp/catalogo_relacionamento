@@ -99,6 +99,29 @@ comprar: é o que evita abrir vinte telas para decidir.
   solicitação volta para qualquer etapa anterior ou é cancelada.
 - **Devolvido**: só a partir de "Entregue" em diante.
 - **Cancelado**: acionável a partir de qualquer status vivo.
+- **Voltar uma etapa** (`ehVolta`): de qualquer etapa viva do fluxo linear o
+  Admin volta direto para uma anterior, com motivo. Pedido da Lilian em
+  24/11/2026: de "Comprado" ela não conseguia voltar para a aprovação, e o
+  caminho por "Deu problema" ninguém conhecia. O seletor mostra "↩ Voltar
+  para..." e diz, antes do clique, o que vai ser desfeito. O lote da Gestão
+  não volta: ele não tem onde escrever o motivo.
+
+### O que a volta desfaz
+
+Pelo status de destino (`desfazAoChegar`), venha de uma volta ou de "Deu
+problema" para trás, na mesma transação da mudança:
+
+- **Antes de "Comprado"**: os itens perdem a marca de comprado e voltam para a
+  fila do Financeiro.
+- **Antes de "Organizando envio"**: o pedido do presente no Tiny é cancelado
+  enquanto não foi "Enviado". Quando a solicitação volta à expedição, o pedido
+  vai de novo (`reabrirPresente`), com os itens e o endereço de agora; se o
+  cancelamento nem tinha chegado ao Tiny, ele é desistido e o pedido segue lá.
+- **Antes da aprovação**: a demanda sai da trilha da Logística e volta quando
+  a solicitação for aprovada de novo.
+
+O que já foi despachado na Logística continua contado, e pedido já "Enviado"
+no Tiny não é mexido lá: o histórico do Tiny registra o aviso.
 
 ## Status finais
 
@@ -109,7 +132,9 @@ mudança. A tela do Admin diz isso em vez de oferecer um seletor vazio.
 
 "Deu problema", "Devolvido" e "Cancelado" exigem motivo preenchido, gravado no
 histórico. Exigido em três camadas: no seletor da tela, em
-`validarMudancaDeStatus` e numa CHECK constraint do banco.
+`validarMudancaDeStatus` e numa CHECK constraint do banco. A volta para uma
+etapa anterior também exige (`exigeMotivoNaMudanca`), na tela e em
+`validarMudancaDeStatus`.
 
 ## Quem muda
 
