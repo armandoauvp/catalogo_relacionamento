@@ -34,6 +34,12 @@ function pedido(sobrescritas: Partial<PedidoDeExpedicao> = {}): PedidoDeExpedica
     teste: false,
     motivo: 'Aniversário',
     observacoes: null,
+    carta: {
+      saudacao: 'Olá, Cliente,',
+      corpo: 'Feliz aniversário!',
+      assinatura: 'Ana',
+      ocasiao: 'Aniversário',
+    },
     itens: [{ produto: 'Caneca', quantidade: 2, deCatalogo: true, jaEmEstoque: true }],
     valorTotal: new Prisma.Decimal('100.00'),
     rastreio: null,
@@ -101,6 +107,19 @@ describe('linhas da planilha de expedição', () => {
     ])
 
     expect(linhas.every((l) => l.cep === '01310-100' && l.cidade === 'São Paulo')).toBe(true)
+  })
+
+  it('a carta vai uma vez por pedido, na linha do primeiro item', () => {
+    const [primeira, segunda] = linhasDaExpedicao([
+      pedido({
+        itens: [
+          { produto: 'Caneca', quantidade: 1, deCatalogo: true, jaEmEstoque: true },
+          { produto: 'Vinho', quantidade: 1, deCatalogo: true, jaEmEstoque: false },
+        ],
+      }),
+    ])
+    expect(primeira!.carta).toBe('Olá, Cliente,\n\nFeliz aniversário!\n\nAna')
+    expect(segunda!.carta).toBeNull()
   })
 
   it('preenche exatamente as colunas declaradas, sem sobra nem falta', () => {

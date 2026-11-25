@@ -163,6 +163,11 @@ export function previaDaCarta(dados: DadosDaCarta): PreviaDaCarta {
   }
 }
 
+/** A carta em texto corrido, para copiar ou levar à planilha da expedição. */
+export function textoDaCarta(previa: PreviaDaCarta): string {
+  return [previa.saudacao, previa.corpo, previa.assinatura].filter(Boolean).join('\n\n')
+}
+
 const escapar = (texto: string) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**

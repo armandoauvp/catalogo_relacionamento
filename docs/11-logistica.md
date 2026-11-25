@@ -173,6 +173,11 @@ uma previsão de 7 dias (15 quando ainda há compra). O endereço não vai para 
 trilha: ele está na Expedição. Subsidiária, departamento e prazos são
 suposição, em `PONTE`.
 
+A carta também está na Expedição: cada pedido abre em "Carta" a folha como o
+consultor a viu na revisão, com "Copiar o texto", e a planilha leva a carta na
+linha do primeiro item. Pedido da Maria em 25/11/2026: o perfil Logística, que
+embala, não abre o detalhe da Gestão, onde a carta ficava.
+
 ## Pedidos da AUVP
 
 Qualquer pessoa da AUVP pede trabalho à Logística em `/logistica/pedidos`

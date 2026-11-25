@@ -412,6 +412,16 @@ export const FAQ: ItemDaFaq[] = [
     termos: ['comprado', 'parado', 'demorando', 'chegar', 'logistica'],
   },
   {
+    id: 'carta-na-expedicao',
+    pergunta: 'Onde vejo a carta que vai junto com o presente?',
+    resposta:
+      'Na Expedição, em cada pedido, abra "Carta": aparece a folha como o consultor escreveu, com saudação e assinatura, e o botão "Copiar o texto". Na planilha da Expedição a carta vem na coluna "Carta", na linha do primeiro item do pedido.',
+    href: '/expedicao',
+    rotuloDoLink: 'Abrir a Expedição',
+    exige: 'expedicao.verFila',
+    termos: ['carta', 'mensagem', 'bilhete', 'cartão', 'imprimir', 'texto'],
+  },
+  {
     id: 'expedicao',
     pergunta: 'Como registro o rastreio e marco como entregue?',
     resposta:

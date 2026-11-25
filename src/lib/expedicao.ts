@@ -7,14 +7,15 @@ import { totalDosItens, type Dinheiro } from './money'
 import { ROTULO_MOTIVO } from './validators/solicitacao'
 import { precisaDeCompra } from './status'
 import type { ColunaExport } from './export/linhas'
+import { previaDaCarta, textoDaCarta, type PreviaDaCarta } from './carta'
 
 /**
  * Pedido de expedição.
  *
  * Hoje a área monta uma planilha à mão com estes dados e manda para a
  * expedição. O objetivo é que a solicitação do consultor já produza o pedido
- * pronto, sem redigitação: a carta continua sendo feita fora, como a área
- * pediu.
+ * pronto, sem redigitação. A carta que o consultor escreveu vem junto: quem
+ * embala o presente é quem a põe na caixa (pedido da Maria, 25/11/2026).
  *
  * Duas coisas mandam uma solicitação para cá:
  *
@@ -60,6 +61,8 @@ export type PedidoDeExpedicao = {
 
   motivo: string
   observacoes: string | null
+  /** A folha como o consultor a viu na revisão. */
+  carta: PreviaDaCarta
   itens: ItemDoPedido[]
   valorTotal: Dinheiro
 
@@ -278,6 +281,14 @@ export async function filaDeExpedicao(
 
     motivo: s.motivo === 'outro' ? (s.motivoOutro ?? 'Outro') : ROTULO_MOTIVO[s.motivo],
     observacoes: s.observacoes,
+    carta: previaDaCarta({
+      destinatario: s.entregaDestinatario,
+      motivo: s.motivo,
+      motivoOutro: s.motivoOutro ?? '',
+      mensagem: s.mensagemCarta,
+      remetente: s.consultor.nome,
+      saudacao: s.saudacaoCarta,
+    }),
     itens: s.itens.map((item) => ({
       produto: item.produto?.nome ?? item.descricaoLivre ?? '-',
       quantidade: item.quantidade,
@@ -326,6 +337,7 @@ export const COLUNAS_DA_EXPEDICAO = [
   { chave: 'cpf', titulo: 'CPF do cliente', largura: 16, tipo: 'texto' },
   { chave: 'motivo', titulo: 'Motivo do envio', largura: 22, tipo: 'texto' },
   { chave: 'observacoes', titulo: 'Observações', largura: 32, tipo: 'texto' },
+  { chave: 'carta', titulo: 'Carta', largura: 60, tipo: 'texto' },
 ] as const satisfies readonly ColunaExport[]
 
 export type LinhaDaExpedicao = Record<
@@ -335,7 +347,7 @@ export type LinhaDaExpedicao = Record<
 
 export function linhasDaExpedicao(pedidos: readonly PedidoDeExpedicao[]): LinhaDaExpedicao[] {
   return pedidos.flatMap((p) =>
-    p.itens.map<LinhaDaExpedicao>((item) => ({
+    p.itens.map<LinhaDaExpedicao>((item, indice) => ({
       codigo: p.codigo,
       data: formatarData(p.data),
       destinatario: p.destinatario,
@@ -353,6 +365,8 @@ export function linhasDaExpedicao(pedidos: readonly PedidoDeExpedicao[]): LinhaD
       cpf: p.clienteCpf,
       motivo: p.motivo,
       observacoes: p.observacoes,
+      // Uma carta por pedido: repetida em cada item, pareceria uma carta por peça.
+      carta: indice === 0 ? textoDaCarta(p.carta) : null,
     })),
   )
 }

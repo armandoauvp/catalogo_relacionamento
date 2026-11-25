@@ -34,6 +34,7 @@ import { SeloDoPedido } from '@/app/tiny/selo-do-pedido'
 import { normalizarCodigo } from '@/lib/rastreio/leitura'
 import { Rastreio } from './rastreio'
 import { Chegou } from './chegou'
+import { CartaDoPedido } from './carta-do-pedido'
 
 /**
  * Fila de expedição: a planilha que a área monta à mão hoje.
@@ -201,7 +202,7 @@ export default async function ExpedicaoPage({
     <>
       <CabecalhoDaPagina
         titulo="Pedidos para separar"
-        descricao="Tudo o que a expedição precisa para embalar e postar, em ordem de chegada. A carta continua sendo escrita fora daqui."
+        descricao="Tudo o que a expedição precisa para embalar e postar, em ordem de chegada, com a carta que vai na caixa."
         acoes={
           <>
             {operaTiny ? <BotaoFecharExpedicao solicitacaoIds={fechaveis} /> : null}
@@ -371,6 +372,10 @@ export default async function ExpedicaoPage({
                   ) : null}
                 </div>
 
+                <div className="md:col-span-2">
+                  <CartaDoPedido carta={pedido.carta} />
+                </div>
+
                 {podeRegistrarRastreio ? (
                   <div className="md:col-span-2">
                     <Rastreio
@@ -438,8 +443,8 @@ export default async function ExpedicaoPage({
 
       <p className="text-muted-foreground mt-6 text-xs">
         A fila mostra as solicitações em{' '}
-        {STATUS_DA_EXPEDICAO.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. A carta que
-        acompanha o presente é escrita fora do sistema.
+        {STATUS_DA_EXPEDICAO.map((s) => ROTULO_STATUS[s].toLowerCase()).join(' e ')}. A carta de
+        cada pedido abre em “Carta”, e a planilha a leva na linha do primeiro item.
       </p>
     </>
   )
