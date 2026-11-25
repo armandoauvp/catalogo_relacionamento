@@ -5,6 +5,7 @@ import { exigirPermissao } from '@/lib/auth-guards'
 import { pode } from '@/lib/permissions'
 import { catalogoProvider } from '@/lib/providers'
 import { versoDaFoto } from '@/lib/fotos'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ProdutoImagem } from '@/components/produto-imagem'
@@ -183,6 +184,9 @@ export default async function CatalogoPage({
                   {/* A loja onde o presente é comprado. A foto mostra o
                       presente; o link mostra medida, sabor e o resto. */}
                   <LinkDoProduto url={produto.urlCompra} />
+                  {produto.noFornecedor?.situacao === 'esgotado' ? (
+                    <Badge variant="warning">esgotado na loja</Badge>
+                  ) : null}
 
                   <div className="mt-auto w-full pt-3">
                     <ValorDoProduto

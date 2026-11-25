@@ -1,4 +1,10 @@
-import type { Prisma, TipoValor, OrigemCliente, OrigemProduto } from '@prisma/client'
+import type {
+  Prisma,
+  TipoValor,
+  OrigemCliente,
+  OrigemProduto,
+  SituacaoNoFornecedor,
+} from '@prisma/client'
 
 /**
  * Contratos das fontes de dados de catálogo e de clientes.
@@ -39,6 +45,13 @@ export type ProdutoDoCatalogo = {
   serveComoAcompanhamento: string | null
   ativo: boolean
   skuTiny: string | null
+  /** A última leitura do link de compra; nula quando nunca foi conferido. */
+  noFornecedor: {
+    situacao: SituacaoNoFornecedor
+    preco: Prisma.Decimal | null
+    conferidoEm: Date
+    erro: string | null
+  } | null
 }
 
 export type FiltroDeCatalogo = {

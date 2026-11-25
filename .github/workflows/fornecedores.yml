@@ -1,0 +1,33 @@
+# Conferência diária do fornecedor: preço e estoque lidos do link de compra de
+# cada presente (pedido da Lilian, 25/11/2026). Ver docs/16-fornecedores.md.
+#
+# Duas chamadas de manhã: a rota tem 60 s, e o que não coube na primeira é
+# conferido na segunda. Usa o mesmo secret CRON_SECRET do agendador do Tiny.
+name: Conferência do fornecedor
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+    - cron: '20 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Conferir preço e estoque nas lojas
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          URL_DA_PRODUCAO: ${{ vars.URL_DA_PRODUCAO || 'https://catalogo-logistica.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::notice::CRON_SECRET não configurado no repositório; nada a fazer."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" \
+            "$URL_DA_PRODUCAO/api/fornecedores/cron"

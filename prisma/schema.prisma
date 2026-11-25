@@ -45,6 +45,16 @@ enum Perfil {
 /// É a coluna "Estoque" da planilha do catálogo, e é ela que decide se a
 /// solicitação passa pelo Financeiro, não a quantidade em estoque, que a área
 /// não mantém produto a produto.
+/// O que a página do fornecedor dizia na última conferência (pedido da Lilian,
+/// 25/11/2026). `nao_conferido` é página que não respondeu ou não publica o
+/// produto em dados estruturados: o Mercado Livre, por exemplo.
+enum SituacaoNoFornecedor {
+  disponivel
+  limitado
+  esgotado
+  nao_conferido
+}
+
 enum OrigemProduto {
   /// Já está na prateleira. Aprovada, a solicitação vai direto para a expedição.
   estoque_interno
@@ -179,31 +189,31 @@ model GuiaCarta {
 }
 
 model Produto {
-  id                      String        @id @default(cuid())
+  id                      String                @id @default(cuid())
   nome                    String
   descricao               String?
-  categoriaId             String        @map("categoria_id")
-  fotoUrl                 String?       @map("foto_url")
+  categoriaId             String                @map("categoria_id")
+  fotoUrl                 String?               @map("foto_url")
   /// Nulo quando a área ainda não informou o preço, o caso dos brindes
   /// personalizados comprados em lote. Nulo não é zero: a tela diz "a definir"
   /// em vez de exibir R$ 0,00, que se leria como grátis.
-  valor                   Decimal?      @db.Decimal(12, 2)
+  valor                   Decimal?              @db.Decimal(12, 2)
   /// `exato` = preço fechado. `medio` = estimativa, exibida como "a partir de".
-  tipoValor               TipoValor     @default(exato) @map("tipo_valor")
+  tipoValor               TipoValor             @default(exato) @map("tipo_valor")
   /// Prateleira ou compra sob demanda. Decide se a solicitação passa pelo
   /// Financeiro. Ver `precisaDeCompra` em `src/lib/status.ts`.
-  origem                  OrigemProduto @default(mediante_pedido)
+  origem                  OrigemProduto         @default(mediante_pedido)
   /// Refinamento opcional de `origem = estoque_interno`: quando a área
   /// resolver contar as peças, um saldo insuficiente manda ao Financeiro
   /// mesmo sendo item de prateleira.
-  controlaEstoque         Boolean       @default(false) @map("controla_estoque")
+  controlaEstoque         Boolean               @default(false) @map("controla_estoque")
   estoque                 Int?
   /// Onde o Financeiro compra este produto. É a coluna "Link" da planilha,
   /// e vence o fornecedor padrão da categoria.
-  urlCompra               String?       @map("url_compra")
+  urlCompra               String?               @map("url_compra")
   /// Instrução de compra que não é um link, "Pedido direto ao fornecedor".
   /// Pode conviver com `urlCompra`: há kit em que parte vem de cada lugar.
-  notaDeCompra            String?       @map("nota_de_compra")
+  notaDeCompra            String?               @map("nota_de_compra")
   /// O que este produto precisa levar junto para poder ser enviado, por
   /// exemplo `vinho`. A caixa de madeira e o kit de queijos não fazem sentido
   /// sozinhos: chegariam ao cliente sem a bebida que os acompanha.
@@ -211,18 +221,26 @@ model Produto {
   /// A solicitação só é aceita quando traz também um item cujo
   /// `serveComoAcompanhamento` é este mesmo rótulo. Ver
   /// `src/lib/acompanhamentos.ts`.
-  exigeAcompanhamento     String?       @map("exige_acompanhamento")
+  exigeAcompanhamento     String?               @map("exige_acompanhamento")
   /// O que este produto satisfaz quando entra na mesma solicitação, por
   /// exemplo `vinho` nas garrafas de vinho.
-  serveComoAcompanhamento String?       @map("serve_como_acompanhamento")
-  ativo                   Boolean       @default(true)
+  serveComoAcompanhamento String?               @map("serve_como_acompanhamento")
+  ativo                   Boolean               @default(true)
   /// Fase 2: SKU correspondente no Tiny ERP.
-  skuTiny                 String?       @map("sku_tiny")
+  skuTiny                 String?               @map("sku_tiny")
   /// Nome do produto no Tiny, gravado quando o SKU é conferido lá: mostra a
   /// quem cadastra a que produto do Olist o presente está ligado.
-  nomeNoTiny              String?       @map("nome_no_tiny")
-  criadoEm                DateTime      @default(now()) @map("criado_em")
-  atualizadoEm            DateTime      @updatedAt @map("atualizado_em")
+  nomeNoTiny              String?               @map("nome_no_tiny")
+  /// Lido de `urlCompra` uma vez por dia (`src/lib/conferencia-do-fornecedor.ts`).
+  /// Só informa: o preço daqui muda quando o Admin aceita, porque pode
+  /// incluir frete ou montagem do kit, e o esgotado não desativa nada.
+  fornecedorSituacao      SituacaoNoFornecedor? @map("fornecedor_situacao")
+  fornecedorPreco         Decimal?              @map("fornecedor_preco") @db.Decimal(12, 2)
+  fornecedorConferidoEm   DateTime?             @map("fornecedor_conferido_em")
+  /// Por que não deu para conferir: "a página respondeu 404".
+  fornecedorErro          String?               @map("fornecedor_erro")
+  criadoEm                DateTime              @default(now()) @map("criado_em")
+  atualizadoEm            DateTime              @updatedAt @map("atualizado_em")
 
   categoria Categoria         @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
   itens     SolicitacaoItem[]

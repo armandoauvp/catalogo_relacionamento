@@ -25,6 +25,10 @@ type LinhaComCategoria = {
   serveComoAcompanhamento: string | null
   ativo: boolean
   skuTiny: string | null
+  fornecedorSituacao: NonNullable<ProdutoDoCatalogo['noFornecedor']>['situacao'] | null
+  fornecedorPreco: ProdutoDoCatalogo['valor']
+  fornecedorConferidoEm: Date | null
+  fornecedorErro: string | null
   categoria: { nome: string }
 }
 
@@ -47,6 +51,15 @@ function mapear(linha: LinhaComCategoria): ProdutoDoCatalogo {
     serveComoAcompanhamento: linha.serveComoAcompanhamento,
     ativo: linha.ativo,
     skuTiny: linha.skuTiny,
+    noFornecedor:
+      linha.fornecedorSituacao && linha.fornecedorConferidoEm
+        ? {
+            situacao: linha.fornecedorSituacao,
+            preco: linha.fornecedorPreco,
+            conferidoEm: linha.fornecedorConferidoEm,
+            erro: linha.fornecedorErro,
+          }
+        : null,
   }
 }
 

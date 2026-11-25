@@ -71,6 +71,8 @@ export type ProdutoDoCatalogo = {
   exigeAcompanhamento: string | null
   /** O que este presente satisfaz quando entra junto de um kit. */
   serveComoAcompanhamento: string | null
+  /** A loja mostrou sem estoque na última conferência: avisa, não impede. */
+  esgotadoNoFornecedor?: boolean
 }
 
 type ItemEscolhido =
@@ -2145,6 +2147,8 @@ function CardDeProduto({
           {produto.exigeAcompanhamento ? (
             <Badge variant="outline">vai com {produto.exigeAcompanhamento}</Badge>
           ) : null}
+          {/* Avisa e não trava: a loja pode repor, e o Financeiro compra em outra. */}
+          {produto.esgotadoNoFornecedor ? <Badge variant="warning">esgotado na loja</Badge> : null}
         </div>
         <p className="font-display text-sm leading-snug font-semibold text-balance">
           {produto.nome}

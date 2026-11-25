@@ -34,6 +34,7 @@ duplique numa tela.
 | Tour guiado de cada perfil       | `src/lib/tour.ts`                         |
 | Perguntas da Caixinha (FAQ)      | `src/lib/assistente/faq.ts`               |
 | Fornecedor de cada item          | `src/lib/fornecedores.ts`                 |
+| Preço e estoque lidos na loja    | `src/lib/conferencia-do-fornecedor.ts`    |
 | Upload e leitura de foto         | `src/lib/arquivos.ts`                     |
 | Redução da foto antes do envio   | `src/lib/arquivos-no-navegador.ts`        |
 | Logins (Google e Keycloak)       | `src/lib/auth.ts` e `src/lib/env.ts`      |
@@ -163,6 +164,12 @@ Coisas que o código já garante e que não devem ser afrouxadas:
 - **Foto é reduzida no navegador** (`src/lib/arquivos-no-navegador.ts`) antes
   de subir: a Vercel recusa requisição acima de 4,5 MB, e o teto da aplicação
   é 4 MB.
+
+- **A loja informa, o Admin decide.** A conferência diária do link de compra
+  (`conferencia-do-fornecedor.ts`, docs/16-fornecedores.md) só grava o que a
+  loja publica: esgotado vira selo, preço diferente vira "Usar R$ X". Ela
+  nunca troca o preço nem desativa o presente, e o servidor só abre endereço
+  de loja (`enderecoPermitido`).
 
 - **Rastreio não muda status.** Gravar o código diz que saiu; "entregue" é
   decisão de quem acompanha. Quem opera a expedição, Logística inclusive, marca

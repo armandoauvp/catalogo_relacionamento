@@ -46,6 +46,7 @@ export default async function NovaSolicitacaoPage() {
     urlCompra: p.urlCompra,
     exigeAcompanhamento: p.exigeAcompanhamento,
     serveComoAcompanhamento: p.serveComoAcompanhamento,
+    esgotadoNoFornecedor: p.noFornecedor?.situacao === 'esgotado',
   }))
 
   return (

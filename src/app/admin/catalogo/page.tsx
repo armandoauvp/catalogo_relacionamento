@@ -29,6 +29,7 @@ import { ValorDoProduto } from '@/components/valor-do-produto'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
 import { EditorDeCategorias } from './editor-de-categorias'
+import { NoFornecedor } from './no-fornecedor'
 
 /**
  * CRUD do catálogo: operado pela própria área de Relacionamento.
@@ -60,6 +61,7 @@ export default async function AdminCatalogoPage({
 
   const ativos = produtos.filter((p) => p.ativo).length
   const semSku = produtos.filter((p) => p.ativo && !temSku(p)).length
+  const esgotados = produtos.filter((p) => p.ativo && p.fornecedorSituacao === 'esgotado').length
   const listados = produtosDoFiltro(produtos, filtro)
 
   const filtrosAtivos: FiltroAtivo[] = [
@@ -82,6 +84,11 @@ export default async function AdminCatalogoPage({
       coluna: 'SKU',
       valor: 'sem SKU no Tiny',
       semEle: hrefSemFiltro(caminho, params, 'sku'),
+    },
+    filtro.fornecedor && {
+      coluna: 'Na loja',
+      valor: 'esgotado',
+      semEle: hrefSemFiltro(caminho, params, 'fornecedor'),
     },
   ].filter((f): f is FiltroAtivo => Boolean(f))
 
@@ -141,7 +148,23 @@ export default async function AdminCatalogoPage({
             )
           }
         />
-        <Stat rotulo="Categorias" valor={categorias.length} />
+        {/* No lugar de "Categorias": o número que pede ação é o que a loja não tem. */}
+        <Stat
+          rotulo="Esgotados na loja"
+          valor={esgotados}
+          apoio={
+            esgotados ? (
+              <LinkDeFiltro
+                href={grupo('fornecedor', 'esgotado').href as Route}
+                className="text-primary-emphasis underline-offset-4 hover:underline"
+              >
+                {filtro.fornecedor ? 'Mostrar todos' : 'Mostrar só estes'}
+              </LinkDeFiltro>
+            ) : (
+              'Conferido toda manhã no link de compra.'
+            )
+          }
+        />
       </div>
 
       {produtos.length === 0 ? (
@@ -212,6 +235,16 @@ export default async function AdminCatalogoPage({
                             }
                             <ExternalLink className="size-3" aria-hidden="true" />
                           </a>
+                        ) : null}
+                        {p.urlCompra ? (
+                          <NoFornecedor
+                            id={p.id}
+                            situacao={p.fornecedorSituacao}
+                            preco={p.fornecedorPreco?.toFixed(2) ?? null}
+                            valor={p.valor?.toFixed(2) ?? null}
+                            conferidoEm={p.fornecedorConferidoEm?.toISOString() ?? null}
+                            erro={p.fornecedorErro}
+                          />
                         ) : null}
                       </div>
                     </TableCell>

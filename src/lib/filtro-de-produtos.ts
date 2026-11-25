@@ -12,6 +12,8 @@ export const filtroDeProdutosSchema = z.object({
   situacao: z.enum(['ativo', 'desativado']).optional().catch(undefined),
   /** A pauta de 22/10/2026 pede SKU em todo produto ativo: "falta" mostra o que falta. */
   sku: z.enum(['falta']).optional().catch(undefined),
+  /** Esgotado na última conferência da loja (`conferencia-do-fornecedor.ts`). */
+  fornecedor: z.enum(['esgotado']).optional().catch(undefined),
 })
 
 export type FiltroDeProdutos = z.output<typeof filtroDeProdutosSchema>
@@ -26,6 +28,7 @@ type ProdutoFiltravel = {
   origem: string
   ativo: boolean
   skuTiny: string | null
+  fornecedorSituacao?: string | null
 }
 
 export const temSku = (p: { skuTiny: string | null }) => Boolean(p.skuTiny?.trim())
@@ -39,6 +42,7 @@ export function produtosDoFiltro<P extends ProdutoFiltravel>(
       (!f.categoria || p.categoriaId === f.categoria) &&
       (!f.origem || p.origem === f.origem) &&
       (!f.situacao || p.ativo === (f.situacao === 'ativo')) &&
-      (!f.sku || (p.ativo && !temSku(p))),
+      (!f.sku || (p.ativo && !temSku(p))) &&
+      (!f.fornecedor || (p.ativo && p.fornecedorSituacao === f.fornecedor)),
   )
 }

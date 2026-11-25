@@ -11,6 +11,7 @@ import { CONTA_PADRAO } from '@/lib/tiny/contas'
 import { pesquisarProdutos } from '@/lib/tiny/api'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { conferirSku, lerPlanilhaDeSkus, type ConferenciaDoSku } from '@/lib/tiny/skus'
+import { conferirProduto } from '@/lib/conferencia-do-fornecedor'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -67,7 +68,7 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
     const id = String(dados.get('id') ?? '')
     // Só confere quando o SKU muda: editar a foto não pode depender do Tiny.
     const anterior = id
-      ? await db.produto.findUnique({ where: { id }, select: { skuTiny: true } })
+      ? await db.produto.findUnique({ where: { id }, select: { skuTiny: true, urlCompra: true } })
       : null
     let nomeNoTiny: { nomeNoTiny: string | null } | null = null
     if (validado.data.skuTiny !== anterior?.skuTiny) {
@@ -76,9 +77,19 @@ export async function salvarProduto(dados: FormData): Promise<ResultadoDaAction<
       nomeNoTiny = { nomeNoTiny: conferencia.nomeNoTiny || null }
     }
 
+    // Link novo é outra página: a leitura da antiga não vale para ele.
+    const linkMudou = anterior && (anterior.urlCompra ?? null) !== (validado.data.urlCompra ?? null)
     const valores = {
       ...validado.data,
       ...nomeNoTiny,
+      ...(linkMudou
+        ? {
+            fornecedorSituacao: null,
+            fornecedorPreco: null,
+            fornecedorConferidoEm: null,
+            fornecedorErro: null,
+          }
+        : {}),
       fotoUrl: urlRelativa ?? validado.data.fotoUrl,
       // Nulo é "a área ainda não informou", e segue nulo até ela informar.
       valor: validado.data.valor === null ? null : new Prisma.Decimal(validado.data.valor),
@@ -172,6 +183,44 @@ export async function gravarSkus(
     )
     revalidarCatalogo()
     return { ok: true, dados: { gravados: gravar.length } }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/** "Conferir agora": a leitura da loja sem esperar a rodada da manhã. */
+export async function conferirNoFornecedor(id: string): Promise<ResultadoDaAction> {
+  try {
+    await autorizarAction('catalogo.gerenciar')
+    await conferirProduto(id)
+    revalidarCatalogo()
+    return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * Leva o preço lido na loja para o catálogo. Decisão do Admin, nunca da rotina:
+ * o preço daqui pode incluir frete ou o resto do kit. Solicitação já feita não
+ * muda, porque o valor dela congelou na criação.
+ */
+export async function usarPrecoDoFornecedor(id: string): Promise<ResultadoDaAction> {
+  try {
+    await autorizarAction('catalogo.gerenciar')
+    const produto = await db.produto.findUniqueOrThrow({
+      where: { id },
+      select: { fornecedorPreco: true },
+    })
+    if (!produto.fornecedorPreco) {
+      return { ok: false, erro: 'A loja não mostrou preço na última conferência.' }
+    }
+    await db.produto.update({
+      where: { id },
+      data: { valor: produto.fornecedorPreco, tipoValor: 'exato' },
+    })
+    revalidarCatalogo()
+    return { ok: true, dados: undefined }
   } catch (e) {
     return comoErro(e)
   }
