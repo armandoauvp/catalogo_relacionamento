@@ -10,9 +10,15 @@ import { ehCookieDeSessao } from '@/lib/sessao-sso'
  * feita no servidor, com o banco em mãos.
  */
 
-// A rota do agendador não tem sessão: ela confere o CRON_SECRET por conta própria.
-// As duas rotas de API daqui conferem o próprio segredo (Bearer).
-const ROTAS_PUBLICAS = ['/login', '/api/auth', '/api/tiny/cron', '/api/publico/clientes']
+// Os agendadores não têm sessão: cada rota confere o CRON_SECRET por conta
+// própria. As rotas de API daqui conferem o próprio segredo (Bearer).
+const ROTAS_PUBLICAS = [
+  '/login',
+  '/api/auth',
+  '/api/tiny/cron',
+  '/api/fornecedores/cron',
+  '/api/publico/clientes',
+]
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
