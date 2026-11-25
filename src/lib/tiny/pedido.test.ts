@@ -111,7 +111,7 @@ describe('pedido para o Tiny', () => {
     expect(codigosSemId(p)).toEqual(['BON'])
   })
 
-  it('liga ao cadastro do Tiny pelo código, com o código e o nome de lá', () => {
+  it('liga ao cadastro do Tiny pelo código, mantendo a descrição do catálogo', () => {
     const p = montarPedido({
       destinatario,
       itens: [
@@ -128,7 +128,8 @@ describe('pedido para o Tiny', () => {
     expect(ligado.itens[0]!.item).toMatchObject({
       id_produto: 555,
       codigo: 'LIV-01',
-      descricao: 'Livro AUVP',
+      // SKU genérico: o nome de lá ("Livros") não vale para cada presente.
+      descricao: 'Livro do catálogo',
       quantidade: '2',
     })
     expect(ligado.itens[1]!.item.id_produto).toBe(555)

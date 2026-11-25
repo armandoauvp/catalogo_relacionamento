@@ -108,7 +108,7 @@ export function codigosSemId(pedido: PedidoParaOTiny): string[] {
 export type ProdutoLigado = { id: string; codigo: string; nome: string }
 
 /**
- * Põe nos itens o id, o código e o nome exatos do cadastro do Tiny, achados
+ * Põe nos itens o id e o código exatos do cadastro do Tiny, achados
  * pelo código. Item sem código (presente específico) segue como está.
  */
 export function ligarAoCadastro(
@@ -125,7 +125,8 @@ export function ligarAoCadastro(
           ...item,
           ...idDoProduto(achado.id),
           codigo: corte(achado.codigo, 60) || item.codigo,
-          descricao: corte(achado.nome, 120) || item.descricao,
+          // A descrição fica a do catálogo: o SKU pode ser genérico (os 16
+          // vinhos são AUVP-BEBIDAS-VINHO) e o nome de lá diria só "Bebidas".
         },
       }
     }),

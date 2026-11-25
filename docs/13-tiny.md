@@ -132,7 +132,8 @@ Montado por `montarPedido` (`src/lib/tiny/pedido.ts`), no formato de
   novo em vez de usar o cadastrado (Maria, 25/11/2026). Lote e Nova venda
   levam o id da própria busca; o presente, que só tem o SKU do catálogo, é
   procurado no cadastro pela fila logo antes do envio (`ligarItensAoCadastro`),
-  e vai com o código e o nome de lá. SKU que o Tiny não tem deixa o pedido em
+  e vai com o código de lá e a descrição do catálogo, porque o SKU pode ser
+  genérico (os 16 vinhos são `AUVP-BEBIDAS-VINHO`). SKU que o Tiny não tem deixa o pedido em
   Falhou com o aviso, em vez de criar produto repetido;
 - **marcador**, **transportadora** e **serviço** (`forma_frete`);
 - **frete por conta do remetente** (`R`). O AUVP-Eventos mandava `E`, que não
