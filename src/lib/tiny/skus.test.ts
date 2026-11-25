@@ -9,7 +9,7 @@ const doTiny = [
 
 describe('conferirSku', () => {
   it('aceita o código exato, sem diferença de caixa nem espaço', () => {
-    expect(conferirSku(' pres-vinho-01 ', doTiny)).toEqual({
+    expect(conferirSku(' pres-vinho-01 ', doTiny)).toMatchObject({
       ok: true,
       nomeNoTiny: 'Vinho El Enemigo',
     })

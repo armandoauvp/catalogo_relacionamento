@@ -8,7 +8,9 @@ import {
   incluirPedido,
   obterPedido,
   pesquisarContatos,
+  pesquisarProdutos,
 } from './api'
+import { conferirSku } from './skus'
 import { montarContato } from './contato'
 import {
   cancelamentoCabe,
@@ -20,14 +22,24 @@ import {
   type PassoDaExpedicao,
 } from './ciclo'
 import { rotuloDaSituacao } from './rotulos'
-import { classificarErro, MAX_TENTATIVAS, proximaTentativa } from './erros'
 import {
+  classificarErro,
+  ErroDoTiny,
+  MAX_TENTATIVAS,
+  PRODUTO_FORA_DO_CADASTRO,
+  proximaTentativa,
+} from './erros'
+import {
+  chaveDoCodigo,
   chaveDoPresente,
+  codigosSemId,
   corte,
+  ligarAoCadastro,
   montarPedido,
   resumoDosItens,
   type Destinatario,
   type PedidoParaOTiny,
+  type ProdutoLigado,
 } from './pedido'
 
 /**
@@ -439,6 +451,42 @@ export async function processarFila({
   return resultado
 }
 
+/**
+ * Acha no cadastro do Tiny o produto de cada item que só tem o código e grava o
+ * id no pedido, para a nova tentativa não buscar de novo. Lote e Nova venda já
+ * chegam com o id da busca; o presente traz só o SKU do catálogo.
+ */
+async function ligarItensAoCadastro(
+  conta: ContaTiny,
+  pedido: PedidoTiny,
+  antesDeChamar: () => Promise<void>,
+): Promise<PedidoParaOTiny> {
+  const payload = pedido.payload as unknown as PedidoParaOTiny
+  const codigos = codigosSemId(payload)
+  if (!codigos.length) return payload
+
+  const achados = new Map<string, ProdutoLigado>()
+  for (const codigo of codigos) {
+    await antesDeChamar()
+    const conferencia = conferirSku(codigo, await pesquisarProdutos(conta, codigo))
+    if (!conferencia.ok) {
+      throw new ErroDoTiny(
+        `${conferencia.erro} O pedido não foi ao Tiny para não criar um produto repetido lá.`,
+        PRODUTO_FORA_DO_CADASTRO,
+      )
+    }
+    const p = conferencia.produto
+    if (p?.id) achados.set(chaveDoCodigo(codigo), { id: p.id, codigo: p.codigo, nome: p.nome })
+  }
+
+  const ligado = ligarAoCadastro(payload, achados)
+  await db.pedidoTiny.update({
+    where: { id: pedido.id },
+    data: { payload: ligado as unknown as Prisma.InputJsonValue },
+  })
+  return ligado
+}
+
 /** Pedidos, situações e contatos de uma conta, nesta ordem. */
 async function rodadaDaConta(
   conta: ContaTiny,
@@ -477,9 +525,10 @@ async function rodadaDaConta(
       continue
     }
 
-    await antesDeChamar()
     try {
-      const criado = await incluirPedido(conta, pedido.payload as unknown as PedidoParaOTiny)
+      const payload = await ligarItensAoCadastro(conta, pedido, antesDeChamar)
+      await antesDeChamar()
+      const criado = await incluirPedido(conta, payload)
       await db.$transaction(async (tx) => {
         await tx.pedidoTiny.update({
           where: { id: pedido.id },

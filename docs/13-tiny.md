@@ -127,7 +127,13 @@ Montado por `montarPedido` (`src/lib/tiny/pedido.ts`), no formato de
 - **cliente** com `atualizar_cliente: S`: o Tiny cria quem não existe e
   atualiza quem existe, pelo CPF/CNPJ, sem chamada separada de contato;
 - **endereço de entrega** com o nome de quem recebe;
-- **itens** com o SKU (`codigo`), a descrição, a quantidade e o valor;
+- **itens** com o SKU (`codigo`), o **id do produto** (`id_produto`), a
+  descrição, a quantidade e o valor. Só com o código, o Tiny criava um produto
+  novo em vez de usar o cadastrado (Maria, 25/11/2026). Lote e Nova venda
+  levam o id da própria busca; o presente, que só tem o SKU do catálogo, é
+  procurado no cadastro pela fila logo antes do envio (`ligarItensAoCadastro`),
+  e vai com o código e o nome de lá. SKU que o Tiny não tem deixa o pedido em
+  Falhou com o aviso, em vez de criar produto repetido;
 - **marcador**, **transportadora** e **serviço** (`forma_frete`);
 - **frete por conta do remetente** (`R`). O AUVP-Eventos mandava `E`, que não
   está entre os valores da documentação;

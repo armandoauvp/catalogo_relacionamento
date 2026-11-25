@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  chaveDoCodigo,
   chaveDoLote,
   chaveDoPresente,
+  codigosSemId,
+  ligarAoCadastro,
   montarPedido,
   resumoDosItens,
   servicosDaTransportadora,
@@ -81,6 +84,56 @@ describe('pedido para o Tiny', () => {
     expect(montarPedido({ destinatario, itens, naturezaOperacao: '  ' })).not.toHaveProperty(
       'nome_natureza_operacao',
     )
+  })
+
+  it('o item leva o id do produto no Tiny, para não virar produto novo lá', () => {
+    const p = montarPedido({
+      destinatario,
+      itens: [
+        {
+          codigo: 'LIV',
+          idProduto: '812345',
+          descricao: 'Livro',
+          quantidade: 1,
+          valorUnitario: '1.00',
+        },
+        {
+          codigo: 'BON',
+          idProduto: 'abc',
+          descricao: 'Boné',
+          quantidade: 1,
+          valorUnitario: '1.00',
+        },
+      ],
+    })
+    expect(p.itens[0]!.item.id_produto).toBe(812345)
+    expect(p.itens[1]!.item).not.toHaveProperty('id_produto')
+    expect(codigosSemId(p)).toEqual(['BON'])
+  })
+
+  it('liga ao cadastro do Tiny pelo código, com o código e o nome de lá', () => {
+    const p = montarPedido({
+      destinatario,
+      itens: [
+        { codigo: 'liv-01', descricao: 'Livro do catálogo', quantidade: 2, valorUnitario: '35.00' },
+        { codigo: 'LIV-01', descricao: 'Repetido', quantidade: 1, valorUnitario: '35.00' },
+        { codigo: null, descricao: 'Vale-jantar', quantidade: 1, valorUnitario: '380.00' },
+      ],
+    })
+    expect(codigosSemId(p)).toEqual(['LIV-01'])
+    const ligado = ligarAoCadastro(
+      p,
+      new Map([[chaveDoCodigo('LIV-01'), { id: '555', codigo: 'LIV-01', nome: 'Livro AUVP' }]]),
+    )
+    expect(ligado.itens[0]!.item).toMatchObject({
+      id_produto: 555,
+      codigo: 'LIV-01',
+      descricao: 'Livro AUVP',
+      quantidade: '2',
+    })
+    expect(ligado.itens[1]!.item.id_produto).toBe(555)
+    expect(ligado.itens[2]!.item).toEqual(p.itens[2]!.item)
+    expect(codigosSemId(ligado)).toEqual([])
   })
 
   it('corta o que passa do tamanho que o Tiny aceita', () => {

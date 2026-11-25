@@ -9,13 +9,15 @@
  */
 
 export type ProdutoAchadoNoTiny = {
+  id?: string
   codigo: string
   nome: string
   /** "P" é o produto-pai de variações, "V" a variação, "N" o simples. */
   tipoVariacao: string
 }
 
-export type ConferenciaDoSku = { ok: true; nomeNoTiny: string } | { ok: false; erro: string }
+export type ConferenciaDoSku =
+  { ok: true; nomeNoTiny: string; produto?: ProdutoAchadoNoTiny } | { ok: false; erro: string }
 
 const comparavel = (sku: string) => sku.trim().toLowerCase()
 
@@ -41,7 +43,7 @@ export function conferirSku(
       erro: `"${sku.trim()}" é o produto-pai de "${igual.nome}", que tem variações. Use o SKU de uma das variações.`,
     }
   }
-  return { ok: true, nomeNoTiny: igual.nome }
+  return { ok: true, nomeNoTiny: igual.nome, produto: igual }
 }
 
 // ---------------------------------------------------------------------------

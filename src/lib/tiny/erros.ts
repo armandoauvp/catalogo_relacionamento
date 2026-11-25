@@ -29,6 +29,12 @@ export type TipoDeErro = 'temporario' | 'configuracao' | 'duplicidade' | 'recusa
 /** Código nosso, fora da tabela do Tiny: o token é de outra empresa. */
 export const EMPRESA_TROCADA = 1001
 
+/**
+ * Código nosso: o SKU do item não está no cadastro do Tiny. Recusado, não
+ * temporário: mandar assim criaria um produto novo lá.
+ */
+export const PRODUTO_FORA_DO_CADASTRO = 1002
+
 const TEMPORARIOS = new Set([6, 11, 35, 99])
 const DE_CONFIGURACAO = new Set([1, 2, 5, 7, 8, EMPRESA_TROCADA])
 const DE_DUPLICIDADE = new Set([9, 30, 33])

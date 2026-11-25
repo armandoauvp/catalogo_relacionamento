@@ -457,7 +457,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'tiny',
     pergunta: 'Como funciona a integração com o Tiny?',
     resposta:
-      'O presente vira pedido no Tiny sozinho, pela fila, quando fica pronto para processar: na aprovação, se é de estoque, ou quando a Logística confirma que o item comprado chegou. Situação e rastreio voltam de lá. Pedido em "Falhou" quase sempre é produto sem SKU: preencha o SKU e use Reenviar.',
+      'O presente vira pedido no Tiny sozinho, pela fila, quando fica pronto para processar: na aprovação, se é de estoque, ou quando a Logística confirma que o item comprado chegou. Situação e rastreio voltam de lá. Pedido em "Falhou" quase sempre é produto sem SKU, ou com um SKU que o Tiny não tem: o item vai ligado ao produto cadastrado lá, e o pedido não é enviado se ele não existir, para não criar produto repetido. Corrija o SKU (aqui ou no Tiny) e use Reenviar.',
     href: '/tiny',
     rotuloDoLink: 'Abrir o Tiny',
     exige: 'tiny.operar',

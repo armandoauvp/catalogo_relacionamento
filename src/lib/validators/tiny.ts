@@ -31,6 +31,15 @@ const naturezaOperacao = z
   .default(null)
   .transform((v) => v || null)
 
+/** Id do produto no Tiny, vindo da busca; sem ele, a fila acha pelo código. */
+const idProduto = z
+  .string()
+  .trim()
+  .regex(/^\d{0,18}$/, 'Produto do Tiny inválido.')
+  .nullable()
+  .default(null)
+  .transform((v) => v || null)
+
 export const loteSchema = z.object({
   conta,
   arquivo: z.string().trim().max(200).nullable().default(null),
@@ -39,6 +48,7 @@ export const loteSchema = z.object({
   departamento: textoCurto('o departamento'),
   produto: z.object({
     codigo: z.string().trim().max(60).nullable(),
+    idProduto,
     nome: textoCurto('o produto', 120),
     preco: z
       .string()
@@ -80,6 +90,7 @@ export const pedidoAvulsoSchema = z.object({
       z.object({
         // Pauta de 22/10/2026: sem SKU o Tiny não liga o item ao estoque.
         codigo: z.string().trim().min(1, 'Item sem SKU no Tiny.').max(60),
+        idProduto,
         descricao: textoCurto('a descrição do item', 120),
         quantidade: z.number().int().min(1, 'Quantidade mínima é 1.').max(999),
         valorUnitario: valorEmTexto,

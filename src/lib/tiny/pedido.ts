@@ -25,6 +25,11 @@ export type Destinatario = {
 export type ItemDoPedido = {
   /** SKU no Tiny. Sem ele, o item entra só pela descrição. */
   codigo?: string | null
+  /**
+   * Id do produto no Tiny. Só com o código, o Tiny criava um produto novo em
+   * vez de usar o cadastrado (Maria, 25/11/2026); com o id, o item fica ligado.
+   */
+  idProduto?: string | null
   descricao: string
   quantidade: number
   /** Decimal com ponto: "35.00". */
@@ -48,6 +53,7 @@ export type DadosDoPedido = {
 
 type ItemNoTiny = {
   item: {
+    id_produto?: number
     codigo?: string
     descricao: string
     unidade: string
@@ -82,6 +88,48 @@ export const cepFormatado = (cep: string) => {
 
 export function tipoDePessoa(cpfCnpj: string): 'F' | 'J' {
   return digitos(cpfCnpj).length === 14 ? 'J' : 'F'
+}
+
+/** A documentação pede número; id que não é só dígito fica de fora. */
+const idDoProduto = (id: string | null | undefined) =>
+  id && /^\d{1,18}$/.test(id.trim()) ? { id_produto: Number(id.trim()) } : {}
+
+/** Chave do mapa de `ligarAoCadastro`: o Tiny não distingue caixa no código. */
+export const chaveDoCodigo = (codigo: string) => codigo.trim().toLowerCase()
+
+/** Códigos dos itens que ainda não sabem o id do produto no Tiny. */
+export function codigosSemId(pedido: PedidoParaOTiny): string[] {
+  const codigos = pedido.itens
+    .filter((i) => i.item.codigo?.trim() && i.item.id_produto === undefined)
+    .map((i) => i.item.codigo!.trim())
+  return [...new Map(codigos.map((c) => [chaveDoCodigo(c), c])).values()]
+}
+
+export type ProdutoLigado = { id: string; codigo: string; nome: string }
+
+/**
+ * Põe nos itens o id, o código e o nome exatos do cadastro do Tiny, achados
+ * pelo código. Item sem código (presente específico) segue como está.
+ */
+export function ligarAoCadastro(
+  pedido: PedidoParaOTiny,
+  achados: ReadonlyMap<string, ProdutoLigado>,
+): PedidoParaOTiny {
+  return {
+    ...pedido,
+    itens: pedido.itens.map(({ item }) => {
+      const achado = item.codigo ? achados.get(chaveDoCodigo(item.codigo)) : undefined
+      if (!achado) return { item }
+      return {
+        item: {
+          ...item,
+          ...idDoProduto(achado.id),
+          codigo: corte(achado.codigo, 60) || item.codigo,
+          descricao: corte(achado.nome, 120) || item.descricao,
+        },
+      }
+    }),
+  }
 }
 
 export function montarPedido(dados: DadosDoPedido): PedidoParaOTiny {
@@ -119,6 +167,7 @@ export function montarPedido(dados: DadosDoPedido): PedidoParaOTiny {
     },
     itens: dados.itens.map((i) => ({
       item: {
+        ...idDoProduto(i.idProduto),
         ...(i.codigo ? { codigo: corte(i.codigo, 60) } : {}),
         descricao: corte(i.descricao, 120),
         unidade: 'UN',

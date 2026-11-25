@@ -330,7 +330,12 @@ export function ImportarLote({
         marcador: String(dados.get('marcador') ?? ''),
         subsidiaria: String(dados.get('subsidiaria') ?? ''),
         departamento: String(dados.get('departamento') ?? ''),
-        produto: { codigo: produto.codigo || null, nome: produto.nome, preco: precoDoLote },
+        produto: {
+          codigo: produto.codigo || null,
+          idProduto: produto.id || null,
+          nome: produto.nome,
+          preco: precoDoLote,
+        },
         transportadora: transportadora || null,
         formaFrete: servico || null,
         naturezaOperacao: String(dados.get('naturezaOperacao') ?? '') || null,

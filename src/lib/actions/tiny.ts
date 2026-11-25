@@ -210,6 +210,7 @@ export async function criarLote(entrada: unknown): Promise<ResultadoDaAction<Res
           const itens = [
             {
               codigo: dados.produto.codigo,
+              idProduto: dados.produto.idProduto,
               descricao: dados.produto.nome,
               quantidade: l.quantidade,
               valorUnitario: l.valorUnitario ?? valorUnitario,

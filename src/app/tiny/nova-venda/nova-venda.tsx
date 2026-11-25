@@ -235,6 +235,7 @@ export function NovaVenda({
         destinatario: cliente,
         itens: carrinho.map((i, n) => ({
           codigo: i.produto.codigo,
+          idProduto: i.produto.id || null,
           descricao: i.produto.nome,
           quantidade: i.quantidade,
           valorUnitario: valores[n]!,
