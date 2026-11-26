@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { acompanhamentosFaltando, mensagemDePendencia } from './acompanhamentos'
+import {
+  acompanhamentosFaltando,
+  mensagemDePendencia,
+  pareceVinhoSemRotulo,
+} from './acompanhamentos'
 
 const kit = {
   produtoId: 'k1',
@@ -83,5 +87,25 @@ describe('acompanhamentos', () => {
 
   it('sem pendência, não há mensagem', () => {
     expect(mensagemDePendencia([])).toBeNull()
+  })
+})
+
+describe('pareceVinhoSemRotulo', () => {
+  const p = (nome: string, exige: string | null = null, serve: string | null = null) => ({
+    nome,
+    exigeAcompanhamento: exige,
+    serveComoAcompanhamento: serve,
+  })
+
+  it('avisa da garrafa cadastrada sem "serve como"', () => {
+    expect(pareceVinhoSemRotulo(p('Vinho Freixenet Chianti D.O.C.G.'))).toBe(true)
+    expect(pareceVinhoSemRotulo(p('  vinho tinto'))).toBe(true)
+  })
+
+  it('não avisa de quem já tem rótulo, nem do kit que pede o vinho', () => {
+    expect(pareceVinhoSemRotulo(p('Vinho Alma Negra', null, 'vinho'))).toBe(false)
+    expect(pareceVinhoSemRotulo(p('Kit Queijos com Vinho - Escolha o vinho', 'vinho'))).toBe(false)
+    expect(pareceVinhoSemRotulo(p('Kit Queijos com Vinho'))).toBe(false)
+    expect(pareceVinhoSemRotulo(p('Vinhoteca de madeira'))).toBe(false)
   })
 })

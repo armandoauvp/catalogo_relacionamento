@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ProdutoImagem } from '@/components/produto-imagem'
 import { salvarProduto, alternarProduto } from '@/lib/actions/catalogo'
 import { prepararFoto } from '@/lib/arquivos-no-navegador'
+import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
 
 /**
  * Cadastro e edição de produto.
@@ -64,13 +65,30 @@ export function EditorDeProduto({
     produto?.origem ?? OrigemProduto.mediante_pedido,
   )
   const [previa, setPrevia] = useState<string | null>(null)
+  // Só os três campos do aviso do vinho; o resto do formulário segue cru.
+  const comoVeio = () => ({
+    nome: produto?.nome ?? '',
+    exigeAcompanhamento: produto?.exigeAcompanhamento ?? null,
+    serveComoAcompanhamento: produto?.serveComoAcompanhamento ?? null,
+  })
+  const [paraOAviso, setParaOAviso] = useState(comoVeio)
 
   const editando = Boolean(produto)
   const disponiveis = categorias.filter((c) => c.ativo || c.id === produto?.categoriaId)
 
+  function acompanharCampos(e: React.FormEvent<HTMLFormElement>) {
+    const dados = new FormData(e.currentTarget)
+    setParaOAviso({
+      nome: String(dados.get('nome') ?? ''),
+      exigeAcompanhamento: String(dados.get('exigeAcompanhamento') ?? ''),
+      serveComoAcompanhamento: String(dados.get('serveComoAcompanhamento') ?? ''),
+    })
+  }
+
   function abrir() {
     setErro(null)
     setPrevia(null)
+    setParaOAviso(comoVeio())
     setControlaEstoque(produto?.controlaEstoque ?? false)
     setOrigem(produto?.origem ?? OrigemProduto.mediante_pedido)
     setAberto(true)
@@ -118,7 +136,7 @@ export function EditorDeProduto({
             : 'O produto entra ativo e aparece no catálogo do consultor na hora.'
         }
       >
-        <form onSubmit={enviar} className="space-y-5">
+        <form onSubmit={enviar} onChange={acompanharCampos} className="space-y-5">
           {produto ? <input type="hidden" name="id" value={produto.id} /> : null}
 
           <div className="space-y-1.5">
@@ -342,6 +360,12 @@ export function EditorDeProduto({
                 <p className="text-muted-foreground text-xs">
                   Marque nas garrafas. É o que satisfaz o kit acima. Deixe vazio no resto.
                 </p>
+                {pareceVinhoSemRotulo(paraOAviso) ? (
+                  <p className="bg-warning/10 border-warning/30 rounded-md border px-2 py-1 text-xs">
+                    Este vinho está sem “vinho” aqui: o kit que pede vinho não vai reconhecê-lo, e a
+                    solicitação trava.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

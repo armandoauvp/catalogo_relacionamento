@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { exigirUsuario } from '@/lib/auth-guards'
 import { filtroDeSolicitacoes, pode } from '@/lib/permissions'
@@ -28,6 +28,10 @@ export default async function MinhaSolicitacaoPage({
 }) {
   const usuario = await exigirUsuario()
   const { id } = await params
+
+  // O consultor manda o link desta tela para o Admin. Quem vê todas abre a da
+  // gestão, que tem status, correção e volta; aqui só cabe o "já foi?".
+  if (pode(usuario.perfil, 'solicitacao.verTodas')) redirect(`/admin/solicitacoes/${id}`)
 
   const escopo = filtroDeSolicitacoes(usuario.perfil, usuario.id)
   if (!escopo) notFound()

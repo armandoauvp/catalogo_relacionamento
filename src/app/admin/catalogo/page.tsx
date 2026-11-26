@@ -30,6 +30,7 @@ import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
 import { EditorDeCategorias } from './editor-de-categorias'
 import { NoFornecedor } from './no-fornecedor'
+import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
 
 /**
  * CRUD do catálogo: operado pela própria área de Relacionamento.
@@ -196,6 +197,14 @@ export default async function AdminCatalogoPage({
                       {/* Nome e SKU empilhados: a etiqueta inline colava no nome. */}
                       <div className="flex flex-col items-start gap-1.5">
                         <span className="font-medium">{p.nome}</span>
+                        {pareceVinhoSemRotulo(p) ? (
+                          <Badge
+                            variant="warning"
+                            title="Edite e escreva “vinho” em Serve como: sem isso o kit que pede vinho não o reconhece."
+                          >
+                            não conta como vinho
+                          </Badge>
+                        ) : null}
                         {temSku(p) ? (
                           <Link
                             href={`/tiny/estoque?busca=${encodeURIComponent(p.skuTiny!)}` as Route}

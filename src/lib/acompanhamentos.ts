@@ -77,3 +77,17 @@ export function mensagemDePendencia(pendencias: readonly Pendencia[]): string | 
 
   return `${partes.join('; ')}. Escolha no catálogo antes de continuar.`
 }
+
+/**
+ * Garrafa cadastrada pela tela sem dizer que serve como vinho: o kit não a
+ * reconhece e a solicitação trava (SOL-2026-0029, 26/11/2026). O nome é só
+ * um palpite para avisar quem cadastra; a regra continua sendo o rótulo.
+ */
+export function pareceVinhoSemRotulo(p: {
+  nome: string
+  exigeAcompanhamento: string | null
+  serveComoAcompanhamento: string | null
+}): boolean {
+  if (p.exigeAcompanhamento?.trim() || p.serveComoAcompanhamento?.trim()) return false
+  return /^vinhos?\b/i.test(p.nome.trim())
+}
