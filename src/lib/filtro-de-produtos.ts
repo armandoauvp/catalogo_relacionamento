@@ -12,8 +12,11 @@ export const filtroDeProdutosSchema = z.object({
   situacao: z.enum(['ativo', 'desativado']).optional().catch(undefined),
   /** A pauta de 22/10/2026 pede SKU em todo produto ativo: "falta" mostra o que falta. */
   sku: z.enum(['falta']).optional().catch(undefined),
-  /** Esgotado na última conferência da loja (`conferencia-do-fornecedor.ts`). */
-  fornecedor: z.enum(['esgotado']).optional().catch(undefined),
+  /**
+   * Última conferência da loja (`conferencia-do-fornecedor.ts`): "esgotado" é
+   * o ativo que a loja não tem; "voltou", o pausado que ela tem de novo.
+   */
+  fornecedor: z.enum(['esgotado', 'voltou']).optional().catch(undefined),
 })
 
 export type FiltroDeProdutos = z.output<typeof filtroDeProdutosSchema>
@@ -33,6 +36,13 @@ type ProdutoFiltravel = {
 
 export const temSku = (p: { skuTiny: string | null }) => Boolean(p.skuTiny?.trim())
 
+export const esgotadoNaLoja = (p: Pick<ProdutoFiltravel, 'ativo' | 'fornecedorSituacao'>) =>
+  p.ativo && p.fornecedorSituacao === 'esgotado'
+
+/** Pausado que a loja mostra à venda: dá para devolver ao catálogo. */
+export const voltouNaLoja = (p: Pick<ProdutoFiltravel, 'ativo' | 'fornecedorSituacao'>) =>
+  !p.ativo && (p.fornecedorSituacao === 'disponivel' || p.fornecedorSituacao === 'limitado')
+
 export function produtosDoFiltro<P extends ProdutoFiltravel>(
   produtos: readonly P[],
   f: FiltroDeProdutos,
@@ -43,6 +53,6 @@ export function produtosDoFiltro<P extends ProdutoFiltravel>(
       (!f.origem || p.origem === f.origem) &&
       (!f.situacao || p.ativo === (f.situacao === 'ativo')) &&
       (!f.sku || (p.ativo && !temSku(p))) &&
-      (!f.fornecedor || (p.ativo && p.fornecedorSituacao === f.fornecedor)),
+      (!f.fornecedor || (f.fornecedor === 'esgotado' ? esgotadoNaLoja(p) : voltouNaLoja(p))),
   )
 }

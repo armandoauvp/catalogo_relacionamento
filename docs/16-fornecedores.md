@@ -6,7 +6,7 @@ da Bebida não tinha mais, e o preço daqui envelhecia sem ninguém ver.
 ## O que acontece
 
 Toda manhã o servidor abre o link de compra (`Produto.urlCompra`) de cada
-presente ativo e grava o que a loja publica: preço e disponibilidade
+presente, ativo ou pausado, e grava o que a loja publica: preço e disponibilidade
 (`src/lib/conferencia-do-fornecedor.ts`). A leitura é pelos dados
 estruturados da página (schema.org `Product`, em JSON-LD ou em meta tags), que
 é o que buscadores leem e por isso muda pouco; o desenho da página não importa
@@ -16,14 +16,18 @@ estruturados da página (schema.org `Product`, em JSON-LD ou em meta tags), que
   chama `/api/fornecedores/cron` com o mesmo `CRON_SECRET` do Tiny. A segunda
   chamada pega o que não coube nos 60 s da primeira. Produto conferido há
   menos de 20 horas fica para o dia seguinte.
-- **Na hora:** o Admin aperta "Conferir agora" na linha do produto, em
-  Administração → Produtos. Trocar o link apaga a leitura anterior.
+- **Na hora:** o Admin aperta "Conferir agora" na linha do produto, ou
+  "Conferir todos na loja" no topo de Administração → Produtos (26/11/2026,
+  depois de a Lilian despausar vários de uma vez). O "todos" pula o que foi
+  conferido nos últimos 10 minutos e para em 45 s; o que faltar, a tela diz,
+  e o clique seguinte continua. Trocar o link apaga a leitura anterior.
 
 ## O que muda na tela
 
 - **Consultor** (catálogo e nova solicitação): o selo "esgotado na loja".
   Avisa e não trava: a loja pode repor, e o Financeiro pode comprar em outra.
-- **Admin** (Produtos): o cartão "Esgotados na loja", que filtra a tabela, e
+- **Admin** (Produtos): o cartão "Esgotados na loja", que filtra a tabela; no
+  cartão "Pausados", quantos estão à venda de novo na loja, que também filtra; e
   em cada linha a situação, o preço da loja quando difere do daqui, "Usar
   R$ X" e "Conferir agora".
 
@@ -33,7 +37,9 @@ estruturados da página (schema.org `Product`, em JSON-LD ou em meta tags), que
   (o link do kit de cerveja é a cerveja), e o daqui pode incluir frete. "Usar
   R$ X" é decisão do Admin, e solicitação já feita não muda: o valor congelou
   na criação.
-- **Não desativa presente.** Esgotado é aviso; pausar é o Admin.
+- **Não desativa nem reativa presente.** Esgotado é aviso; pausar e reativar é
+  o Admin. O link de kit pode ser só uma parte dele, metade das lojas não se
+  deixa ler, e o pausado pode ter sido pausado por outro motivo.
 - **Não lê variação** (safra, tamanho, cor). Cada loja organiza de um jeito;
   fica para uma segunda etapa, se a área precisar.
 

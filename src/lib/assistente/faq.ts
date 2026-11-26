@@ -415,7 +415,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'esgotado-na-loja',
     pergunta: 'O que quer dizer "esgotado na loja"?',
     resposta:
-      'Toda manhã a ferramenta abre o link de compra de cada presente e lê o preço e o estoque que a loja publica. "Esgotado na loja" quer dizer que, na última conferência, a loja estava sem o produto. É um aviso: o pedido ainda pode ser feito, e o Financeiro compra em outro lugar ou espera repor. Em Administração → Produtos, o Admin vê o preço da loja, usa o preço novo com um clique e confere de novo na hora. Mercado Livre e algumas lojas não publicam esses dados e aparecem como "loja não conferida".',
+      'Toda manhã a ferramenta abre o link de compra de cada presente e lê o preço e o estoque que a loja publica. "Esgotado na loja" quer dizer que, na última conferência, a loja estava sem o produto. É um aviso: o pedido ainda pode ser feito, e o Financeiro compra em outro lugar ou espera repor. Em Administração → Produtos, o Admin vê o preço da loja, usa o preço novo com um clique e confere de novo na hora, um produto ou todos ("Conferir todos na loja", pausados inclusive). O cartão Pausados mostra quantos estão à venda de novo na loja, para reativar. Mercado Livre e algumas lojas não publicam esses dados e aparecem como "loja não conferida".',
     href: '/catalogo',
     rotuloDoLink: 'Abrir o catálogo',
     exige: 'catalogo.ver',

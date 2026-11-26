@@ -39,3 +39,24 @@ describe('filtro do cadastro de produtos', () => {
     expect(nomes({ origem: 'qualquer', situacao: 'talvez' })).toHaveLength(3)
   })
 })
+
+describe('filtro pela conferência da loja', () => {
+  const NA_LOJA = [
+    produto('Ativo esgotado', { fornecedorSituacao: 'esgotado' }),
+    produto('Ativo disponível', { fornecedorSituacao: 'disponivel' }),
+    produto('Pausado que voltou', { ativo: false, fornecedorSituacao: 'disponivel' }),
+    produto('Pausado com pouco', { ativo: false, fornecedorSituacao: 'limitado' }),
+    produto('Pausado ainda esgotado', { ativo: false, fornecedorSituacao: 'esgotado' }),
+    produto('Pausado sem leitura', { ativo: false, fornecedorSituacao: 'nao_conferido' }),
+  ]
+  const da = (fornecedor: string) =>
+    produtosDoFiltro(NA_LOJA, filtroDeProdutosSchema.parse({ fornecedor })).map((p) => p.nome)
+
+  it('esgotado é o ativo que a loja não tem', () => {
+    expect(da('esgotado')).toEqual(['Ativo esgotado'])
+  })
+
+  it('voltou é o pausado que a loja tem de novo', () => {
+    expect(da('voltou')).toEqual(['Pausado que voltou', 'Pausado com pouco'])
+  })
+})

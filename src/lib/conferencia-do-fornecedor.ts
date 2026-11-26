@@ -12,8 +12,8 @@ import { lerOferta, type OfertaLida } from './oferta-do-fornecedor'
  * cerveja), e o daqui pode incluir frete: igualar sozinho erraria nos dois.
  */
 
-/** Conferido há menos que isto, fica para a próxima rodada. */
-const VALIDADE_MS = 20 * 3_600_000
+/** Conferido há menos que isto, fica para a próxima rodada da manhã. */
+export const VALIDADE_DA_RODADA_MS = 20 * 3_600_000
 const TEMPO_DA_PAGINA_MS = 12_000
 const PAGINAS_AO_MESMO_TEMPO = 4
 /** Página de produto passa de 1 MB com folga; mais que isto não é página de produto. */
@@ -128,34 +128,45 @@ export async function conferirProduto(produtoId: string, agora = new Date()) {
   return r
 }
 
-export type RodadaDoFornecedor = { conferidos: number; esgotados: number; naoConferidos: number }
+export type RodadaDoFornecedor = {
+  conferidos: number
+  esgotados: number
+  naoConferidos: number
+  /** Ficaram para a próxima chamada, porque o prazo acabou. */
+  restantes: number
+}
 
 /**
- * Os produtos ativos com link, o que está há mais tempo sem conferir primeiro,
- * até o prazo acabar. O que sobrar fica para a próxima chamada.
+ * Os produtos com link, o que está há mais tempo sem conferir primeiro, até o
+ * prazo acabar. O que sobrar fica para a próxima chamada.
+ *
+ * Pausados entram também: é como o Admin descobre que o esgotado voltou e
+ * pode reativá-lo (Lilian, 26/11/2026). Reativar continua sendo decisão dele.
  */
 export async function conferirFornecedores({
   prazoMs,
+  validadeMs = VALIDADE_DA_RODADA_MS,
   agora = () => new Date(),
 }: {
   prazoMs: number
+  /** Conferido há menos que isto fica de fora. O "Conferir todos" usa minutos. */
+  validadeMs?: number
   agora?: () => Date
 }): Promise<RodadaDoFornecedor> {
   const fim = Date.now() + prazoMs
   const fila = await db.produto.findMany({
     where: {
-      ativo: true,
       urlCompra: { not: null },
       OR: [
         { fornecedorConferidoEm: null },
-        { fornecedorConferidoEm: { lt: new Date(agora().getTime() - VALIDADE_MS) } },
+        { fornecedorConferidoEm: { lt: new Date(agora().getTime() - validadeMs) } },
       ],
     },
     orderBy: { fornecedorConferidoEm: { sort: 'asc', nulls: 'first' } },
     select: { id: true, urlCompra: true },
   })
 
-  const rodada: RodadaDoFornecedor = { conferidos: 0, esgotados: 0, naoConferidos: 0 }
+  const rodada: RodadaDoFornecedor = { conferidos: 0, esgotados: 0, naoConferidos: 0, restantes: 0 }
   const trabalhador = async () => {
     // Deixa folga para a última página que começar terminar dentro do prazo.
     while (fila.length && Date.now() + TEMPO_DA_PAGINA_MS < fim) {
@@ -170,5 +181,6 @@ export async function conferirFornecedores({
     }
   }
   await Promise.all(Array.from({ length: PAGINAS_AO_MESMO_TEMPO }, trabalhador))
+  rodada.restantes = fila.length
   return rodada
 }

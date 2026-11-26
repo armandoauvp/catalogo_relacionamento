@@ -24,12 +24,14 @@ import {
   produtosDoFiltro,
   ROTULO_DA_ORIGEM,
   temSku,
+  esgotadoNaLoja,
+  voltouNaLoja,
 } from '@/lib/filtro-de-produtos'
 import { ValorDoProduto } from '@/components/valor-do-produto'
 import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
 import { EditorDeCategorias } from './editor-de-categorias'
-import { NoFornecedor } from './no-fornecedor'
+import { ConferirTodos, NoFornecedor } from './no-fornecedor'
 import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
 
 /**
@@ -38,6 +40,9 @@ import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
  * Requisito de primeira ordem da spec: cadastrar, editar, ativar e desativar
  * produto sem passar pelo time técnico.
  */
+// "Conferir todos na loja" roda nesta página e leva até um minuto.
+export const maxDuration = 60
+
 export default async function AdminCatalogoPage({
   searchParams,
 }: {
@@ -62,7 +67,8 @@ export default async function AdminCatalogoPage({
 
   const ativos = produtos.filter((p) => p.ativo).length
   const semSku = produtos.filter((p) => p.ativo && !temSku(p)).length
-  const esgotados = produtos.filter((p) => p.ativo && p.fornecedorSituacao === 'esgotado').length
+  const esgotados = produtos.filter(esgotadoNaLoja).length
+  const voltaram = produtos.filter(voltouNaLoja).length
   const listados = produtosDoFiltro(produtos, filtro)
 
   const filtrosAtivos: FiltroAtivo[] = [
@@ -88,7 +94,7 @@ export default async function AdminCatalogoPage({
     },
     filtro.fornecedor && {
       coluna: 'Na loja',
-      valor: 'esgotado',
+      valor: filtro.fornecedor === 'esgotado' ? 'esgotado' : 'pausado que voltou',
       semEle: hrefSemFiltro(caminho, params, 'fornecedor'),
     },
   ].filter((f): f is FiltroAtivo => Boolean(f))
@@ -114,6 +120,7 @@ export default async function AdminCatalogoPage({
         descricao="Cadastro, edição e ativação de produtos, feitos pela própria área, sem depender do time técnico."
         acoes={
           <>
+            <ConferirTodos />
             <EditorDeCategorias categorias={opcoesDeCategoria} />
             <Button variant="outline" asChild>
               <Link href={'/admin/catalogo/skus' as Route}>
@@ -131,7 +138,20 @@ export default async function AdminCatalogoPage({
         <Stat
           rotulo="Pausados"
           valor={produtos.length - ativos}
-          apoio="Somem para o consultor e voltam com Reativar."
+          apoio={
+            voltaram ? (
+              <LinkDeFiltro
+                href={grupo('fornecedor', 'voltou').href as Route}
+                className="text-primary-emphasis underline-offset-4 hover:underline"
+              >
+                {filtro.fornecedor === 'voltou'
+                  ? 'Mostrar todos'
+                  : `${voltaram} à venda de novo na loja`}
+              </LinkDeFiltro>
+            ) : (
+              'Somem para o consultor e voltam com Reativar.'
+            )
+          }
         />
         <Stat
           rotulo="Sem SKU no Tiny"
@@ -159,7 +179,7 @@ export default async function AdminCatalogoPage({
                 href={grupo('fornecedor', 'esgotado').href as Route}
                 className="text-primary-emphasis underline-offset-4 hover:underline"
               >
-                {filtro.fornecedor ? 'Mostrar todos' : 'Mostrar só estes'}
+                {filtro.fornecedor === 'esgotado' ? 'Mostrar todos' : 'Mostrar só estes'}
               </LinkDeFiltro>
             ) : (
               'Conferido toda manhã no link de compra.'

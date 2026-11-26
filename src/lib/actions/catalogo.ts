@@ -11,7 +11,11 @@ import { CONTA_PADRAO } from '@/lib/tiny/contas'
 import { pesquisarProdutos } from '@/lib/tiny/api'
 import { ErroDoTiny } from '@/lib/tiny/erros'
 import { conferirSku, lerPlanilhaDeSkus, type ConferenciaDoSku } from '@/lib/tiny/skus'
-import { conferirProduto } from '@/lib/conferencia-do-fornecedor'
+import {
+  conferirFornecedores,
+  conferirProduto,
+  type RodadaDoFornecedor,
+} from '@/lib/conferencia-do-fornecedor'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -195,6 +199,22 @@ export async function conferirNoFornecedor(id: string): Promise<ResultadoDaActio
     await conferirProduto(id)
     revalidarCatalogo()
     return { ok: true, dados: undefined }
+  } catch (e) {
+    return comoErro(e)
+  }
+}
+
+/**
+ * "Conferir todos": ativos e pausados, sem esperar a manhã (Lilian, 26/11/2026,
+ * depois de despausar vários de uma vez). O conferido nos últimos minutos fica
+ * de fora, para o segundo clique continuar de onde o primeiro parou.
+ */
+export async function conferirTodosNoFornecedor(): Promise<ResultadoDaAction<RodadaDoFornecedor>> {
+  try {
+    await autorizarAction('catalogo.gerenciar')
+    const rodada = await conferirFornecedores({ prazoMs: 45_000, validadeMs: 10 * 60_000 })
+    revalidarCatalogo()
+    return { ok: true, dados: rodada }
   } catch (e) {
     return comoErro(e)
   }

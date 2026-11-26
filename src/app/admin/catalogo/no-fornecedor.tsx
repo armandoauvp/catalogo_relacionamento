@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { conferirNoFornecedor, usarPrecoDoFornecedor } from '@/lib/actions/catalogo'
+import {
+  conferirNoFornecedor,
+  conferirTodosNoFornecedor,
+  usarPrecoDoFornecedor,
+} from '@/lib/actions/catalogo'
 import type { SituacaoNoFornecedor } from '@prisma/client'
 
 const ROTULO: Record<
@@ -114,6 +118,51 @@ export function NoFornecedor({
         </Button>
       </div>
       {falha ? <span className="text-destructive">{falha}</span> : null}
+    </div>
+  )
+}
+
+/**
+ * Confere de uma vez, na loja, todos os produtos com link, pausados inclusive.
+ * O servidor tem um minuto por chamada; o que não couber fica para o próximo
+ * clique, e a frase diz quantos.
+ */
+export function ConferirTodos() {
+  const router = useRouter()
+  const [ocupado, iniciar] = useTransition()
+  const [frase, setFrase] = useState<string | null>(null)
+
+  function rodar() {
+    setFrase(null)
+    iniciar(async () => {
+      const r = await conferirTodosNoFornecedor()
+      if (!r.ok) return setFrase(r.erro)
+      const { conferidos, esgotados, restantes } = r.dados
+      setFrase(
+        conferidos === 0 && restantes === 0
+          ? 'Tudo já tinha sido conferido nos últimos minutos.'
+          : `${conferidos} conferidos, ${esgotados} esgotados na loja.` +
+              (restantes ? ` Faltaram ${restantes}: clique de novo para continuar.` : ''),
+      )
+      router.refresh()
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button type="button" variant="outline" disabled={ocupado} onClick={rodar}>
+        {ocupado ? (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        ) : (
+          <RefreshCw aria-hidden="true" />
+        )}
+        {ocupado ? 'Conferindo na loja…' : 'Conferir todos na loja'}
+      </Button>
+      {frase ? (
+        <span className="text-muted-foreground max-w-72 text-right text-xs" role="status">
+          {frase}
+        </span>
+      ) : null}
     </div>
   )
 }
