@@ -1,3 +1,5 @@
+import { Perfil } from '@prisma/client'
+
 /**
  * Quem pode entrar pelo SSO, antes de qualquer perfil.
  *
@@ -39,4 +41,15 @@ export function emailPodeEntrar(
   const dominio = dominioDoEmail(email)
   if (!dominio) return false
   return dominiosPermitidos.includes(dominio)
+}
+
+/**
+ * Quem é da consultoria entra como Consultor (pedido de 27/11/2026): o
+ * domínio já diz a área, e o Admin não precisa promover um por um. O resto
+ * entra como Colaborador AUVP, o perfil de menos acesso.
+ */
+export const DOMINIO_DOS_CONSULTORES = 'auvpconsultoria.com.br'
+
+export function perfilDeEntrada(email: string): Perfil {
+  return dominioDoEmail(email) === DOMINIO_DOS_CONSULTORES ? Perfil.consultor : Perfil.colaborador
 }

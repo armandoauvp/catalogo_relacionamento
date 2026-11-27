@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dominioDoEmail, emailPodeEntrar } from './acesso-sso'
+import { dominioDoEmail, emailPodeEntrar, perfilDeEntrada } from './acesso-sso'
 
 describe('dominioDoEmail', () => {
   it('separa o domínio em minúsculas', () => {
@@ -49,5 +49,19 @@ describe('emailPodeEntrar', () => {
 
   it('lista vazia libera, que é o desenvolvimento', () => {
     expect(emailPodeEntrar('ana@gmail.com', [])).toBe(true)
+  })
+})
+
+describe('perfilDeEntrada', () => {
+  it('a consultoria entra como Consultor', () => {
+    expect(perfilDeEntrada('maria@auvpconsultoria.com.br')).toBe('consultor')
+    expect(perfilDeEntrada('Maria@AUVPConsultoria.com.br')).toBe('consultor')
+  })
+
+  it('o resto, e o domínio parecido, entram como Colaborador', () => {
+    expect(perfilDeEntrada('joao@auvp.com.br')).toBe('colaborador')
+    expect(perfilDeEntrada('x@falsoauvpconsultoria.com.br')).toBe('colaborador')
+    expect(perfilDeEntrada('x@auvpconsultoria.com.br.evil.com')).toBe('colaborador')
+    expect(perfilDeEntrada('sem-arroba')).toBe('colaborador')
   })
 })

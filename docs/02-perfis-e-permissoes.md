@@ -80,6 +80,8 @@ conta, então a separação só vale de verdade com a variável desligada.
 
 É quem não é de nenhuma área com perfil próprio, e é o perfil de **quem entra pela primeira vez** (`PERFIL_DE_ENTRADA`, em `src/lib/auth.ts`). O admin da área traz a pessoa ao time: o de Relacionamento a faz Consultor, o de Logística a põe na Logística.
 
+A exceção é quem tem e-mail `@auvpconsultoria.com.br`: entra direto como **Consultor** (`perfilDeEntrada`, em `src/lib/acesso-sso.ts`, desde 27/11/2026). Quem desse domínio já estava como Colaborador vira Consultor no login seguinte; quem recebeu outro perfil na tela de Usuários fica com ele.
+
 O Colaborador faz duas coisas:
 
 - **pede trabalho à Logística** em `/logistica/pedidos`: o que precisa, empresa, departamento, para quando e detalhes. O pedido entra na trilha em `Recebido`, com quem pediu, e a Logística define prioridade, complexidade e responsável;

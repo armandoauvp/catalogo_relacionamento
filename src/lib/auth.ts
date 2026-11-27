@@ -3,7 +3,7 @@ import type { Provider } from 'next-auth/providers'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import { Perfil } from '@prisma/client'
-import { emailPodeEntrar } from './acesso-sso'
+import { emailPodeEntrar, perfilDeEntrada } from './acesso-sso'
 import { db } from './db'
 import { usuarioDaDemonstracao } from './demonstracao'
 import {
@@ -117,7 +117,10 @@ function montarProviders(): Provider[] {
   return providers
 }
 
-/** O perfil de quem entra pela primeira vez. */
+/**
+ * O perfil de quem entra pela primeira vez, e o de quem fica sem perfil no
+ * token. A consultoria é a exceção, pelo domínio (`perfilDeEntrada`).
+ */
 export const PERFIL_DE_ENTRADA = Perfil.colaborador
 
 /**
@@ -139,9 +142,21 @@ export async function sincronizarUsuario(dados: {
 }) {
   const email = dados.email.trim().toLowerCase()
   const ehBootstrapAdmin = env.BOOTSTRAP_ADMIN_EMAILS.includes(email)
-  const existente = ehBootstrapAdmin
-    ? await db.usuario.findUnique({ where: { email }, select: { perfil: true } })
-    : null
+  const entrada = perfilDeEntrada(email)
+  const existente =
+    ehBootstrapAdmin || entrada !== PERFIL_DE_ENTRADA
+      ? await db.usuario.findUnique({ where: { email }, select: { perfil: true } })
+      : null
+  // Quem já recebeu um perfil na tela de Usuários fica com ele: só sobe quem
+  // ainda está no de entrada (ou no antigo, Consultor, para o bootstrap).
+  let promocao: Perfil | null = null
+  if (existente && ehBootstrapAdmin) {
+    if (existente.perfil === PERFIL_DE_ENTRADA || existente.perfil === Perfil.consultor) {
+      promocao = Perfil.admin
+    }
+  } else if (existente && existente.perfil === PERFIL_DE_ENTRADA && entrada !== PERFIL_DE_ENTRADA) {
+    promocao = entrada
+  }
 
   return db.usuario.upsert({
     where: { email },
@@ -149,17 +164,14 @@ export async function sincronizarUsuario(dados: {
       email,
       nome: dados.nome || email,
       ssoSubject: dados.ssoSubject ?? null,
-      perfil: ehBootstrapAdmin ? Perfil.admin : (dados.perfilInicial ?? PERFIL_DE_ENTRADA),
+      perfil: ehBootstrapAdmin ? Perfil.admin : (dados.perfilInicial ?? entrada),
     },
     update: {
       // O nome acompanha o provedor de identidade. Perfil e limite mensal, não:
       // são geridos pelo Admin dentro da ferramenta.
       nome: dados.nome || undefined,
       ssoSubject: dados.ssoSubject ?? undefined,
-      ...(existente &&
-      (existente.perfil === PERFIL_DE_ENTRADA || existente.perfil === Perfil.consultor)
-        ? { perfil: Perfil.admin }
-        : {}),
+      ...(promocao ? { perfil: promocao } : {}),
     },
     select: { id: true, perfil: true, ativo: true, nome: true, email: true },
   })

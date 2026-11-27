@@ -86,7 +86,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'por-que-colaborador',
     pergunta: 'Por que só vejo a Logística no menu?',
     resposta:
-      'Quem entra pela primeira vez é Colaborador AUVP: pode pedir à Logística e ler o painel. Se você trabalha com presentes ou na Logística, o admin da sua área ajusta o seu perfil em Usuários.',
+      'Quem entra pela primeira vez é Colaborador AUVP: pode pedir à Logística e ler o painel. Quem tem e-mail @auvpconsultoria.com.br já entra como Consultor. Se você trabalha com presentes ou na Logística, o admin da sua área ajusta o seu perfil em Usuários.',
     paraPerfis: ['colaborador'],
     termos: ['perfil', 'acesso', 'permissao', 'menu', 'catalogo', 'colaborador'],
     destaque: true,

@@ -151,7 +151,10 @@ Coisas que o código já garante e que não devem ser afrouxadas:
   O domínio continua conferido.
 - **Quem entra pela primeira vez é Colaborador AUVP** (`PERFIL_DE_ENTRADA`, em
   `auth.ts`): o perfil de menos acesso, que só pede trabalho à Logística e lê o
-  painel. Na falta de perfil no token, vale ele também, nunca um com mais.
+  painel. Na falta de perfil no token, vale ele também, nunca um com mais. A
+  exceção é o domínio `auvpconsultoria.com.br`, que entra como Consultor
+  (`perfilDeEntrada`, em `acesso-sso.ts`); quem dele ainda estava como
+  Colaborador sobe no login seguinte, e nenhum outro perfil é trocado.
 - **Admin por área não sai do próprio alcance.** Só o Admin geral promove a
   admin. O de Relacionamento alterna entre Colaborador e Consultor; o de
   Logística, entre Colaborador, Consultor e Logística, e nenhum mexe em quem está
