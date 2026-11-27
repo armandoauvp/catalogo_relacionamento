@@ -386,6 +386,10 @@ model SolicitacaoItem {
   /// pelo Financeiro. Só vale para item específico; o do catálogo segue a
   /// origem do produto. Uma CHECK garante.
   doEstoque      Boolean   @default(false) @map("do_estoque")
+  /// SKU do produto no Tiny, informado pela Logística no "Chegou" do item de
+  /// fora do catálogo, depois de cadastrá-lo lá: é como ele entra no estoque.
+  /// O item do catálogo usa o SKU do produto e deixa este nulo.
+  skuTiny        String?   @map("sku_tiny")
 
   solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
   produto     Produto?    @relation(fields: [produtoId], references: [id], onDelete: Restrict)

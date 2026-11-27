@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { StatusSolicitacao } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 import {
+  skusDaChegada,
   chegouAgora,
   diasDesde,
   pendenciaDoEnvio,
@@ -180,5 +181,45 @@ describe('o que acabou de ficar pronto', () => {
     expect(diasDesde(new Date(agora.getTime() - 3_600_000), agora)).toBe(0)
     expect(diasDesde(new Date(agora.getTime() - 50 * 3_600_000), agora)).toBe(2)
     expect(diasDesde(new Date(agora.getTime() + 3_600_000), agora)).toBe(0)
+  })
+})
+
+describe('skusDaChegada', () => {
+  const catalogo = {
+    id: 'c',
+    produto: 'Vinho Alma Negra',
+    externo: false,
+    sku: 'AUVP-BEBIDAS-VINHO',
+  }
+  const externo = { id: 'e', produto: 'Luminária de mesa', externo: true, sku: null }
+
+  it('o item de fora do catálogo leva o SKU que a Logística informa', () => {
+    expect(skusDaChegada([catalogo, externo], { e: ' LUM-01 ' })).toEqual({
+      ok: true,
+      skus: [
+        { itemId: 'c', sku: 'AUVP-BEBIDAS-VINHO', externo: false },
+        { itemId: 'e', sku: 'LUM-01', externo: true },
+      ],
+    })
+  })
+
+  it('sem o SKU do item de fora, a chegada não anda e diz qual falta', () => {
+    const r = skusDaChegada([catalogo, externo], { e: '  ' })
+    expect(r.ok).toBe(false)
+    expect(!r.ok && r.erro).toContain('Luminária de mesa')
+  })
+
+  it('aproveita o SKU informado numa chegada anterior', () => {
+    expect(skusDaChegada([{ ...externo, sku: 'LUM-01' }], {}).ok).toBe(true)
+  })
+
+  it('produto do catálogo sem SKU também segura a chegada', () => {
+    const r = skusDaChegada([{ ...catalogo, sku: null }], {})
+    expect(!r.ok && r.erro).toContain('Administração → Produtos')
+  })
+
+  it('o SKU digitado não vale para item do catálogo', () => {
+    const r = skusDaChegada([catalogo], { c: 'OUTRO' })
+    expect(r.ok && r.skus[0]!.sku).toBe('AUVP-BEBIDAS-VINHO')
   })
 })

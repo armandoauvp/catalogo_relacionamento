@@ -40,7 +40,17 @@ import {
 import { compraCompleta } from '@/lib/compras'
 import { clienteSchema } from '@/lib/validators/cliente'
 import { sincronizarDemandaDoPresente } from '@/lib/logistica/ponte'
-import { cancelarPresenteNoTiny, enfileirarPresente, processarFila } from '@/lib/tiny/fila'
+import {
+  cancelarPresenteNoTiny,
+  configuracaoTiny,
+  enfileirarPresente,
+  processarFila,
+} from '@/lib/tiny/fila'
+import { tinyLigado } from '@/lib/env'
+import { CONTA_PADRAO } from '@/lib/tiny/contas'
+import { pesquisarProdutos } from '@/lib/tiny/api'
+import { conferirSku } from '@/lib/tiny/skus'
+import { skusDaChegada } from '@/lib/expedicao'
 import { comoErro, primeiroErro, type ResultadoDaAction } from './comuns'
 
 /**
@@ -373,18 +383,67 @@ export async function marcarEntregue(solicitacaoId: string): Promise<ResultadoDa
  * recebe o pacote confirma a chegada e nenhum outro status. O pedido só entra
  * no Tiny a partir daqui, porque antes disso a Logística não tem o que processar.
  */
-export async function confirmarChegada(solicitacaoId: string): Promise<ResultadoDaAction> {
+export async function confirmarChegada(
+  solicitacaoId: string,
+  /** SKU no Tiny de cada item de fora do catálogo, pelo id do item. */
+  skusInformados: Record<string, string> = {},
+): Promise<ResultadoDaAction> {
   try {
     const usuario = await autorizarAction('expedicao.receberItem')
 
     const solicitacao = await db.solicitacao.findUnique({
       where: { id: solicitacaoId },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        itens: {
+          select: {
+            id: true,
+            produtoId: true,
+            descricaoLivre: true,
+            skuTiny: true,
+            produto: { select: { nome: true, skuTiny: true } },
+          },
+        },
+      },
     })
     if (!solicitacao) return { ok: false, erro: 'Solicitação não encontrada.' }
 
     if (!ehChegadaDoItem(solicitacao.status, StatusSolicitacao.organizando_envio)) {
       return { ok: false, erro: 'Só dá para confirmar a chegada de um pedido em "Comprado".' }
+    }
+
+    const chegada = skusDaChegada(
+      solicitacao.itens.map((i) => ({
+        id: i.id,
+        produto: i.produto?.nome ?? i.descricaoLivre ?? 'Presente',
+        externo: !i.produtoId,
+        sku: i.produto?.skuTiny?.trim() || i.skuTiny?.trim() || null,
+      })),
+      skusInformados,
+    )
+    if (!chegada.ok) return { ok: false, erro: chegada.erro }
+
+    // Confere no Tiny na hora, e não só na fila: quem está com o pacote na mão
+    // fica sabendo agora que falta o cadastro, e não horas depois, em "Falhou".
+    if (tinyLigado(CONTA_PADRAO) && (await configuracaoTiny()).enviarPresentes) {
+      const problemas: string[] = []
+      try {
+        for (const { sku } of chegada.skus) {
+          const conferencia = conferirSku(sku, await pesquisarProdutos(CONTA_PADRAO, sku))
+          if (!conferencia.ok) problemas.push(conferencia.erro)
+        }
+      } catch {
+        return { ok: false, erro: 'O Tiny não respondeu para conferir o SKU. Tente de novo.' }
+      }
+      if (problemas.length) return { ok: false, erro: problemas.join(' ') }
+    }
+
+    // Guardado antes da mudança de status: se ela falhar, o SKU conferido fica
+    // e a próxima tentativa não pede de novo.
+    for (const { itemId, sku, externo } of chegada.skus) {
+      if (externo)
+        await db.solicitacaoItem.update({ where: { id: itemId }, data: { skuTiny: sku } })
     }
 
     await gravarMudancaDeStatus(usuario.id, solicitacao, StatusSolicitacao.organizando_envio)

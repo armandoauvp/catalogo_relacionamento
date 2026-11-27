@@ -432,7 +432,9 @@ export default async function ExpedicaoPage({
                         ? 'Comprado hoje'
                         : `Comprado há ${dias} ${dias === 1 ? 'dia' : 'dias'}`}
                     </span>
-                    {recebeItem ? <Chegou solicitacaoId={p.id} codigo={p.codigo} /> : null}
+                    {recebeItem ? (
+                      <Chegou solicitacaoId={p.id} codigo={p.codigo} itens={p.itens} />
+                    ) : null}
                   </div>
                 </div>
               )

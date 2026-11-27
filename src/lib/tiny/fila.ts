@@ -110,7 +110,8 @@ async function pedidoDoPresente(banco: Banco, solicitacaoId: string) {
   ])
 
   const itens = s.itens.map((i) => ({
-    codigo: i.produto?.skuTiny ?? null,
+    // O item de fora do catálogo leva o SKU cadastrado no Tiny no "Chegou".
+    codigo: i.produto?.skuTiny ?? i.skuTiny ?? null,
     descricao: i.produto?.nome ?? i.descricaoLivre ?? 'Presente',
     quantidade: i.quantidade,
     valorUnitario: i.valorUnitario.toFixed(2),

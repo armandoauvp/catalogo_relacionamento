@@ -126,6 +126,52 @@ export function diasDesde(data: Date, agora: Date = new Date()): number {
   return Math.max(0, Math.floor((agora.getTime() - data.getTime()) / 86_400_000))
 }
 
+/** Um item do pedido que está chegando, como o "Chegou" o confere. */
+export type ItemNaChegada = {
+  id: string
+  produto: string
+  quantidade: number
+  /** Fora do catálogo: a Logística cadastra no Tiny e informa o SKU. */
+  externo: boolean
+  /** O do catálogo, ou o já informado numa chegada anterior que não andou. */
+  sku: string | null
+}
+
+/**
+ * O SKU de cada item na chegada, como a Lobby fazia: só existe para a
+ * Logística o que chegou, foi conferido e está cadastrado no Tiny (Armando,
+ * 27/11/2026). O item de fora do catálogo leva o SKU que a Logística informa;
+ * o do catálogo, o do cadastro. Faltando algum, a chegada não anda.
+ */
+export function skusDaChegada(
+  itens: readonly Pick<ItemNaChegada, 'id' | 'produto' | 'externo' | 'sku'>[],
+  informados: Readonly<Record<string, string | undefined>>,
+):
+  | { ok: true; skus: { itemId: string; sku: string; externo: boolean }[] }
+  | { ok: false; erro: string } {
+  const semSkuNoCatalogo: string[] = []
+  const semSkuInformado: string[] = []
+  const skus: { itemId: string; sku: string; externo: boolean }[] = []
+  for (const item of itens) {
+    const sku = (item.externo ? (informados[item.id] ?? item.sku) : item.sku)?.trim()
+    if (sku) skus.push({ itemId: item.id, sku, externo: item.externo })
+    else (item.externo ? semSkuInformado : semSkuNoCatalogo).push(item.produto)
+  }
+  if (semSkuInformado.length) {
+    return {
+      ok: false,
+      erro: `Cadastre no Tiny e informe o SKU de: ${semSkuInformado.join(', ')}.`,
+    }
+  }
+  if (semSkuNoCatalogo.length) {
+    return {
+      ok: false,
+      erro: `Sem SKU no catálogo: ${semSkuNoCatalogo.join(', ')}. Preencha em Administração → Produtos.`,
+    }
+  }
+  return { ok: true, skus }
+}
+
 export type PedidoACaminho = {
   id: string
   codigo: string
@@ -133,7 +179,7 @@ export type PedidoACaminho = {
   destinatario: string
   cidade: string
   uf: string
-  itens: { produto: string; quantidade: number }[]
+  itens: ItemNaChegada[]
   /** Quando o Financeiro marcou como comprado: a base do "comprado há N dias". */
   compradoEm: Date
   teste: boolean
@@ -154,9 +200,12 @@ export async function pedidosACaminho(): Promise<PedidoACaminho[]> {
       consultor: { select: { nome: true } },
       itens: {
         select: {
+          id: true,
           quantidade: true,
           descricaoLivre: true,
-          produto: { select: { nome: true } },
+          produtoId: true,
+          skuTiny: true,
+          produto: { select: { nome: true, skuTiny: true } },
         },
       },
       historico: {
@@ -176,8 +225,11 @@ export async function pedidosACaminho(): Promise<PedidoACaminho[]> {
       cidade: s.entregaCidade,
       uf: s.entregaUf,
       itens: s.itens.map((i) => ({
+        id: i.id,
         produto: i.produto?.nome ?? i.descricaoLivre ?? '-',
         quantidade: i.quantidade,
+        externo: !i.produtoId,
+        sku: i.produto?.skuTiny?.trim() || i.skuTiny?.trim() || null,
       })),
       compradoEm: s.historico[0]?.criadoEm ?? s.dataSolicitacao,
       teste: s.teste,

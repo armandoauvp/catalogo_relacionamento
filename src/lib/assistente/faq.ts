@@ -394,7 +394,7 @@ export const FAQ: ItemDaFaq[] = [
     id: 'confirmar-chegada',
     pergunta: 'O item comprado chegou. O que faço?',
     resposta:
-      'Na Expedição, no fim da tela, fica o que está "a caminho": o que o Financeiro comprou e ainda não chegou. Com o item na mão, clique em "Chegou". O pedido passa a "Pronto para processar", com o selo "Novo", e vira pedido no Tiny. O número no item "Expedição" do menu mostra quantos estão prontos.',
+      'Na Expedição, no fim da tela, fica o que está "a caminho": o que o Financeiro comprou e ainda não chegou. Com o item na mão e conferido, clique em "Chegou". Item de fora do catálogo precisa estar cadastrado no Tiny: o "Chegou" pede o SKU de lá e confere antes de aceitar, assim como confere o SKU dos itens do catálogo. O pedido passa a "Pronto para processar", com o selo "Novo", e vira pedido no Tiny. O número no item "Expedição" do menu mostra quantos estão prontos.',
     href: '/expedicao#a-caminho',
     rotuloDoLink: 'Ver o que está a caminho',
     exige: 'expedicao.receberItem',

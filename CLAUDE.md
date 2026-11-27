@@ -315,7 +315,11 @@ o Dashboard Logístico em `/logistica`, que todos os perfis leem, e o perfil
   em `src/lib/tiny/leitura.ts`, que traduz a situação em texto para o código.
 - **Sem SKU não vai ao Tiny.** O SKU é obrigatório no cadastro de produto, e
   presente com produto sem SKU fica em Falhou com o aviso, em vez de ir pela
-  descrição. Só o presente específico, fora do catálogo, vai sem SKU.
+  descrição. O presente específico comprado ganha SKU no "Chegou": a Logística
+  o cadastra no Tiny e informa o código, conferido lá antes de aceitar
+  (`skusDaChegada`, `SolicitacaoItem.skuTiny`). Só existe para a Logística o
+  que chegou e está cadastrado no Tiny. O específico `doEstoque` ainda vai pela
+  descrição.
 - **O pedido no Tiny só anda para a frente:** Em aberto → Preparando envio
   (fechar expedição) → Pronto para envio (concluir), por `passoPermitido`. A
   exceção é o cancelamento: solicitação cancelada aqui cancela o pedido lá

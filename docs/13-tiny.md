@@ -82,7 +82,13 @@ contato guarda a conta (`conta`, enum `ContaTiny`).
    que o Tiny não vende (regra em `src/lib/tiny/skus.ts`).
    Presente com produto sem SKU **não vai**: fica em Falhou com o aviso de
    quais produtos faltam, e o Reenviar o leva depois de preenchido. O presente
-   específico, comprado fora do catálogo, não tem SKU e vai pela descrição.
+   específico, comprado fora do catálogo, entra no Tiny pelo "Chegou" da
+   Expedição: a Logística confere o pacote, cadastra o produto no Tiny e
+   informa o SKU, que a plataforma confere lá antes de aceitar e guarda no
+   item (`SolicitacaoItem.skuTiny`, regra em `skusDaChegada`). É a entrada no
+   estoque que a Lobby fazia por e-mail (27/11/2026). Só o específico que sai
+   do estoque da casa (`doEstoque`), que não passa pelo "Chegou", ainda vai
+   pela descrição.
 4. **Padrão dos presentes.** Na tela `/tiny`, em "Presentes aprovados":
    transportadora (da lista do Tiny, com o nome como está cadastrado lá),
    serviço e marcador. Vazios usam o padrão da conta no Tiny.
