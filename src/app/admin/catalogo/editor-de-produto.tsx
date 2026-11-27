@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ProdutoImagem } from '@/components/produto-imagem'
 import { salvarProduto, alternarProduto } from '@/lib/actions/catalogo'
 import { prepararFoto } from '@/lib/arquivos-no-navegador'
-import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
+import { bebidaSemRotulo } from '@/lib/acompanhamentos'
 
 /**
  * Cadastro e edição de produto.
@@ -360,10 +360,11 @@ export function EditorDeProduto({
                 <p className="text-muted-foreground text-xs">
                   Marque nas garrafas. É o que satisfaz o kit acima. Deixe vazio no resto.
                 </p>
-                {pareceVinhoSemRotulo(paraOAviso) ? (
+                {bebidaSemRotulo(paraOAviso) ? (
                   <p className="bg-warning/10 border-warning/30 rounded-md border px-2 py-1 text-xs">
-                    Este vinho está sem “vinho” aqui: o kit que pede vinho não vai reconhecê-lo, e a
-                    solicitação trava.
+                    Esta {bebidaSemRotulo(paraOAviso) === 'vinho' ? 'garrafa' : 'cerveja'} está sem
+                    “{bebidaSemRotulo(paraOAviso)}” aqui: o kit que pede{' '}
+                    {bebidaSemRotulo(paraOAviso)} não vai reconhecê-la, e a solicitação trava.
                   </p>
                 ) : null}
               </div>

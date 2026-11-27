@@ -79,15 +79,22 @@ export function mensagemDePendencia(pendencias: readonly Pendencia[]): string | 
 }
 
 /**
- * Garrafa cadastrada pela tela sem dizer que serve como vinho: o kit não a
- * reconhece e a solicitação trava (SOL-2026-0029, 26/11/2026). O nome é só
- * um palpite para avisar quem cadastra; a regra continua sendo o rótulo.
+ * Garrafa cadastrada pela tela sem dizer que serve como bebida: o kit não a
+ * reconhece e a solicitação trava (SOL-2026-0029, 26/11/2026). Os kits de
+ * cerveja passaram a funcionar como os de vinho em 27/11/2026, então a
+ * cerveja entra no mesmo aviso. O nome é só um palpite para avisar quem
+ * cadastra; a regra continua sendo o rótulo.
+ *
+ * Devolve o rótulo que falta, ou nulo.
  */
-export function pareceVinhoSemRotulo(p: {
+export function bebidaSemRotulo(p: {
   nome: string
   exigeAcompanhamento: string | null
   serveComoAcompanhamento: string | null
-}): boolean {
-  if (p.exigeAcompanhamento?.trim() || p.serveComoAcompanhamento?.trim()) return false
-  return /^vinhos?\b/i.test(p.nome.trim())
+}): 'vinho' | 'cerveja' | null {
+  if (p.exigeAcompanhamento?.trim() || p.serveComoAcompanhamento?.trim()) return null
+  const nome = p.nome.trim()
+  if (/^vinhos?\b/i.test(nome)) return 'vinho'
+  if (/^cervejas?\b/i.test(nome)) return 'cerveja'
+  return null
 }

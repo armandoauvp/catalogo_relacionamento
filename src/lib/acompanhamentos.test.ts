@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  acompanhamentosFaltando,
-  mensagemDePendencia,
-  pareceVinhoSemRotulo,
-} from './acompanhamentos'
+import { acompanhamentosFaltando, mensagemDePendencia, bebidaSemRotulo } from './acompanhamentos'
 
 const kit = {
   produtoId: 'k1',
@@ -90,7 +86,7 @@ describe('acompanhamentos', () => {
   })
 })
 
-describe('pareceVinhoSemRotulo', () => {
+describe('bebidaSemRotulo', () => {
   const p = (nome: string, exige: string | null = null, serve: string | null = null) => ({
     nome,
     exigeAcompanhamento: exige,
@@ -98,14 +94,21 @@ describe('pareceVinhoSemRotulo', () => {
   })
 
   it('avisa da garrafa cadastrada sem "serve como"', () => {
-    expect(pareceVinhoSemRotulo(p('Vinho Freixenet Chianti D.O.C.G.'))).toBe(true)
-    expect(pareceVinhoSemRotulo(p('  vinho tinto'))).toBe(true)
+    expect(bebidaSemRotulo(p('Vinho Freixenet Chianti D.O.C.G.'))).toBe('vinho')
+    expect(bebidaSemRotulo(p('  vinho tinto'))).toBe('vinho')
+  })
+
+  it('a cerveja também, desde que os kits de cerveja pedem a bebida', () => {
+    expect(bebidaSemRotulo(p('Cerveja Colombina IPA'))).toBe('cerveja')
+    expect(bebidaSemRotulo(p('Cerveja Colombina IPA', null, 'cerveja'))).toBe(null)
+    expect(bebidaSemRotulo(p('Caneca de Chopp AUVP + Cerveja Colombina'))).toBe(null)
+    expect(bebidaSemRotulo(p('Kit Abridor - Escolha a cerveja', 'cerveja'))).toBe(null)
   })
 
   it('não avisa de quem já tem rótulo, nem do kit que pede o vinho', () => {
-    expect(pareceVinhoSemRotulo(p('Vinho Alma Negra', null, 'vinho'))).toBe(false)
-    expect(pareceVinhoSemRotulo(p('Kit Queijos com Vinho - Escolha o vinho', 'vinho'))).toBe(false)
-    expect(pareceVinhoSemRotulo(p('Kit Queijos com Vinho'))).toBe(false)
-    expect(pareceVinhoSemRotulo(p('Vinhoteca de madeira'))).toBe(false)
+    expect(bebidaSemRotulo(p('Vinho Alma Negra', null, 'vinho'))).toBe(null)
+    expect(bebidaSemRotulo(p('Kit Queijos com Vinho - Escolha o vinho', 'vinho'))).toBe(null)
+    expect(bebidaSemRotulo(p('Kit Queijos com Vinho'))).toBe(null)
+    expect(bebidaSemRotulo(p('Vinhoteca de madeira'))).toBe(null)
   })
 })

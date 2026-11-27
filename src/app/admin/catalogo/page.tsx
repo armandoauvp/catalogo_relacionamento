@@ -32,7 +32,7 @@ import { CabecalhoDaPagina, EstadoVazio } from '@/components/pagina'
 import { EditorDeProduto, BotaoAtivar } from './editor-de-produto'
 import { EditorDeCategorias } from './editor-de-categorias'
 import { ConferirTodos, NoFornecedor } from './no-fornecedor'
-import { pareceVinhoSemRotulo } from '@/lib/acompanhamentos'
+import { bebidaSemRotulo } from '@/lib/acompanhamentos'
 
 /**
  * CRUD do catálogo: operado pela própria área de Relacionamento.
@@ -217,12 +217,12 @@ export default async function AdminCatalogoPage({
                       {/* Nome e SKU empilhados: a etiqueta inline colava no nome. */}
                       <div className="flex flex-col items-start gap-1.5">
                         <span className="font-medium">{p.nome}</span>
-                        {pareceVinhoSemRotulo(p) ? (
+                        {bebidaSemRotulo(p) ? (
                           <Badge
                             variant="warning"
-                            title="Edite e escreva “vinho” em Serve como: sem isso o kit que pede vinho não o reconhece."
+                            title={`Edite e escreva “${bebidaSemRotulo(p)}” em Serve como: sem isso o kit que pede ${bebidaSemRotulo(p)} não a reconhece.`}
                           >
-                            não conta como vinho
+                            não conta como {bebidaSemRotulo(p)}
                           </Badge>
                         ) : null}
                         {temSku(p) ? (
